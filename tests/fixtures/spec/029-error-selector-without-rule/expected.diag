@@ -1,0 +1,2 @@
+# severity code file:line:column "message substring"
+error E0110 main.weave:1:1 "rule"

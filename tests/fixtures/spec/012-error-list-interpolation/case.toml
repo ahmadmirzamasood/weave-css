@@ -1,0 +1,5 @@
+description = "Lists never serialize implicitly; interpolating one directly requires css.space or css.comma. Reported at `#{`."
+spec = ["LANGUAGE.md 7.1", "TYPES.md 6"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "error"

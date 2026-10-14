@@ -1,0 +1,35 @@
+.card {
+  padding: 1rem;
+}
+
+.card:hover {
+  color: blue;
+}
+
+.card .title {
+  margin: 0;
+}
+
+.card > .icon {
+  width: 1em;
+}
+
+.card + .card {
+  margin-top: 0;
+}
+
+:not(.card) {
+  opacity: 0.5;
+}
+
+.theme-dark .card {
+  color: white;
+}
+
+.card.active, .card[aria-current="page"] {
+  font-weight: 700;
+}
+
+.card {
+  border: 0;
+}

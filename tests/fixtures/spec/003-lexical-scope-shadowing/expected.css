@@ -1,0 +1,19 @@
+.outer {
+  width: 20px;
+}
+
+.outer .inner {
+  width: 30px;
+}
+
+.outer {
+  height: 20px;
+}
+
+.after {
+  width: 10px;
+}
+
+.loop {
+  width: 1px;
+}

@@ -1,0 +1,47 @@
+.panel {
+  display: block;
+}
+
+@media (width >= 48em) {
+  .panel {
+    display: grid;
+  }
+  .panel .title {
+    font-size: 2rem;
+  }
+}
+
+@supports (container-type: inline-size) {
+  .panel {
+    container-type: inline-size;
+  }
+}
+
+@container (min-width: 30em) {
+  .panel .body {
+    columns: 2;
+  }
+}
+
+@layer components {
+  .panel {
+    border: 1px solid;
+  }
+}
+
+@media print {
+  @media (orientation: landscape) {
+    .panel {
+      width: 100%;
+    }
+  }
+}
+
+@starting-style {
+  .panel {
+    opacity: 0;
+  }
+}
+
+@layer reset {
+}

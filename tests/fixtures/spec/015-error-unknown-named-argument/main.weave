@@ -1,0 +1,4 @@
+fn space(factor: number) -> number {
+    yield factor * 4px;
+}
+rule .a { margin: #{space(2, scale: 3)}; }

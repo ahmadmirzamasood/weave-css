@@ -10,3 +10,20 @@ CLAUDE.local.md
 *.profdata
 /fuzz/artifacts/
 /fuzz/target/
+
+# Planning and agent workflow files are kept locally, not in the public repo.
+/CLAUDE.md
+/MEMORY.md
+/PRD.md
+/DEV-PLAN.md
+/START-HERE.md
+/RELEASE.md
+/instructions/
+/prompts/
+/docs/ARCHITECTURE.md
+/docs/GITHUB-SETUP.md
+/docs/PERFORMANCE.md
+/docs/SOURCES.md
+/docs/TESTING.md
+/docs/decisions/
+/docs/reports/

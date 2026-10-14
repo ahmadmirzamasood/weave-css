@@ -1,0 +1,5 @@
+description = "Multi-module build: namespaced bindings, functions and recipes; a diamond (main -> a -> c, main -> b -> c, main -> c) evaluates and emits c once; emission order c, a, b, main; recipe hygiene across modules; aliases differ per importer."
+spec = ["LANGUAGE.md 14", "CSS-COMPATIBILITY.md 5"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "css"

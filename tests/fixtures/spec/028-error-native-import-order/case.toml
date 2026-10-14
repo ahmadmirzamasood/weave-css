@@ -1,0 +1,5 @@
+description = "Native @import is never reordered: after module concatenation it would follow a dependency's style rule, so the build fails at the @import."
+spec = ["LANGUAGE.md 14", "CSS-COMPATIBILITY.md 5.2"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "error"

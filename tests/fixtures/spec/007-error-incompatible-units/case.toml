@@ -1,0 +1,5 @@
+description = "Adding an absolute length and a relative length is rejected; the diagnostic points at the operator."
+spec = ["TYPES.md 2.4"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "error"

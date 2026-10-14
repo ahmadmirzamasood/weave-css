@@ -1,0 +1,5 @@
+description = "Declaration-list at-rules (@font-face, @property, @counter-style), keyframe lists with native selectors and `each`-generated percentage steps, identifier prelude via css.ident, @page with a margin at-rule, non-ASCII string preserved."
+spec = ["CSS-COMPATIBILITY.md 2", "CSS-COMPATIBILITY.md 3"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "css"

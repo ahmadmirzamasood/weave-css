@@ -1,26 +1,20 @@
-# Weave — Rust CSS language development kit
+# Weave
 
-Status: planning package, not an implemented compiler. Weave and `.weave` are working names; naming clearance and package availability are not established. Repository: https://github.com/ahmadmirzamasood/weave-css (public).
+Weave is an independently designed stylesheet language that compiles `.weave` files to standard CSS. The compiler and CLI are written in Rust, with no JavaScript, C or C++ runtime. Weave is not compatible with Sass, Less or other preprocessors.
 
-Build an independently designed, fast CSS preprocessor entirely in Rust. Emit standard CSS without a JavaScript, C, or C++ runtime. Existing Rust crates are allowed after review; do not wrap an existing preprocessor or reproduce its syntax/compatibility contract.
+Status: the v0.1 language specification is complete; **the compiler is not implemented yet**. No build, benchmark or correctness result is claimed. Weave and `.weave` are working names.
 
-## Start with Claude Code
+## Language
 
-1. Extract this directory and open Claude Code from its root.
-2. Read [START-HERE.md](START-HERE.md).
-3. Execute [phase 00](prompts/phase-00-github.md) (complete: published to https://github.com/ahmadmirzamasood/weave-css).
-4. Execute phases 01–11 in order. Each prompt is a complete task, with prerequisites and acceptance gates. Use a fresh session per phase if helpful.
-5. Keep implementation, fixtures, examples, decisions, benchmark reports, and these documents in that repository.
+- [Language specification](docs/LANGUAGE.md)
+- [Grammar](docs/grammar.ebnf)
+- [Types, numbers and built-ins](docs/TYPES.md)
+- [CSS compatibility](docs/CSS-COMPATIBILITY.md)
+- [Specification fixtures](tests/fixtures/spec/README.md)
 
-## Documents
+## Project
 
-- [Agent instructions](instructions/AGENT.md), loaded by [CLAUDE.md](CLAUDE.md)
-- [Project memory](MEMORY.md): actual status and handoff, not an automatic Claude memory file
-- [Product requirements](PRD.md)
-- [Development plan](DEV-PLAN.md)
-- [Language design](docs/LANGUAGE.md) and [architecture](docs/ARCHITECTURE.md)
-- [Testing](docs/TESTING.md) and [performance](docs/PERFORMANCE.md)
-- [Security](SECURITY.md), [release](RELEASE.md), [contribution guide](CONTRIBUTING.md)
-- [MIT license](LICENSE), [changelog](CHANGELOG.md), [sources](docs/SOURCES.md)
-
-The public repository was created in phase 00. No build, benchmark, or compiler correctness result is claimed. All compiler commands below become available only when their corresponding phase is implemented.
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
+- [Changelog](CHANGELOG.md)
+- [MIT license](LICENSE)

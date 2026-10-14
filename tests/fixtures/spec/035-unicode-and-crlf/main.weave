@@ -1,0 +1,8 @@
+bind ünits = "→ café";
+rule .naïve-#{"日本"} {
+    content: #{ünits};
+    --emoji: "😀";
+    grid-template-areas:
+        "a b"
+        "c d";
+}

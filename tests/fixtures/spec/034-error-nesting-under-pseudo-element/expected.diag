@@ -1,0 +1,2 @@
+# severity code file:line:column "message substring"
+error E6004 main.weave:3:5 "pseudo-element"

@@ -1,0 +1,42 @@
+@font-face {
+  font-family: "Brand Sans";
+  src: url("/fonts/brand.woff2") format("woff2");
+  font-display: swap;
+}
+
+@property --angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  75% {
+    opacity: 0.75;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@page :first {
+  margin: 2cm;
+  @top-center {
+    content: "Report";
+  }
+}
+
+@counter-style thumbs {
+  system: cyclic;
+  symbols: "👍";
+  suffix: " ";
+}

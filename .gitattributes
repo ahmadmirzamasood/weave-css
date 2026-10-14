@@ -1,0 +1,4 @@
+# Fixtures are compared byte-for-byte; keep LF regardless of core.autocrlf.
+tests/fixtures/** text eol=lf
+# This fixture deliberately contains CRLF line endings.
+tests/fixtures/spec/035-unicode-and-crlf/main.weave -text

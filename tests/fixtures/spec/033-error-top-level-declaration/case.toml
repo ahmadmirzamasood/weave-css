@@ -1,0 +1,5 @@
+description = "Declarations are not allowed at stylesheet level."
+spec = ["CSS-COMPATIBILITY.md 2"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "error"

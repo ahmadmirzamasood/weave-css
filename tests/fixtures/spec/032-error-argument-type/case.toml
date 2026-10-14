@@ -1,0 +1,5 @@
+description = "Parameter type annotations are checked at the call: a unitless number is not a length."
+spec = ["LANGUAGE.md 8", "TYPES.md 8"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "error"

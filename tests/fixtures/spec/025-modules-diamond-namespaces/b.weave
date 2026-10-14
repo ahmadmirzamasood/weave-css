@@ -1,0 +1,3 @@
+load "./c.weave" as tokens;
+
+rule .b { padding: #{tokens.radius}; }

@@ -1,0 +1,5 @@
+description = "A bare identifier in a CSS value is literal, but the same identifier inside interpolation must resolve to a binding."
+spec = ["LANGUAGE.md 1", "LANGUAGE.md 4.2"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "error"

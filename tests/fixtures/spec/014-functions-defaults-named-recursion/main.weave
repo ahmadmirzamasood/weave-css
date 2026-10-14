@@ -1,0 +1,29 @@
+bind base = 4px;
+
+fn space(factor: number, unit: length = base) -> length {
+    when factor < 0 { fail "factor must not be negative"; }
+    yield unit * factor;
+}
+
+fn fib(n: unitless) -> unitless {
+    when n < 2 { yield n; }
+    yield fib(n - 1) + fib(n - 2);
+}
+
+fn ratio(width: number, height: number = width) -> number {
+    yield width / height;
+}
+
+rule .f {
+    margin: #{space(2)};
+    padding: #{space(1, unit: 1rem)};
+    gap: #{space(unit: 2px, factor: 3)};
+    --fib: #{fib(10)};
+    --ratio: #{ratio(16, 9)};
+    --square: #{ratio(width: 5)};
+    --even: #{is-even(4)};
+}
+
+fn is-even(n: unitless) -> bool {
+    yield n % 2 == 0;
+}

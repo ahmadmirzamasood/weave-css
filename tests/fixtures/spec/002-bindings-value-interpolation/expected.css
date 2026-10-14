@@ -1,0 +1,11 @@
+.card {
+  color: primary;
+  gap: 8px;
+  border-color: #2563eb;
+  font-family: "Inter Variable", sans-serif;
+  display: grid;
+  opacity: 0.5;
+  --flag: true;
+  width: calc(100% - 16px);
+  margin: -8px 2px;
+}

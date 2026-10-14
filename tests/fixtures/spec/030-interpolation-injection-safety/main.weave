@@ -1,0 +1,10 @@
+bind evil = "red; } body { display: none";
+bind evil-name = "x: y; z";
+
+rule .safe {
+    color: #{evil};
+    content: "#{evil}";
+    --prop-#{evil-name}: 1;
+}
+
+rule .sel-#{evil} { color: blue; }

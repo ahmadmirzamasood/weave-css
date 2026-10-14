@@ -1,0 +1,8 @@
+load "./a.weave" as a;
+load "./b.weave" as b;
+load "./c.weave" as tokens;
+
+rule .main {
+    apply a.rounded(scale: 3);
+    margin: #{tokens.double(1px)};
+}

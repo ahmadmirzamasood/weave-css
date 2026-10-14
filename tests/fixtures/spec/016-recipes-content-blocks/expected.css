@@ -1,0 +1,15 @@
+.button {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  outline: 3px solid #e11d48;
+}
+
+.button:focus-visible {
+  outline-offset: 3px;
+  color: #16a34a;
+}
+
+.button {
+  cursor: pointer;
+}

@@ -1,0 +1,17 @@
+@future-rule something(#{not-evaluated}) {
+    weird: syntax { nested; };
+}
+
+.legacy { *zoom: 1; _height: 1px; }
+.tpl::after { content: "#{raw}"; }
+
+.host {
+  color: red;
+  @nest-future & { color: blue; }
+  @unknown-inner x { y: z; }
+}
+
+.vars {
+  --json: {"a": [1, 2], "b": "}"};
+  --tpl: #{handlebars};
+}

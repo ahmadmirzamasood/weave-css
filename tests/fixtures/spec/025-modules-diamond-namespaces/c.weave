@@ -1,0 +1,4 @@
+export bind radius = 4px;
+export fn double(x: number) -> number { yield x * 2; }
+bind private-note = "hidden";
+rule .c-base { border-radius: #{radius}; }

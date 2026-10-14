@@ -1,0 +1,3 @@
+load "./dep.weave" as dep;
+@import url("theme.css");
+rule .main { color: blue; }

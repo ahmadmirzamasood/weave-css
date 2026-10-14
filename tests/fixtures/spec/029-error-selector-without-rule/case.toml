@@ -1,0 +1,5 @@
+description = "Qualified rules must be introduced by `rule`; a raw selector block is rejected with a hint instead of being guessed."
+spec = ["LANGUAGE.md 3.1"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "error"

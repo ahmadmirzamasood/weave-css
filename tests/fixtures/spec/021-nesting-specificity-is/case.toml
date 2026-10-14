@@ -1,0 +1,5 @@
+description = "Specificity-preserving lowering: multi-selector parents use :is() (expansion would give `.side .item` specificity (0,2,0) instead of native (1,1,0)); complex parent in a non-leading position uses :is() to keep matching; splice-safe cases substitute directly. Expected specificities: `:is(#main, .side) .item` (1,1,0); `.a .b.on` (0,3,0); `.x :is(.a .b)` (0,3,0); `a:is(span.x)` (0,1,2); `:where(.btn)` (0,0,0). The implementation must confirm these with computed-style tests."
+spec = ["CSS-COMPATIBILITY.md 4"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "css"

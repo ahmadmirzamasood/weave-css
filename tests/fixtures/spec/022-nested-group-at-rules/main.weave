@@ -1,0 +1,29 @@
+rule .panel {
+    display: block;
+    @media (width >= 48em) {
+        display: grid;
+        rule .title { font-size: 2rem; }
+    }
+    @supports (container-type: inline-size) {
+        container-type: inline-size;
+    }
+    @container (min-width: 30em) {
+        rule .body { columns: 2; }
+    }
+    @layer components {
+        border: 1px solid;
+    }
+    @media print {
+        @media (orientation: landscape) {
+            width: 100%;
+        }
+    }
+    @starting-style {
+        opacity: 0;
+    }
+    @media screen {
+    }
+}
+
+@layer reset {
+}

@@ -1,0 +1,2 @@
+bind sizes = [4px, 8px];
+rule .a { padding: #{sizes}; }

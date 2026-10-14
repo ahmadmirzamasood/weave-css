@@ -1,0 +1,4 @@
+bind count = 3;
+when count {
+    rule .a { color: red; }
+}

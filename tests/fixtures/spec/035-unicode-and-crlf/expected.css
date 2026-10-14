@@ -1,0 +1,6 @@
+.naïve-日本 {
+  content: "→ café";
+  --emoji: "😀";
+  grid-template-areas: "a b"
+        "c d";
+}

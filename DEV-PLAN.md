@@ -19,7 +19,7 @@ Execute phases in order; implementation and publication status are distinct. No 
 
 ## Progress
 
-- [ ] 00: Public GitHub bootstrap
+- [x] 00: Public GitHub bootstrap
 - [ ] 01: Freeze the language contract
 - [ ] 02: Create the Rust workspace and CI
 - [ ] 03: Implement tokenizer, parser and plain CSS emission

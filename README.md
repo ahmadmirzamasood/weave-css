@@ -1,6 +1,6 @@
 # Weave — Rust CSS language development kit
 
-Status: planning package, not an implemented compiler. Weave and `.weave` are working names; naming clearance and package availability are not established. Proposed repository: `weave-css`.
+Status: planning package, not an implemented compiler. Weave and `.weave` are working names; naming clearance and package availability are not established. Repository: https://github.com/ahmadmirzamasood/weave-css (public).
 
 Build an independently designed, fast CSS preprocessor entirely in Rust. Emit standard CSS without a JavaScript, C, or C++ runtime. Existing Rust crates are allowed after review; do not wrap an existing preprocessor or reproduce its syntax/compatibility contract.
 
@@ -8,7 +8,7 @@ Build an independently designed, fast CSS preprocessor entirely in Rust. Emit st
 
 1. Extract this directory and open Claude Code from its root.
 2. Read [START-HERE.md](START-HERE.md).
-3. Execute [phase 00](prompts/phase-00-github.md) to publish this package to a new public GitHub repository.
+3. Execute [phase 00](prompts/phase-00-github.md) (complete: published to https://github.com/ahmadmirzamasood/weave-css).
 4. Execute phases 01–11 in order. Each prompt is a complete task, with prerequisites and acceptance gates. Use a fresh session per phase if helpful.
 5. Keep implementation, fixtures, examples, decisions, benchmark reports, and these documents in that repository.
 
@@ -23,4 +23,4 @@ Build an independently designed, fast CSS preprocessor entirely in Rust. Emit st
 - [Security](SECURITY.md), [release](RELEASE.md), [contribution guide](CONTRIBUTING.md)
 - [MIT license](LICENSE), [changelog](CHANGELOG.md), [sources](docs/SOURCES.md)
 
-No repository has been created by this package. No build, benchmark, or compiler correctness result is claimed. All compiler commands below become available only when their corresponding phase is implemented.
+The public repository was created in phase 00. No build, benchmark, or compiler correctness result is claimed. All compiler commands below become available only when their corresponding phase is implemented.

@@ -1,6 +1,6 @@
 # Publish the project to GitHub
 
-Status: pending. The planning environment could write files but had neither a repository-creation connector nor GitHub CLI. Repository creation is already requested by the user; this is an execution prerequisite, not a new permission requirement.
+Status: complete (2026-10-15) — https://github.com/ahmadmirzamasood/weave-css. Historical note: The planning environment could write files but had neither a repository-creation connector nor GitHub CLI. Repository creation is already requested by the user; this is an execution prerequisite, not a new permission requirement.
 
 ## Commands for an authenticated local environment
 

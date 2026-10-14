@@ -1,6 +1,6 @@
 # Weave v0.1 types, numbers and serialization
 
-Status: normative companion to [LANGUAGE.md](LANGUAGE.md). Rationale: [ADR 0003](decisions/0003-numeric-model.md), [ADR 0004](decisions/0004-value-types-and-fragments.md), [ADR 0005](decisions/0005-interpolation-contexts.md).
+Status: normative companion to [LANGUAGE.md](LANGUAGE.md).
 
 ## 1. Types
 
@@ -164,7 +164,7 @@ Parameter and return annotations: `any`, `number`, `unitless`, `length` (absolut
 
 ## 9. Core built-ins
 
-All built-ins are deterministic and follow the call rules of LANGUAGE §5.4. Parameter names below are the names usable as named arguments. Phase 05 writes the full reference in `docs/BUILTINS.md`; additions or changes need an ADR.
+All built-ins are deterministic and follow the call rules of LANGUAGE §5.4. Parameter names below are the names usable as named arguments. The full reference will be published as `docs/BUILTINS.md`; additions or changes are specification changes.
 
 | Built-in | Result | Notes |
 |---|---|---|

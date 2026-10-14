@@ -1,6 +1,6 @@
 # Weave v0.1 specification fixtures
 
-Status: **specification fixtures, pending a compiler runner.** No compiler exists yet; none of these fixtures has been executed. Expected outputs were derived by hand from [LANGUAGE.md](../../../docs/LANGUAGE.md), [TYPES.md](../../../docs/TYPES.md) and [CSS-COMPATIBILITY.md](../../../docs/CSS-COMPATIBILITY.md) and reviewed as documents in phase 01. When a runner disagrees with a fixture, decide whether the fixture or the specification is wrong; do not silently update expectations.
+Status: **specification fixtures, pending a compiler runner.** No compiler exists yet; none of these fixtures has been executed. Expected outputs were derived by hand from [LANGUAGE.md](../../../docs/LANGUAGE.md), [TYPES.md](../../../docs/TYPES.md) and [CSS-COMPATIBILITY.md](../../../docs/CSS-COMPATIBILITY.md) and reviewed as documents. When a runner disagrees with a fixture, decide whether the fixture or the specification is wrong; do not silently update expectations.
 
 ## Layout
 
@@ -13,7 +13,7 @@ Each directory is one case:
 
 Position conventions: binary-operator errors point at the operator; name errors at the name; argument errors at the argument (name for named arguments); built-in failures at the callee; interpolation type errors at `#{`; statement-level errors at the statement keyword or first token of the item.
 
-Semantic checks: fixture 021 lists expected specificities; phase 06 must verify them with computed-style tests, not only by comparing text.
+Semantic checks: fixture 021 lists expected specificities; the nesting implementation must verify them with computed-style tests, not only by comparing text.
 
 `035-unicode-and-crlf/main.weave` intentionally uses CRLF line endings; `.gitattributes` keeps it byte-exact.
 

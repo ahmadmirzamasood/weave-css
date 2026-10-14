@@ -21,4 +21,4 @@ Untrusted stylesheet/module input can attack the compiler, filesystem resolver, 
 
 ## Verification
 
-Phase 10 must cover traversal, symlinks, recursion/expansion bombs, malformed Unicode input boundaries, terminal escape injection, output collisions, dependency review, and fuzz regressions. Record test evidence and unresolved findings in docs/reports/security-review.md. Do not equate safe Rust with complete security.
+Before a release, verification must cover traversal, symlinks, recursion/expansion bombs, malformed Unicode input boundaries, terminal escape injection, output collisions, dependency review, and fuzz regressions. Record test evidence and unresolved findings with the release. Do not equate safe Rust with complete security.

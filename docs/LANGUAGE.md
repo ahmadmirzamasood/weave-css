@@ -1,11 +1,10 @@
 # Weave language specification v0.1
 
-Status: **normative v0.1 specification (phase 01)**. No compiler implements it yet. Companion documents are normative for their subjects:
+Status: **normative v0.1 specification**. No compiler implements it yet. Companion documents are normative for their subjects:
 
 - [grammar.ebnf](grammar.ebnf): syntax.
 - [TYPES.md](TYPES.md): values, numeric model, units, coercions, serialization, core built-ins.
 - [CSS-COMPATIBILITY.md](CSS-COMPATIBILITY.md): CSS contexts, at-rule matrix, nesting lowering, output ordering.
-- [decisions/](decisions/): rationale (ADRs 0002–0008).
 - [tests/fixtures/spec/](../tests/fixtures/spec/): specification fixtures, pending a compiler runner.
 
 The words MUST, MUST NOT, SHOULD and MAY are normative. Where this document and a companion disagree, the companion owning the subject wins and the conflict is a specification bug.
@@ -336,11 +335,11 @@ Initial defaults (configurable; overrides never disable all limits implicitly): 
 
 ## 18. Core built-ins
 
-The prelude provides `range` and the namespaces `css`, `math`, `list`, `map`, `string`, `color`, `meta`. The v0.1 core set and its semantics are listed in [TYPES.md §9](TYPES.md#9-core-built-ins). Phase 05 documents them in `docs/BUILTINS.md` and may add functions only through an ADR. Built-ins are deterministic and perform no I/O.
+The prelude provides `range` and the namespaces `css`, `math`, `list`, `map`, `string`, `color`, `meta`. The v0.1 core set and its semantics are listed in [TYPES.md §9](TYPES.md#9-core-built-ins). A complete built-in reference will be published as `docs/BUILTINS.md`; adding or changing built-ins is a specification change. Built-ins are deterministic and perform no I/O.
 
 ## 19. Not in v0.1
 
-Selector inheritance/extend, placeholder selectors, mutation, `null`, first-class functions, variadic parameters, overloading, local `fn`/`recipe` definitions, re-exports, wildcard or unqualified imports, network or package imports, transcendental math, colors other than 8-bit sRGB hex, `@scope` nested inside rules, plugins, minified output, source-map embedding policy beyond ARCHITECTURE.md. Source maps, when implemented, follow ECMA-426 (1st edition, December 2024), with columns in UTF-16 code units.
+Selector inheritance/extend, placeholder selectors, mutation, `null`, first-class functions, variadic parameters, overloading, local `fn`/`recipe` definitions, re-exports, wildcard or unqualified imports, network or package imports, transcendental math, colors other than 8-bit sRGB hex, `@scope` nested inside rules, plugins, minified output. Source maps, when implemented, follow ECMA-426 (1st edition, December 2024), with columns in UTF-16 code units.
 
 ## 20. Complete example
 

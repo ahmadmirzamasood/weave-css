@@ -1,18 +1,18 @@
 # Weave v0.1 CSS compatibility contract
 
-Status: normative companion to [LANGUAGE.md](LANGUAGE.md). Rationale: [ADR 0006](decisions/0006-nesting-lowering.md), [ADR 0007](decisions/0007-modules-and-emission.md), [ADR 0008](decisions/0008-output-format-and-comments.md).
+Status: normative companion to [LANGUAGE.md](LANGUAGE.md).
 
 Weave emits standard CSS. It does not validate property values, add vendor prefixes, polyfill features or minify. Browser support depends entirely on the emitted CSS.
 
 ## 1. Reference specifications
 
-Verified on 2026-10-15. Later revisions are adopted only through an ADR.
+Verified on 2026-10-15. Later revisions are adopted only as explicit specification changes.
 
 | Subject | Specification | Revision used |
 |---|---|---|
 | Tokenization, component values, preprocessing | CSS Syntax Module Level 3 | W3C Candidate Recommendation Draft, 1 October 2026 — https://www.w3.org/TR/2026/CRD-css-syntax-3-20261001/ |
 | Nesting, `&`, specificity, nested declarations | CSS Nesting Module Level 1 | W3C Working Draft, 22 January 2026 — https://www.w3.org/TR/2026/WD-css-nesting-1-20260122/ |
-| Source maps (phase 08) | ECMA-426 Source map format | 1st edition, December 2024 (version field `3`, 0-based columns in UTF-16 code units for CSS) — https://ecma-international.org/publications-and-standards/standards/ecma-426/ |
+| Source maps | ECMA-426 Source map format | 1st edition, December 2024 (version field `3`, 0-based columns in UTF-16 code units for CSS) — https://ecma-international.org/publications-and-standards/standards/ecma-426/ |
 | Selectors, `:is()` specificity | Selectors Level 4 | as referenced by CSS Nesting above |
 | Identifier/string serialization | CSSOM *serialize an identifier* / *serialize a string* | as referenced by CSS Syntax above |
 
@@ -87,7 +87,7 @@ Input: the enclosing rule's lowered selector list `P = [p1 … pn]` (no `&` rema
    - (b) `p` is a single compound selector and `o` is the first simple selector of its compound or `p` has no type/universal selector.
 6. Count emitted complex selectors against the selector-expansion limit (E8005).
 
-Weave never performs Cartesian expansion of parent lists in v0.1; parent lists with more than one selector always produce `:is(…)`. This is always equivalent to native nesting and keeps output linear in size. Expansion of equal-specificity lists may be added later as an output optimization through an ADR.
+Weave never performs Cartesian expansion of parent lists in v0.1; parent lists with more than one selector always produce `:is(…)`. This is always equivalent to native nesting and keeps output linear in size. Expansion of equal-specificity lists may be added later as an output optimization.
 
 ### 4.2 Examples (normative)
 

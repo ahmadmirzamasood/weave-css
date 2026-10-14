@@ -1,6 +1,6 @@
 ## Problem and change
 
-Explain the user-visible behavior and relevant phase/ADR.
+Explain the user-visible behavior and relevant specification sections.
 
 ## Validation
 
@@ -12,4 +12,4 @@ Describe grammar/output/API changes, source-map effects, resource limits and per
 
 ## Documentation
 
-Update language examples, changelog and project memory as appropriate.
+Update language examples, specification, fixtures and changelog as appropriate.

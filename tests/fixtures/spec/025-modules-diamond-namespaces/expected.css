@@ -1,0 +1,16 @@
+.c-base {
+  border-radius: 4px;
+}
+
+.a {
+  border-radius: 8px;
+}
+
+.b {
+  padding: 4px;
+}
+
+.main {
+  border-radius: 12px;
+  margin: 2px;
+}

@@ -1,0 +1,212 @@
+(* Weave v0.1 grammar — normative companion to docs/LANGUAGE.md.
+
+   Notation (ISO/IEC 14977 style, simplified):
+     a = b ;        production
+     a , b          concatenation (written as juxtaposition below for readability)
+     a | b          alternative
+     [ a ]          optional
+     { a }          zero or more
+     ( a )          grouping
+     "x"            literal, case-sensitive unless noted
+     ? text ?       special sequence defined in prose
+   Productions in UPPER_CASE are lexical (no implicit whitespace between their parts).
+   Productions in lower_case are syntactic: whitespace (WS) and COMMENT may appear between
+   any two of their elements, except where a rule says "adjacent".
+
+   Two scanning modes exist:
+     - expression mode: inside bind/when/each/yield/fail/warn/arguments/defaults and #{ }.
+     - CSS mode: declaration values, selector preludes, at-rule preludes, CSS fragments,
+       keyframe selectors, opaque blocks. CSS mode is tokenized with CSS Syntax Level 3
+       (CRD 2026-10-01) component values, extended only by INTERPOLATION and LITERAL_MARKER
+       where docs/LANGUAGE.md section 7 allows interpolation.
+   The parser always knows which mode it is in from the enclosing production; there is no
+   backtracking between modes. *)
+
+(* ===================== 1. Lexical: shared ===================== *)
+
+WS            = ( " " | TAB | NEWLINE ) , { " " | TAB | NEWLINE } ;
+NEWLINE       = LF | CR LF | CR | FF ;
+COMMENT       = "/*" , ? any scalars not containing "*/" ? , "*/" ;   (* unterminated: E0003 *)
+KEEP_COMMENT  = "/*!" , ? any scalars not containing "*/" ? , "*/" ;  (* emitted verbatim *)
+
+(* ===================== 2. Lexical: expression mode ===================== *)
+
+KEYWORD       = "load" | "as" | "export" | "bind" | "fn" | "recipe" | "rule" | "when"
+              | "otherwise" | "each" | "in" | "apply" | "slot" | "yield" | "fail" | "warn"
+              | "opaque" | "true" | "false" ;
+IDENT         = IDENT_START , { IDENT_CONT } ;                  (* and not a KEYWORD where a name is bound *)
+IDENT_START   = ASCII_LETTER | "_" | NON_ASCII ;
+IDENT_CONT    = IDENT_START | DIGIT | "-" ;
+NON_ASCII     = ? any Unicode scalar value >= U+0080 ? ;
+
+NUMBER        = ( DIGITS , [ "." , DIGITS ] | "." , DIGITS ) , [ UNIT ] ;   (* no exponent *)
+DIGITS        = DIGIT , { DIGIT } ;
+UNIT          = ASCII_LETTER , { ASCII_LETTER } | "%" ;        (* adjacent to the digits *)
+  (* A NUMBER immediately followed by DIGIT or "." after its UNIT, e.g. "10%3", is E0101. *)
+
+COLOR         = "#" , HEX , HEX , HEX , [ HEX ]
+              | "#" , HEX , HEX , HEX , HEX , HEX , HEX , [ HEX , HEX ] ;
+  (* exactly 3, 4, 6 or 8 hex digits, not followed by an IDENT_CONT scalar *)
+
+STRING        = '"' , { STR_ITEM_DQ } , '"' | "'" , { STR_ITEM_SQ } , "'" ;
+STR_ITEM_DQ   = STR_ESCAPE | INTERPOLATION | ? any scalar except '"', "\", NEWLINE, and "#{" ? ;
+STR_ITEM_SQ   = STR_ESCAPE | INTERPOLATION | ? any scalar except "'", "\", NEWLINE, and "#{" ? ;
+STR_ESCAPE    = "\" , ( HEX , [HEX] , [HEX] , [HEX] , [HEX] , [HEX] , [ WS_ONE ]
+                      | NEWLINE
+                      | ? any scalar except HEX and NEWLINE ? ) ;
+  (* "\#{" therefore yields the literal text "#{" (escape of "#", then "{"). *)
+  (* unterminated string or raw NEWLINE: E0002 *)
+
+FRAGMENT      = "`" , CSS_TEXT_UNTIL( "`" ) , "`" ;            (* unterminated: E0007 *)
+
+INTERPOLATION = "#{" , expression , "}" ;                       (* unterminated: E0004 *)
+LITERAL_MARKER= "\#{" ;                                         (* emits "#{" *)
+
+PUNCT         = "(" | ")" | "[" | "]" | "{" | "}" | "," | ";" | ":" | "." | "=" | "->"
+              | "+" | "-" | "*" | "/" | "%" | "!" | "<" | "<=" | ">" | ">=" | "==" | "!="
+              | "&&" | "||" ;
+
+(* ===================== 3. Lexical: CSS mode ===================== *)
+
+(* CSS_TEXT_UNTIL(T) scans CSS component values until an unnested terminator T, respecting:
+   CSS string tokens (with INTERPOLATION inside, string context), url( tokens (url context),
+   COMMENT, CSS escapes, and balanced (), [] and {} blocks. INTERPOLATION and LITERAL_MARKER
+   are recognized before ordinary CSS tokens wherever interpolation is permitted.
+   Unbalanced closing brackets: E0005. *)
+CSS_TEXT_UNTIL( T ) = ? CSS component values per CSS Syntax 3, extended as above ? ;
+
+DECL_VALUE    = CSS_TEXT_UNTIL( ";" | "}" ) ;
+  (* depth-0 "{" in a non-custom property: E0111; trailing "!" WS* "important" (ASCII
+     case-insensitive) at depth 0 is importance *)
+SELECTOR_TEXT = CSS_TEXT_UNTIL( "{" ) ;                          (* selector context *)
+PRELUDE_TEXT  = CSS_TEXT_UNTIL( ";" | "{" ) ;                    (* value context, known at-rules *)
+RAW_PRELUDE   = ? CSS component values until ";" or "{" at depth 0, no interpolation ? ;
+BALANCED_BODY = ? CSS component values until the matching "}", no interpolation ? ;
+
+DECL_NAME     = NAME_PART , { NAME_PART } ;                     (* parts adjacent, no WS *)
+NAME_PART     = CSS_IDENT_SEQ | INTERPOLATION ;
+CSS_IDENT_SEQ = ? CSS ident-sequence incl. "--" custom names and escapes ? ;
+
+AT_KEYWORD    = "@" , CSS_IDENT_SEQ ;                           (* ASCII case-insensitive *)
+
+(* ===================== 4. Module structure ===================== *)
+
+module        = [ BOM ] , [ charset_rule ] , { load_stmt | KEEP_COMMENT } , { top_item } ;
+charset_rule  = "@charset" , STRING , ";" ;                     (* "UTF-8" only, entry module only *)
+load_stmt     = "load" , STRING , "as" , IDENT , ";" ;          (* plain string, no interpolation *)
+
+top_item      = export_stmt | fn_def | recipe_def | stylesheet_item ;
+export_stmt   = "export" , ( bind_stmt | fn_def | recipe_def ) ;
+
+stylesheet_item = bind_stmt | when_stmt | each_stmt | apply_stmt | fail_stmt | warn_stmt
+                | rule_stmt | at_rule | opaque_block | KEEP_COMMENT | ";" ;
+
+(* ===================== 5. Statements ===================== *)
+
+bind_stmt     = "bind" , IDENT , "=" , expression , ";" ;
+
+fn_def        = "fn" , IDENT , "(" , [ param_list ] , ")" , [ "->" , type_name ] , fn_block ;
+recipe_def    = "recipe" , IDENT , [ "(" , [ param_list ] , ")" ] , rule_block ;
+param_list    = param , { "," , param } , [ "," ] ;
+param         = IDENT , [ ":" , type_name ] , [ "=" , expression ] ;
+type_name     = "any" | "number" | "unitless" | "length" | "angle" | "time" | "percent"
+              | "string" | "color" | "bool" | "list" | "map" | "css" ;
+
+fn_block      = "{" , { fn_item } , "}" ;
+fn_item       = bind_stmt | fn_when | fn_each | yield_stmt | fail_stmt | warn_stmt | ";" ;
+fn_when       = "when" , expression , fn_block ,
+                { "otherwise" , "when" , expression , fn_block } , [ "otherwise" , fn_block ] ;
+fn_each       = "each" , loop_vars , "in" , expression , fn_block ;
+yield_stmt    = "yield" , expression , ";" ;
+
+fail_stmt     = "fail" , expression , ";" ;
+warn_stmt     = "warn" , expression , ";" ;
+
+(* Control statements are generic over the block kind of the enclosing context X:
+   X_block is stylesheet_block, rule_block, decl_block, keyframe_block_list or page_block. *)
+when_stmt     = "when" , expression , X_block ,
+                { "otherwise" , "when" , expression , X_block } , [ "otherwise" , X_block ] ;
+each_stmt     = "each" , loop_vars , "in" , expression , X_block ;
+loop_vars     = IDENT , [ "," , IDENT ] ;
+
+apply_stmt    = "apply" , callee , [ "(" , [ arg_list ] , ")" ] , ( ";" | rule_block ) ;
+callee        = IDENT , [ "." , IDENT ] ;                       (* recipe or namespace.recipe *)
+slot_stmt     = "slot" , ";" ;
+
+rule_stmt     = "rule" , SELECTOR_TEXT , rule_block ;
+opaque_block  = "opaque" , "{" , BALANCED_BODY , "}" ;
+
+(* ===================== 6. Blocks ===================== *)
+
+stylesheet_block = "{" , { stylesheet_item } , "}" ;
+
+rule_block    = "{" , { rule_item } , [ declaration_no_semicolon ] , "}" ;
+rule_item     = declaration | bind_stmt | when_stmt | each_stmt | apply_stmt | slot_stmt
+              | fail_stmt | warn_stmt | rule_stmt | at_rule | opaque_block | KEEP_COMMENT | ";" ;
+  (* slot_stmt is accepted syntactically everywhere in rule_block and diagnosed outside
+     recipe bodies (E4012). *)
+
+decl_block    = "{" , { decl_item } , [ declaration_no_semicolon ] , "}" ;
+decl_item     = declaration | bind_stmt | when_stmt | each_stmt | apply_stmt
+              | fail_stmt | warn_stmt | unknown_at_rule | KEEP_COMMENT | ";" ;
+
+keyframe_block_list = "{" , { keyframe_item } , "}" ;
+keyframe_item = keyframe_block | bind_stmt | when_stmt | each_stmt | fail_stmt | warn_stmt
+              | unknown_at_rule | KEEP_COMMENT | ";" ;
+keyframe_block= KEYFRAME_SELECTORS , decl_block ;
+KEYFRAME_SELECTORS = CSS_TEXT_UNTIL( "{" ) ;                    (* value context *)
+
+page_block    = "{" , { page_item } , [ declaration_no_semicolon ] , "}" ;
+page_item     = decl_item | margin_rule ;
+margin_rule   = AT_KEYWORD , decl_block ;                       (* the 16 page-margin names *)
+
+declaration   = DECL_NAME , ":" , DECL_VALUE , ";" ;
+declaration_no_semicolon = DECL_NAME , ":" , DECL_VALUE ;       (* only before "}" *)
+
+(* Item classification (LANGUAGE.md 3.1) is applied before choosing among the alternatives
+   above, in this order: "}" ends the block; ";" is empty; comment; "@" -> at-rule;
+   statement keyword (load export bind fn recipe rule when each apply slot yield fail warn
+   opaque) -> that statement, whatever follows; DECL_NAME followed by ":" -> declaration
+   (a name that is a single remaining keyword is E0103); keyframe list -> keyframe_block;
+   otherwise E0110 or E0101. *)
+
+(* ===================== 7. At-rules ===================== *)
+
+at_rule       = known_statement_at_rule | known_group_at_rule | known_desc_at_rule
+              | keyframes_rule | page_rule | scope_rule | preserved_at_rule | unknown_at_rule ;
+
+known_statement_at_rule = ( "@import" | "@namespace" | "@layer" ) , PRELUDE_TEXT , ";" ;
+known_group_at_rule     = ( "@media" | "@supports" | "@container" | "@layer" | "@starting-style" ) ,
+                          [ PRELUDE_TEXT ] , X_block ;          (* X = enclosing context *)
+known_desc_at_rule      = ( "@font-face" | "@font-palette-values" | "@counter-style" | "@property"
+                          | "@view-transition" | "@position-try" ) , [ PRELUDE_TEXT ] , decl_block ;
+keyframes_rule          = "@keyframes" , PRELUDE_TEXT , keyframe_block_list ;
+page_rule               = "@page" , [ PRELUDE_TEXT ] , page_block ;
+scope_rule              = "@scope" , [ PRELUDE_TEXT ] , stylesheet_block ;
+preserved_at_rule       = "@font-feature-values" , RAW_PRELUDE , "{" , BALANCED_BODY , "}" ;
+unknown_at_rule         = AT_KEYWORD , RAW_PRELUDE , ( ";" | "{" , BALANCED_BODY , "}" ) ;
+  (* at-rule names compare ASCII case-insensitively; vendor-prefixed names are unknown *)
+
+(* ===================== 8. Expressions ===================== *)
+
+expression    = or_expr ;
+or_expr       = and_expr , { "||" , and_expr } ;
+and_expr      = eq_expr , { "&&" , eq_expr } ;
+eq_expr       = rel_expr , [ ( "==" | "!=" ) , rel_expr ] ;     (* non-associative: E0112 *)
+rel_expr      = add_expr , [ ( "<" | "<=" | ">" | ">=" ) , add_expr ] ;  (* non-associative *)
+add_expr      = mul_expr , { ( "+" | "-" ) , mul_expr } ;
+mul_expr      = unary_expr , { ( "*" | "/" | "%" ) , unary_expr } ;
+unary_expr    = ( "-" | "!" ) , unary_expr | postfix_expr ;
+postfix_expr  = primary , { call_suffix | "." , IDENT | "[" , expression , "]" } ;
+call_suffix   = "(" , [ arg_list ] , ")" ;
+arg_list      = argument , { "," , argument } , [ "," ] ;
+argument      = [ IDENT , ":" ] , expression ;                  (* positional after named: E0113 *)
+primary       = NUMBER | STRING | COLOR | FRAGMENT | "true" | "false" | IDENT
+              | "(" , expression , ")" | list_lit | map_lit ;
+list_lit      = "[" , [ expression , { "," , expression } , [ "," ] ] , "]" ;
+map_lit       = "{" , [ map_entry , { "," , map_entry } , [ "," ] ] , "}" ;
+map_entry     = ( IDENT | STRING ) , ":" , expression ;        (* STRING keys: no interpolation *)
+
+(* Expression termination: an expression ends at the first token that cannot continue it.
+   In "when expr {", "{" after a complete operand ends the condition; "{" where an operand
+   is expected starts a map literal. *)

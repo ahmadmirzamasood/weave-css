@@ -1,0 +1,5 @@
+description = "Explicit `&`, implicit descendant, leading combinators, `&` inside `:not()` (not relative), `&` in a later compound, selector lists with `&` and attribute strings, interleaved declarations."
+spec = ["LANGUAGE.md 11", "CSS-COMPATIBILITY.md 4"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "css"

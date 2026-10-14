@@ -1,6 +1,6 @@
 # Testing strategy
 
-Maintain fixtures with `.weave`, expected `.css`, and structured diagnostic expectations. Test output semantics, not only prettified strings. Each phase adds negative and boundary cases as well as successful examples. Every supported construct needs coverage; unsupported constructs must produce explicit diagnostics or use the documented opaque path.
+Maintain fixtures with `.weave`, expected `.css`, and structured diagnostic expectations. The fixture layout and `expected.diag` format are defined in [tests/fixtures/spec/README.md](../tests/fixtures/spec/README.md); phase 01 added 35 specification fixtures that await a runner. Test output semantics, not only prettified strings. Each phase adds negative and boundary cases as well as successful examples. Every supported construct needs coverage; unsupported constructs must produce explicit diagnostics or use the documented opaque path.
 
 Required corpus: Unicode/escapes/CRLF; strings containing braces and semicolons; comments; data URLs; custom properties; var/calc/env; duplicate fallbacks; !important; selector lists and specificity; interleaved nesting; all known at-rule contexts; map/list ordering; scope; unit arithmetic; module diamonds/cycles/symlinks; output limits; source maps for Unicode and expansion; failed watch builds retaining last good output.
 

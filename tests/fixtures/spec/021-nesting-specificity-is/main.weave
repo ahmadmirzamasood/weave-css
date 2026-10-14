@@ -1,0 +1,19 @@
+rule #main, .side {
+    rule .item { color: red; }
+    rule &:hover { color: blue; }
+}
+
+rule .a .b {
+    rule &.on { color: green; }
+    rule .x & { color: purple; }
+}
+
+rule span.x {
+    rule a& { color: teal; }
+}
+
+rule .btn {
+    rule .group:hover & { color: navy; }
+    rule & + & { margin-left: 4px; }
+    rule :where(&) { color: inherit; }
+}

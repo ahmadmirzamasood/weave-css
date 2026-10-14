@@ -1,0 +1,2 @@
+bind zero = 0px;
+rule .a { width: #{10px / zero}; }

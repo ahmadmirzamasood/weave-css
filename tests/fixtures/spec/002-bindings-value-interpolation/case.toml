@@ -1,0 +1,5 @@
+description = "Immutable bindings interpolated in the value context: numbers, colors (normalized lowercase hex), quoted strings, fragments, booleans, expressions inside CSS functions; a bare identifier in a value stays CSS."
+spec = ["LANGUAGE.md 1", "LANGUAGE.md 4.2", "LANGUAGE.md 7.1", "TYPES.md 5"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "css"

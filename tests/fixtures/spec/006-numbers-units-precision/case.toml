@@ -1,0 +1,5 @@
+description = "Unit conversion (right operand converts to the left unit), six-decimal quantization, remainder sign, quantized equality, unit equality is never implicit, negative zero, large integers without exponent, unit case canonicalization."
+spec = ["TYPES.md 2", "TYPES.md 5", "ADR 0003"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "css"

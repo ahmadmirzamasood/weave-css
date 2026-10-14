@@ -1,0 +1,15 @@
+bind label = "Say \"hi\"\\";
+bind tab = "a\9 b";
+bind item = 3;
+bind path = "img/a b(1).png";
+
+rule .s {
+    content: #{label};
+    content: "Item #{item} of #{label}";
+    --tab: #{tab};
+    background: url(#{path});
+    background: url("#{path}");
+    --literal: "\#{not interpolated}";
+    --literal-bare: \#{x};
+    quotes: #{'single'};
+}

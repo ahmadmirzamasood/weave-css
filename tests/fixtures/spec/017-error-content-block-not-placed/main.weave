@@ -1,0 +1,8 @@
+recipe plain {
+    color: red;
+}
+rule .a {
+    apply plain {
+        margin: 0;
+    }
+}

@@ -1,0 +1,17 @@
+bind size = 10px;
+
+rule .outer {
+    bind size = 20px;
+    width: #{size};
+    rule .inner {
+        bind size = 30px;
+        width: #{size};
+    }
+    height: #{size};
+}
+
+rule .after { width: #{size}; }
+
+each size in [1px] {
+    rule .loop { width: #{size}; }
+}

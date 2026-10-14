@@ -1,0 +1,5 @@
+description = "`when`/`otherwise when`/`otherwise` chains, `range` with positive and negative steps, `rule :root` as a statement, selector-context identifier escaping at start and continuation positions (`.w-0\\.5`, `.\\31 up`)."
+spec = ["LANGUAGE.md 3.1", "LANGUAGE.md 7.2", "LANGUAGE.md 10"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "css"

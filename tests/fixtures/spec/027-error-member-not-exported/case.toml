@@ -1,0 +1,5 @@
+description = "Module members are private unless exported; access through the namespace is rejected at the member name."
+spec = ["LANGUAGE.md 14"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "error"

@@ -1,0 +1,24 @@
+bind accent = #e11d48;
+
+recipe focus-ring(width: length = 2px) {
+    outline: #{width} solid #{accent};
+    rule &:focus-visible {
+        outline-offset: #{width};
+        slot;
+    }
+}
+
+recipe stack(gap: length = 1rem) {
+    display: flex;
+    flex-direction: column;
+    gap: #{gap};
+}
+
+rule .button {
+    bind accent = #16a34a;
+    apply stack;
+    apply focus-ring(3px) {
+        color: #{accent};
+    }
+    cursor: pointer;
+}

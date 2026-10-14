@@ -1,0 +1,2 @@
+# severity code file:line:column "message substring"
+error E4010 main.weave:5:5 "slot"

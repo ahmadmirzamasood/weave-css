@@ -1,0 +1,2 @@
+# severity code file:line:column "message substring"
+error E2004 main.weave:2:20 "css.space"

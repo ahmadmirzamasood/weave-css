@@ -1,0 +1,7 @@
+load "./c.weave" as c;
+
+export recipe rounded(scale: number = 1) {
+    border-radius: #{c.radius * scale};
+}
+
+rule .a { border-radius: #{c.double(c.radius)}; }

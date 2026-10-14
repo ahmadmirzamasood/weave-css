@@ -1,0 +1,24 @@
+bind palette = {primary: #2563eb, "on-primary": #fff, muted: #64748b80};
+bind sizes = [4px, 8px, 16px];
+bind fonts = ["Inter", `system-ui`, `sans-serif`];
+
+rule .c {
+    color: #{palette.primary};
+    background: #{palette["on-primary"]};
+    border-color: #{palette.muted};
+    padding: #{css.space(sizes)};
+    font-family: #{css.comma(fonts)};
+    grid-area: #{css.slash(1, 3)};
+    --count: #{list.len(sizes)};
+    --last: #{sizes[list.len(sizes) - 1]};
+    --has: #{map.has(palette, "muted")};
+    --fallback: #{map.get(palette, "accent", `currentColor`)};
+}
+
+each key, value in palette {
+    rule .text-#{key} { color: #{value}; }
+}
+
+each i, size in sizes {
+    rule .p-#{i} { padding: #{size}; }
+}

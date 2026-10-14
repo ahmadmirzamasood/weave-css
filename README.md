@@ -1,6 +1,6 @@
 # Weave — Rust CSS language development kit
 
-Status: planning package, not an implemented compiler. Weave and `.weave` are working names; naming clearance and package availability are not established. Repository: https://github.com/ahmadmirzamasood/weave-css (public).
+Status: planning package with a frozen v0.1 language specification (docs/LANGUAGE.md); not an implemented compiler. Weave and `.weave` are working names; naming clearance and package availability are not established. Repository: https://github.com/ahmadmirzamasood/weave-css (public).
 
 Build an independently designed, fast CSS preprocessor entirely in Rust. Emit standard CSS without a JavaScript, C, or C++ runtime. Existing Rust crates are allowed after review; do not wrap an existing preprocessor or reproduce its syntax/compatibility contract.
 
@@ -18,7 +18,8 @@ Build an independently designed, fast CSS preprocessor entirely in Rust. Emit st
 - [Project memory](MEMORY.md): actual status and handoff, not an automatic Claude memory file
 - [Product requirements](PRD.md)
 - [Development plan](DEV-PLAN.md)
-- [Language design](docs/LANGUAGE.md) and [architecture](docs/ARCHITECTURE.md)
+- [Language specification](docs/LANGUAGE.md), [grammar](docs/grammar.ebnf), [types](docs/TYPES.md), [CSS compatibility](docs/CSS-COMPATIBILITY.md) and [architecture](docs/ARCHITECTURE.md)
+- [Specification fixtures](tests/fixtures/spec/README.md)
 - [Testing](docs/TESTING.md) and [performance](docs/PERFORMANCE.md)
 - [Security](SECURITY.md), [release](RELEASE.md), [contribution guide](CONTRIBUTING.md)
 - [MIT license](LICENSE), [changelog](CHANGELOG.md), [sources](docs/SOURCES.md)

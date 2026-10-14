@@ -1,0 +1,4 @@
+fn half(x: length) -> length {
+    yield x / 2;
+}
+bind h = half(10);

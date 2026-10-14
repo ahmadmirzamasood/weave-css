@@ -1,0 +1,5 @@
+description = "Map dot and bracket access, list indexing, insertion-ordered map iteration, indexed list iteration, explicit css.space/css.comma/css.slash sequences, map.get default, selector-context key interpolation."
+spec = ["LANGUAGE.md 5.3", "LANGUAGE.md 10", "TYPES.md 6", "TYPES.md 9"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "css"

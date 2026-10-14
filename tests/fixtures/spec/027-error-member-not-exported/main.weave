@@ -1,0 +1,2 @@
+load "./c.weave" as c;
+rule .a { width: #{c.secret}; }

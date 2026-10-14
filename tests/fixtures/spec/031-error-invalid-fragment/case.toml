@@ -1,0 +1,5 @@
+description = "css.fragment validates runtime text: a top-level `;` would allow declaration injection, so it is rejected at the call."
+spec = ["TYPES.md 7", "LANGUAGE.md 7.3"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "error"

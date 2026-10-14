@@ -1,0 +1,4 @@
+rule .a::before {
+    content: "";
+    rule &:hover { color: red; }
+}

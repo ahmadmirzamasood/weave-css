@@ -1,0 +1,22 @@
+bind theme = "dim";
+bind widths = [0.5, 1, 10];
+
+when theme == "dark" {
+    rule :root { --bg: #000; }
+} otherwise when theme == "dim" {
+    rule :root { --bg: #1e293b; }
+} otherwise {
+    rule :root { --bg: #fff; }
+}
+
+each w in widths {
+    rule .w-#{w} { flex-grow: #{w}; }
+}
+
+each n in range(1, 3) {
+    rule .#{n}up { --n: #{n}; }
+}
+
+each i in range(3, 0, -1) {
+    rule .z#{i} { z-index: #{i}; }
+}

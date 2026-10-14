@@ -43,3 +43,22 @@ Opaque CSS blocks provide a route for unfamiliar syntax and are emitted verbatim
 ## Release acceptance
 
 1.0 requires all F01–F12 evidence, documented grammar and API stability, repeatable benchmark baselines, supported-platform checks, security limits, accurate source maps, and no known critical/high exploitable compiler vulnerabilities. Alpha versions may cover subsets but must list them explicitly. Never label a subset as full CSS or Sass feature parity.
+
+## Traceability (phase 01)
+
+| ID | Specification | Specification fixtures (tests/fixtures/spec) | Implementing phase |
+|---|---|---|---|
+| F01 | LANGUAGE.md, grammar.ebnf, ADR 0002 | all; 029 | 03 |
+| F02 | CSS-COMPATIBILITY.md 6–7, LANGUAGE.md 13, 15 | 001, 024, 035 | 03 |
+| F03 | LANGUAGE.md 4 | 003, 004, 005 | 04 |
+| F04 | TYPES.md 1–7 | 002, 006, 007, 009, 010, 011, 012, 013 | 04 |
+| F05 | LANGUAGE.md 5, 8; TYPES.md 8–9 | 008, 014, 015, 031, 032 | 04–05 |
+| F06 | LANGUAGE.md 9 | 016, 017 | 05 |
+| F07 | LANGUAGE.md 10 | 011, 018, 019 | 05 |
+| F08 | LANGUAGE.md 14, CSS-COMPATIBILITY.md 5, ADR 0007 | 025, 026, 027, 028 | 07 |
+| F09 | LANGUAGE.md 11–12, CSS-COMPATIBILITY.md 2–4, ADR 0006 | 020, 021, 022, 023, 033, 034 | 06 |
+| F10 | LANGUAGE.md 16 (diagnostic codes); source maps per ECMA-426 1st ed. | all error fixtures | 08 |
+| F11 | LANGUAGE.md 17, SECURITY.md, injection policy LANGUAGE.md 7.3 | 030, 031 | 03–10 |
+| F12 | PERFORMANCE.md | none yet | 09 |
+
+Fixtures are specification fixtures pending a compiler runner; none has been executed.

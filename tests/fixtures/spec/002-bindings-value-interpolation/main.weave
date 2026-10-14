@@ -1,0 +1,18 @@
+bind gap = 8px;
+bind brand = #2563EB;
+bind family = "Inter Variable";
+bind display-mode = `grid`;
+bind half = 0.5;
+bind on = true;
+
+rule .card {
+    color: primary;
+    gap: #{gap};
+    border-color: #{brand};
+    font-family: #{family}, sans-serif;
+    display: #{display-mode};
+    opacity: #{half};
+    --flag: #{on};
+    width: calc(100% - #{gap * 2});
+    margin: #{-gap} #{gap / 4};
+}

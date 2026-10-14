@@ -1,0 +1,31 @@
+:is(#main, .side) .item {
+  color: red;
+}
+
+:is(#main, .side):hover {
+  color: blue;
+}
+
+.a .b.on {
+  color: green;
+}
+
+.x :is(.a .b) {
+  color: purple;
+}
+
+a:is(span.x) {
+  color: teal;
+}
+
+.group:hover .btn {
+  color: navy;
+}
+
+.btn + .btn {
+  margin-left: 4px;
+}
+
+:where(.btn) {
+  color: inherit;
+}

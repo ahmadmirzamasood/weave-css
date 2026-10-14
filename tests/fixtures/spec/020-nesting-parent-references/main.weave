@@ -1,0 +1,11 @@
+rule .card {
+    padding: 1rem;
+    rule &:hover { color: blue; }
+    rule .title { margin: 0; }
+    rule > .icon { width: 1em; }
+    rule + .card { margin-top: 0; }
+    rule :not(&) { opacity: 0.5; }
+    rule .theme-dark & { color: white; }
+    rule &.active, &[aria-current="page"] { font-weight: 700; }
+    border: 0;
+}

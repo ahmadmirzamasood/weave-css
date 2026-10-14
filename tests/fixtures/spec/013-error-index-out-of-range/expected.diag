@@ -1,0 +1,2 @@
+# severity code file:line:column "message substring"
+error E2005 main.weave:2:19 "out of range"

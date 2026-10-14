@@ -1,0 +1,12 @@
+/*! Weave spec fixture: plain CSS survives */
+
+.button, a[href^="https://"]:not(.plain) {
+  color: red;
+  color: rgb(0 0 0 / 50%);
+  background: url(data:image/svg+xml;utf8,<svg/>) no-repeat;
+  content: "a; b { c } /* not a comment */";
+  margin: 0 /* keep */ auto !important;
+  --empty:;
+  --block: { a: b; c: [d] };
+  font: 12px/1.5 system-ui;
+}

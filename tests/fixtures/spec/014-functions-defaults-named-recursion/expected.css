@@ -1,0 +1,9 @@
+.f {
+  margin: 8px;
+  padding: 1rem;
+  gap: 6px;
+  --fib: 55;
+  --ratio: 1.777778;
+  --square: 1;
+  --even: true;
+}

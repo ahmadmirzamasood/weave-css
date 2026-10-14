@@ -1,0 +1,5 @@
+description = "Two bindings of the same name in one scope are rejected; the diagnostic points at the second name."
+spec = ["LANGUAGE.md 4.2"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "error"

@@ -1,0 +1,5 @@
+description = "Hostile strings cannot add declarations or rules: quoted in values, escaped inside CSS strings, identifier-escaped in property names and selectors."
+spec = ["LANGUAGE.md 7.2", "LANGUAGE.md 7.3", "ADR 0005"]
+status = "specification-pending-runner"
+entry = "main.weave"
+expect = "css"

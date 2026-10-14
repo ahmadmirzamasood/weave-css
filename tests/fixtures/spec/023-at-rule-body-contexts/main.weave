@@ -1,0 +1,35 @@
+bind brand = "Brand Sans";
+bind anim = "fade";
+
+@font-face {
+    font-family: #{brand};
+    src: url("/fonts/brand.woff2") format("woff2");
+    font-display: swap;
+}
+
+@property --angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+}
+
+@keyframes #{css.ident(anim)} {
+    from { opacity: 0; }
+    each step in [25, 50, 75] {
+        #{step * 1%} { opacity: #{step / 100}; }
+    }
+    to { opacity: 1; }
+}
+
+@page :first {
+    margin: 2cm;
+    @top-center {
+        content: "Report";
+    }
+}
+
+@counter-style thumbs {
+    system: cyclic;
+    symbols: "👍";
+    suffix: " ";
+}

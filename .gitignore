@@ -1,0 +1,12 @@
+/target/
+/dist/
+.env
+.env.*
+!.env.example
+CLAUDE.local.md
+.claude/settings.local.json
+.DS_Store
+*.profraw
+*.profdata
+/fuzz/artifacts/
+/fuzz/target/

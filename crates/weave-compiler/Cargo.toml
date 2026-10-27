@@ -10,3 +10,8 @@ publish.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+# Independent CSS Syntax 3 parser used only to validate emitted CSS in tests
+# (ADR 0010). Default features pull in proc macros and phf; not needed.
+cssparser = { version = "=0.38.0", default-features = false }

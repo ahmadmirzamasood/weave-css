@@ -1,0 +1,8 @@
+@scope (.card) to (.content) {
+  :scope {
+    border: 1px solid;
+  }
+  img {
+    display: block;
+  }
+}

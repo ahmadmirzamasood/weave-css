@@ -1,0 +1,6 @@
+# severity code file:line:column "message substring"
+error E0101 main.weave:1:1 "selector"
+error E0101 main.weave:2:1 "`{`"
+error E0101 main.weave:3:1 "`{`"
+error E0102 main.weave:4:17 "`;`"
+error E0005 main.weave:5:1 "unmatched `}`"

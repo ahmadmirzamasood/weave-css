@@ -1,0 +1,13 @@
+@page :first {
+  margin: 2cm;
+  @top-center {
+    content: "Report";
+  }
+  @bottom-right-corner {
+    content: counter(page);
+  }
+  size: A4;
+}
+
+@page {
+}

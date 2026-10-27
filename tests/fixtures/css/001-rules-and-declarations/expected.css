@@ -1,0 +1,21 @@
+/*! banner */
+
+.a {
+  color: red;
+  color: blue;
+}
+
+.b {
+  margin: 0;
+  padding: 1px 2px;
+  color: red !important;
+  color: blue !important;
+  /*! kept inside */
+  width: calc(100% - 2px);
+}
+
+.c {
+  --empty:;
+  --spaces:;
+  content:;
+}

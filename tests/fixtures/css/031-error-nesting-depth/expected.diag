@@ -1,0 +1,2 @@
+# severity code file:line:column "message substring"
+error E8002 main.weave:1:145 "depth limit of 128"

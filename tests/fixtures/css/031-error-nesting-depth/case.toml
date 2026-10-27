@@ -1,0 +1,3 @@
+description = "Brackets nested deeper than the default nesting-depth limit (128, blocks and brackets combined) are E8002 and stop parsing without a crash."
+spec = ["LANGUAGE.md 17"]
+expect = "error"

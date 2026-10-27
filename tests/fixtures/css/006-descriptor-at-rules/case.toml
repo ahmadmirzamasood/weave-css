@@ -1,0 +1,4 @@
+description = "Declaration-list at-rules (`@font-face`, `@property`, `@counter-style`, `@font-palette-values`, `@view-transition`, `@position-try`) contain declarations; empty blocks are kept."
+spec = ["CSS-COMPATIBILITY.md 2", "CSS-COMPATIBILITY.md 3"]
+expect = "css"
+validation = "independent"

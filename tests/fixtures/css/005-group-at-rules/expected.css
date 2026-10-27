@@ -1,0 +1,40 @@
+@media screen and (width >= 48em) {
+  .a {
+    color: red;
+  }
+  .c {
+    color: blue;
+  }
+}
+
+@supports (display: grid) and (not (display: inline-grid)) {
+  @media print {
+    .d {
+      display: grid;
+    }
+  }
+}
+
+@container sidebar (min-width: 30em) {
+  .e {
+    columns: 2;
+  }
+}
+
+@layer base {
+  html {
+    color: black;
+  }
+}
+
+@layer empty {
+}
+
+@starting-style {
+  .f {
+    opacity: 0;
+  }
+}
+
+@media print {
+}

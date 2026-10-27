@@ -1,0 +1,9 @@
+@media print { color: red; }
+rule & .x { color: red; }
+@font-face { rule .x { } opaque { a } }
+rule .a { @font-face { } @scope (.b) { } fn f() { } }
+@keyframes k { opacity: 0; }
+@top-left { content: "x"; }
+@media print { @import "x.css"; }
+yield 1;
+slot;

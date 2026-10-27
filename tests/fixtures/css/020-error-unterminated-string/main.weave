@@ -1,0 +1,5 @@
+rule .a {
+    content: "abc;
+    color: red;
+    width: 1px);
+}

@@ -1,0 +1,13 @@
+rule .w {
+    grid-template-areas:
+        "a b"
+        "c d";
+    font:	12px		serif ;
+    transition:
+        opacity 1s,
+        color 2s
+    ;
+}
+;;
+/* x */
+rule .x{color:red}

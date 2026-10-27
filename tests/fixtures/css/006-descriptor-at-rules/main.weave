@@ -1,0 +1,11 @@
+@font-face {
+    font-family: "Brand Sans";
+    src: url("/fonts/brand.woff2") format("woff2"), local("Brand");
+    unicode-range: U+0000-00FF;
+}
+@property --angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@counter-style thumbs { system: cyclic; symbols: "👍"; suffix: " "; }
+@font-palette-values --warm { font-family: Bixa; override-colors: 0 red; }
+@view-transition { navigation: auto; }
+@position-try --below { top: anchor(bottom); }
+@font-face { }

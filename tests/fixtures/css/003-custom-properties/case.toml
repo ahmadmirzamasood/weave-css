@@ -1,0 +1,4 @@
+description = "Custom properties keep their value text exactly, including `{}` blocks, JSON-like content, strings with braces, odd tokens and case; leading and trailing whitespace is trimmed and `!important` is recognized."
+spec = ["LANGUAGE.md 3.2", "CSS-COMPATIBILITY.md 6"]
+expect = "css"
+validation = "independent"

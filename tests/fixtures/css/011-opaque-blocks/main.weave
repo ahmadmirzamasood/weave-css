@@ -1,0 +1,13 @@
+opaque {
+    .legacy { *zoom: 1; _height: 1px; }
+    .tpl::after { content: "}#{raw}\#{x}"; } /* } */
+}
+rule .host {
+    color: red;
+    opaque {
+        @nest-future & { color: blue; }
+          second-line: kept;
+    }
+    margin: 0;
+}
+opaque {   }

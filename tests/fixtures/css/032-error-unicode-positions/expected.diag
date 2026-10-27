@@ -1,0 +1,2 @@
+# severity code file:line:column "message substring"
+error E0002 main.weave:1:35 "unterminated string"

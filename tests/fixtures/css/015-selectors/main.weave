@@ -1,0 +1,7 @@
+rule   ul   li>a ,ol+p~span , a  >  b {
+    color: red;
+}
+rule [ data-x = "a b"  i ], [lang|= en], a[href$='.pdf' s] { color: red; }
+rule :is( h1 ,h2 ) :not( .a,.b )::before, li:nth-child( 2n + 1 of .x ) { color: red; }
+rule svg|circle, *|*, .a\:b, #id.class:hover { color: red; }
+rule a/* c */b, a /* c */ > /* c */ b { color: red; }

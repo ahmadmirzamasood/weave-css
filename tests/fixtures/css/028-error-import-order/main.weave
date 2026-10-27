@@ -1,0 +1,4 @@
+@import "ok.css";
+rule a { color: red; }
+@import "late.css";
+@namespace svg url(x);

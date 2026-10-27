@@ -1,0 +1,3 @@
+# severity code file:line:column "message substring"
+error E0004 main.weave:1:18 "unterminated interpolation"
+error E0005 main.weave:1:9 "unclosed `{`"

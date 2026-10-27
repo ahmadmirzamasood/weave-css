@@ -44,7 +44,7 @@ fn version_reports_crate_and_language_versions() {
             "{text}"
         );
         assert!(text.contains("language specification: v0.1"));
-        assert!(text.contains("compilation: not implemented"));
+        assert!(text.contains("compilation: plain-CSS subset"));
         assert!(out.stderr.is_empty());
     }
 }
@@ -58,11 +58,11 @@ fn help_lists_commands_and_states_status() {
         for needle in [
             "weave build <input.weave>",
             "weave check <input.weave>",
+            "plain-CSS subset",
             "E5001",
         ] {
             assert!(text.contains(needle), "{flag}: missing {needle}");
         }
-        assert!(text.contains("not implemented"));
     }
 }
 
@@ -82,17 +82,37 @@ fn invalid_command_lines_exit_with_usage_status() {
 }
 
 #[test]
-fn build_reports_unsupported_and_writes_no_css() {
-    let dir = scratch("unsupported");
+fn build_writes_css_and_check_writes_nothing() {
+    let dir = scratch("build");
     let input = dir.join("main.weave");
-    fs::write(&input, "rule a {\n  color: red;\n}\n").expect("write input");
+    fs::write(&input, "rule a ,b {\r\n  color: red\r\n}\r\n").expect("write input");
+    let path = input.to_str().expect("UTF-8 path");
+
+    let out = weave(&["build", path]);
+    assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
+    assert_eq!(stdout(&out), "a, b {\n  color: red;\n}\n");
+    assert!(out.stderr.is_empty());
+
+    let out = weave(&["check", path]);
+    assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
+    assert!(out.stdout.is_empty());
+    assert!(out.stderr.is_empty());
+}
+
+#[test]
+fn errors_exit_1_with_positions_and_no_css() {
+    let dir = scratch("errors");
+    let input = dir.join("main.weave");
+    fs::write(&input, ".card {\n  color: red;\n}\nbind x = 1;\n").expect("write input");
     for command in ["build", "check"] {
         let out = weave(&[command, input.to_str().expect("UTF-8 path")]);
         assert_eq!(out.status.code(), Some(1), "{command}");
         assert!(out.stdout.is_empty(), "{command} must not write CSS");
         let err = stderr(&out);
-        assert!(err.starts_with("error[E5001]: "), "{err}");
-        assert!(err.contains("`main.weave` was read"), "{err}");
+        assert!(err.starts_with("error[E0110]: "), "{err}");
+        assert!(err.contains("--> main.weave:1:1\n"), "{err}");
+        assert!(err.contains("error[E5001]: "), "{err}");
+        assert!(err.contains("--> main.weave:4:1\n"), "{err}");
         // The absolute scratch path is not leaked into diagnostics.
         assert!(!err.contains(dir.to_str().expect("UTF-8 path")), "{err}");
     }
@@ -136,11 +156,14 @@ fn control_characters_in_paths_are_escaped() {
     assert!(err.contains("missing\\u{1b}[2J.weave"), "{err}");
 }
 
-/// Every specification fixture must currently fail with E5001 (or a source
-/// text error) rather than produce output: no fixture is claimed to pass.
+/// The CLI agrees with the library on every specification fixture: a
+/// fixture either builds (exit 0, the expected CSS on stdout) or fails with
+/// diagnostics (exit 1, nothing on stdout). The compiler's fixture runner
+/// checks the diagnostics themselves.
 #[test]
-fn specification_fixtures_are_not_compiled_yet() {
+fn specification_fixtures_run_through_the_cli() {
     let fixtures = repo_root().join("tests/fixtures/spec");
+    let mut built = 0;
     let mut count = 0;
     for entry in fs::read_dir(&fixtures).expect("fixture directory") {
         let case = entry.expect("fixture entry").path();
@@ -149,14 +172,20 @@ fn specification_fixtures_are_not_compiled_yet() {
             continue;
         }
         count += 1;
-        let out = weave(&["check", main.to_str().expect("UTF-8 path")]);
-        assert_eq!(out.status.code(), Some(1), "{}", case.display());
-        assert!(
-            stderr(&out).starts_with("error[E5001]: "),
-            "{}: {}",
-            case.display(),
-            stderr(&out)
-        );
+        let out = weave(&["build", main.to_str().expect("UTF-8 path")]);
+        match out.status.code() {
+            Some(0) => {
+                built += 1;
+                let expected = fs::read_to_string(case.join("expected.css")).expect("expected.css");
+                assert_eq!(stdout(&out), expected, "{}", case.display());
+            }
+            Some(1) => {
+                assert!(out.stdout.is_empty(), "{}", case.display());
+                assert!(stderr(&out).starts_with("error["), "{}", case.display());
+            }
+            other => panic!("{}: exit status {other:?}", case.display()),
+        }
     }
     assert_eq!(count, 35, "expected the 35 phase 01 fixtures");
+    assert_eq!(built, 2, "fixtures 001 and 024 build in phase 03");
 }

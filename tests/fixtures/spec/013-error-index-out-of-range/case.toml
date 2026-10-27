@@ -1,5 +1,5 @@
 description = "Zero-based list indexing with a bounds check; index 2 of a two-element list is an error reported at `[`."
 spec = ["LANGUAGE.md 5.3"]
-status = "specification-pending-runner"
+status = "specification"
 entry = "main.weave"
 expect = "error"

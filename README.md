@@ -2,7 +2,7 @@
 
 Weave is an independently designed stylesheet language that compiles `.weave` files to standard CSS. The compiler and CLI are written in Rust, with no JavaScript, C or C++ runtime. Weave is not compatible with Sass, Less or other preprocessors.
 
-Status: the v0.1 language specification is complete; **the compiler is not implemented yet**. The Rust workspace provides the compiler foundation (sources, spans, diagnostics, options, resource limits, module resolution) and a `weave` CLI whose `build` and `check` commands validate the input's source text and then fail with error E5001 (not implemented). No CSS is produced, and no benchmark or correctness result is claimed. Weave and `.weave` are working names.
+Status: the v0.1 language specification is complete; **the compiler implements only its plain-CSS subset** (pre-alpha). `weave build` compiles `rule` blocks at stylesheet level, declarations (including custom properties and `!important`), known at-rules with their CSS body grammar, unknown at-rules and `opaque` blocks preserved verbatim, `/*!` comments and literal `\#{` markers, and writes CSS to stdout; `weave check` does the same without output. Bindings, control flow, functions, recipes, modules, `#{…}` interpolation and nesting are reported as error E5001 (not implemented yet) and never silently ignored. No benchmark result is claimed. Weave and `.weave` are working names.
 
 ```bash
 cargo run -p weave-cli -- --help
@@ -15,6 +15,7 @@ cargo run -p weave-cli -- --help
 - [Types, numbers and built-ins](docs/TYPES.md)
 - [CSS compatibility](docs/CSS-COMPATIBILITY.md)
 - [Specification fixtures](tests/fixtures/spec/README.md)
+- [CSS-subset fixtures](tests/fixtures/css/README.md)
 
 ## Project
 

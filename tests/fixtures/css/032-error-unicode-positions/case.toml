@@ -1,0 +1,3 @@
+description = "Diagnostic columns count Unicode scalar values, not bytes or UTF-16 code units."
+spec = ["LANGUAGE.md 2"]
+expect = "error"

@@ -1,0 +1,9 @@
+rule :root {
+    --Brand-Color: #2563EB;
+    --block: { a: b; c: [d] };
+    --json: {"a": [1, 2], "b": "}"};
+    --odd: [;] (;) ;
+    --tokens:  ( a ,  b )  ;
+    --priority: 1px !important;
+    --nested: { { } };
+}

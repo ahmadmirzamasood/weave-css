@@ -1,0 +1,17 @@
+@charset "UTF-8";
+
+/*! license */
+
+@layer reset, base;
+
+@import url("theme.css") layer(base) supports(display: grid) screen;
+
+@import "print.css" print;
+
+@namespace svg url(http://www.w3.org/2000/svg);
+
+@layer components;
+
+svg|a {
+  color: red;
+}

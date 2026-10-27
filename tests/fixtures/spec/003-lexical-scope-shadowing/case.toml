@@ -1,5 +1,5 @@
 description = "Block scopes: shadowing in rules, nested rules and loop iterations; the module binding is unchanged after the blocks; interleaved declarations produce separate segments."
 spec = ["LANGUAGE.md 4.3", "LANGUAGE.md 11"]
-status = "specification-pending-runner"
+status = "specification"
 entry = "main.weave"
 expect = "css"

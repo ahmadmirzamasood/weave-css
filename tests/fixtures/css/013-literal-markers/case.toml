@@ -1,0 +1,4 @@
+description = "`\\#{` is a literal `#{` in declaration values, strings, URLs and at-rule preludes; comments, `opaque` blocks and unknown at-rules keep `\\#{` unchanged."
+spec = ["LANGUAGE.md 7.4"]
+expect = "css"
+validation = "independent"

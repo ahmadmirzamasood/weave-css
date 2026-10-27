@@ -1,0 +1,3 @@
+rule .a { width: calc(1px + (2px; }
+rule .b { margin: 0 ]; }
+rule .c { color: red;

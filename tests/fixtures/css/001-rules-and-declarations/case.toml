@@ -1,0 +1,4 @@
+description = "Top-level `rule` blocks: one empty line between rules, empty rules omitted, duplicate declarations kept in order, `!important` in any case and spacing, empty values, whitespace around `:`, final declaration without `;`, ordinary comments dropped and `/*!` comments kept in place."
+spec = ["LANGUAGE.md 3.2", "LANGUAGE.md 11", "LANGUAGE.md 13", "LANGUAGE.md 15"]
+expect = "css"
+validation = "independent"

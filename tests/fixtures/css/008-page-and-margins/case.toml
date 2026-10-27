@@ -1,0 +1,4 @@
+description = "`@page` bodies hold declarations and the page-margin at-rules, whose bodies are declaration lists."
+spec = ["CSS-COMPATIBILITY.md 2", "CSS-COMPATIBILITY.md 3"]
+expect = "css"
+validation = "independent"

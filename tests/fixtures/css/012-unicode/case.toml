@@ -1,0 +1,4 @@
+description = "Non-ASCII identifiers, strings, emoji and right-to-left text survive unchanged; a leading byte-order mark is not emitted; CSS escapes are preserved as written."
+spec = ["LANGUAGE.md 2", "LANGUAGE.md 15"]
+expect = "css"
+validation = "independent"

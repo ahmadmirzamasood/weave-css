@@ -1,0 +1,19 @@
+ul li > a, ol + p ~ span, a > b {
+  color: red;
+}
+
+[data-x="a b" i], [lang|=en], a[href$='.pdf' s] {
+  color: red;
+}
+
+:is(h1, h2) :not(.a, .b)::before, li:nth-child(2n + 1 of .x) {
+  color: red;
+}
+
+svg|circle, *|*, .a\:b, #id.class:hover {
+  color: red;
+}
+
+a b, a > b {
+  color: red;
+}

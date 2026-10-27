@@ -1,0 +1,19 @@
+.v {
+  content: "a; b } { /* c */";
+  content: 'it\'s; }';
+  content: "!important";
+  background: url(data:image/png;base64,iVBOR==) no-repeat;
+  background: url( "a;b).png" );
+  background-image: url(a\).png);
+  margin: 0 /* keep; } */ auto;
+  font: 12px/1.5 "Fira Sans", sans-serif;
+  width: calc(100% - (2 * var(--gap, 4px)));
+  color: #ABCDEF;
+  grid-area: 1 / 2 / 3 / 4;
+  unicode-range: U+0025-00FF, u+4??;
+  filter: progid\:DXImageTransform;
+  transition: opacity .3s cubic-bezier(.4, 0, .2, 1), transform 1e3ms;
+  content: \;;
+  quotes: "\201C" "\201D";
+  unknown-property: whatever value [with] (parens);
+}

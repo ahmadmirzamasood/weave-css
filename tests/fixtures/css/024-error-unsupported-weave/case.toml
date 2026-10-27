@@ -1,0 +1,3 @@
+description = "Weave constructs this build does not implement are E5001 at their keyword or `#{`, never silently dropped: bindings, control flow, recipes, functions, modules, exports, `fail`/`warn`, interpolation in values, strings, URLs, property names, selectors and preludes, nested rules and nested group at-rules."
+spec = ["LANGUAGE.md 16", "LANGUAGE.md 3.3"]
+expect = "error"

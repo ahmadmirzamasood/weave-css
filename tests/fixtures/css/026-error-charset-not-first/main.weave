@@ -1,0 +1,2 @@
+rule a { color: red; }
+@charset "UTF-8";

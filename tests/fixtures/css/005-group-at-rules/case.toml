@@ -1,0 +1,4 @@
+description = "Top-level group at-rules (`@media`, `@supports`, `@container`, `@layer` blocks, `@starting-style`) contain stylesheet items; nested group rules stay nested; empty group blocks are always emitted while empty style rules inside them are omitted; preludes are normalized."
+spec = ["LANGUAGE.md 12", "LANGUAGE.md 15", "CSS-COMPATIBILITY.md 3"]
+expect = "css"
+validation = "independent"

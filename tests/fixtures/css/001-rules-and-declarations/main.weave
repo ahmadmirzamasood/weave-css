@@ -1,0 +1,14 @@
+/*! banner */
+/* dropped */
+rule .a { color: red; color: blue; }
+rule .empty { }
+rule .only-comment { /* nothing */ ; ; }
+rule .b {
+    margin : 0 ;
+    padding:1px 2px;
+    color: red ! important;
+    color: blue !IMPORTANT ;
+    /*! kept inside */
+    width: calc(100% - 2px)
+}
+rule .c { --empty:; --spaces:   ; content:; }

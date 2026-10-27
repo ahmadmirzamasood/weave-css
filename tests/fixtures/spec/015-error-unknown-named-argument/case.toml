@@ -1,5 +1,5 @@
 description = "Unknown named arguments are rejected (no silent ignoring); reported at the argument name."
 spec = ["LANGUAGE.md 5.4"]
-status = "specification-pending-runner"
+status = "specification"
 entry = "main.weave"
 expect = "error"

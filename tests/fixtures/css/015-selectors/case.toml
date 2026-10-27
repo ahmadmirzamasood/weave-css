@@ -1,0 +1,4 @@
+description = "Selector lists are normalized structurally: `, ` between selectors, one space around combinators and for descendants, no whitespace in attribute selectors except before a modifier, pseudo-class arguments normalized recursively; strings, escapes and namespaces are preserved."
+spec = ["LANGUAGE.md 11", "LANGUAGE.md 15"]
+expect = "css"
+validation = "independent"

@@ -1,0 +1,10 @@
+@media (min-width: 1px) and (\#{x}) { rule .m { color: red; } }
+rule .s {
+    --tpl: \#{handlebars};
+    content: "\#{not interpolated}";
+    background: url(\#{a}.png);
+    --c: /* \#{comment} */ x;
+    content: "\\";
+}
+opaque { .o { content: "\#{raw}"; } }
+@unknown "\#{raw}";

@@ -1,0 +1,3 @@
+description = "`@charset` accepts only \"UTF-8\"."
+spec = ["CSS-COMPATIBILITY.md 3"]
+expect = "error"

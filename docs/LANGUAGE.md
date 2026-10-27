@@ -1,11 +1,11 @@
 # Weave language specification v0.1
 
-Status: **normative v0.1 specification**. No compiler implements it yet. Companion documents are normative for their subjects:
+Status: **normative v0.1 specification**. The reference compiler implements the plain-CSS subset so far (`rule` blocks at stylesheet level, declarations, at-rules, `opaque` blocks, comments, literal markers); every other construct is reported as E5001 by current builds. Companion documents are normative for their subjects:
 
 - [grammar.ebnf](grammar.ebnf): syntax.
 - [TYPES.md](TYPES.md): values, numeric model, units, coercions, serialization, core built-ins.
 - [CSS-COMPATIBILITY.md](CSS-COMPATIBILITY.md): CSS contexts, at-rule matrix, nesting lowering, output ordering.
-- [tests/fixtures/spec/](../tests/fixtures/spec/): specification fixtures, pending a compiler runner.
+- [tests/fixtures/spec/](../tests/fixtures/spec/): specification fixtures, executed by the fixture runner (see its README for which cases pass).
 
 The words MUST, MUST NOT, SHOULD and MAY are normative. Where this document and a companion disagree, the companion owning the subject wins and the conflict is a specification bug.
 
@@ -62,7 +62,8 @@ name: value !important;
 ```
 
 - The value is the raw source text from after `:` up to the first `;` or `}` at bracket depth 0, scanned as CSS component values: strings, comments, `url(` tokens, escapes and `()`/`[]`/`{}` nesting are respected, so `;` and `}` inside them do not terminate the value. `#{…}` is an interpolation; `\#{` is a literal `#{` ([§7.4](#74-literal-interpolation-markers)).
-- A `{` at depth 0 in the value of a non-custom property is error E0111 (usually a forgotten `;` or an unprefixed selector). Custom properties (`--*`) MAY contain balanced `{}` blocks.
+- A `{` at depth 0 in the value of a non-custom property is error E0111 (usually a forgotten `;` or an unprefixed selector). Custom properties (`--*`) MAY contain balanced `{}` blocks. The `{` of a literal marker `\#{` counts as an ordinary `{` here, because the emitted `#{…}` is a `{}` block to CSS; outside custom properties, write a literal `#{` inside a string.
+- A closing bracket that matches no open bracket, or an open bracket still unclosed when the value, selector or prelude ends, is E0005 (reported at the innermost unclosed bracket). A string interrupted by an unescaped line break is E0002. Other tokens CSS considers invalid (such as a bad `url(`) are not validated.
 - A trailing `!` + optional whitespace + `important` (ASCII case-insensitive) at depth 0 is importance. It is removed from the value and re-emitted as ` !important`.
 - Leading and trailing whitespace of the value is trimmed. Everything else — internal whitespace, comments, case, escapes, duplicate declarations, unknown properties — is preserved. Weave does not validate property names or values.
 - The declaration name is emitted as written after interpolation. An interpolated name MUST form a valid CSS identifier sequence (E6007).
@@ -274,14 +275,15 @@ rule .card, .panel {
 
 ## 12. CSS at-rules
 
-At-rules keep native CSS syntax and are never prefixed by a Weave keyword. Known at-rules have classified preludes and bodies; preludes are emitted with whitespace runs collapsed to one space and comments removed, and accept interpolation in the value context. Unknown at-rules (including vendor-prefixed names) are preserved verbatim, with no interpolation and no Weave statements inside. Group rules (`@media`, `@supports`, `@container`, `@layer` block, `@starting-style`) nested in rules are lowered by wrapping the current selector. The complete matrix is [CSS-COMPATIBILITY.md §3](CSS-COMPATIBILITY.md#3-at-rule-matrix).
+At-rules keep native CSS syntax and are never prefixed by a Weave keyword. Known at-rules have classified preludes and bodies; preludes are emitted with whitespace runs collapsed to one space and comments removed (a comment separates tokens like whitespace, so `a/**/b` is written `a b`), and accept interpolation in the value context. Unknown at-rules (including vendor-prefixed names) are preserved verbatim, with no interpolation and no Weave statements inside. Group rules (`@media`, `@supports`, `@container`, `@layer` block, `@starting-style`) nested in rules are lowered by wrapping the current selector. The complete matrix is [CSS-COMPATIBILITY.md §3](CSS-COMPATIBILITY.md#3-at-rule-matrix).
 
 ## 13. Comments and opaque CSS
 
-- Comments between items are discarded, except comments starting with `/*!`, which are emitted verbatim at their position (license banners). Comments inside declaration values are part of the value and preserved. Comments inside selector and known at-rule preludes are removed.
+- Comments between items are discarded, except comments starting with `/*!`, which are emitted verbatim at their position (license banners). Comments inside declaration values are part of the value and preserved. Comments inside selector and known at-rule preludes are removed; each acts as whitespace.
 - `opaque { … }` contains balanced CSS. The scanner respects strings, comments, escapes and `url(` tokens when finding the matching `}`. The contents, with leading and trailing whitespace trimmed and line breaks written as LF, are emitted verbatim at the block's position: at stylesheet level as top-level CSS; inside a rule body inside the current rule segment. No interpolation or evaluation occurs. `opaque` is not allowed in function bodies (E4014) or declaration-list contexts (E6005).
 - Verbatim text is never re-indented: the emitter writes the current indentation before the first line only; later lines keep their source bytes (including source indentation).
-- An unknown at-rule is emitted as its exact source text from `@` through its terminating `;` or matching `}`, with line breaks written as LF, under the same indentation rule.
+- An unknown at-rule is emitted as its exact source text from `@` through its terminating `;` or matching `}`, with line breaks written as LF, under the same indentation rule. It ends at the first `;` or `{…}` block at bracket depth 0, as in CSS (`@x \#{a};` is the at-rule `@x \#{a}` followed by an empty item). One cut short by the enclosing block's `}` or the end of input ends at its last token.
+- Balanced scanning of `opaque` blocks and unknown at-rules follows CSS Syntax: a closing bracket closes only the innermost open bracket and is otherwise an ordinary token.
 
 ## 14. Modules
 

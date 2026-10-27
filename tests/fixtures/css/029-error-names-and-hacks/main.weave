@@ -1,0 +1,5 @@
+rule .a {
+    true: 1;
+    *zoom: 1;
+}
+.b > .c { color: red; }

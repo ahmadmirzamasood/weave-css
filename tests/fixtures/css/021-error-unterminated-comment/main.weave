@@ -1,0 +1,2 @@
+rule .a {
+    color: red; /* never closed

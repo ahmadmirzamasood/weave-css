@@ -34,10 +34,10 @@ Options:
   -h, --help       Show this help
   -V, --version    Show version information
 
-Status: this build contains the compiler foundation only. `build` and
-`check` read the input and validate its source text, then fail with error
-E5001 because compiling Weave source is not implemented yet. No CSS is
-produced.
+Status: this build compiles the plain-CSS subset of Weave: `rule` blocks,
+declarations, at-rules, `opaque` blocks and comments. Other Weave
+constructs (bindings, control flow, functions, recipes, modules,
+interpolation, nesting) fail with error E5001 (not implemented yet).
 
 Modules are resolved relative to the directory of the input file, which is
 also the module root.
@@ -49,7 +49,7 @@ Exit status: 0 success, 1 compilation failed, 2 invalid command line.
 
 fn version() -> String {
     format!(
-        "weave {VERSION}\nlanguage specification: v{LANGUAGE_VERSION}\ncompilation: not implemented (foundation build)\n"
+        "weave {VERSION}\nlanguage specification: v{LANGUAGE_VERSION}\ncompilation: plain-CSS subset (phase 03)\n"
     )
 }
 

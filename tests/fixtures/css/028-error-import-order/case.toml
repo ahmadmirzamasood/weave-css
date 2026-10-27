@@ -1,0 +1,3 @@
+description = "Native `@import` after a style rule and `@namespace` after a style rule are E7010; Weave never reorders them."
+spec = ["CSS-COMPATIBILITY.md 5.2"]
+expect = "error"

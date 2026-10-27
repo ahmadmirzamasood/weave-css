@@ -1,5 +1,5 @@
 description = "Unknown at-rules are emitted as exact source text with no interpolation; `opaque` blocks are trimmed and verbatim (hacks and literal `#{`); unknown at-rules and opaque blocks inside a rule stay inside its segment; custom properties keep JSON-like braces and strings containing `}`."
 spec = ["LANGUAGE.md 13", "CSS-COMPATIBILITY.md 7"]
-status = "specification-pending-runner"
+status = "specification"
 entry = "main.weave"
 expect = "css"

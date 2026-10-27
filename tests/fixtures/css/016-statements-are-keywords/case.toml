@@ -1,0 +1,4 @@
+description = "Statement keywords always start statements: `rule` followed directly by a selector; property names that merely contain a keyword, and keyword names written with a CSS escape, are declarations."
+spec = ["LANGUAGE.md 3.1"]
+expect = "css"
+validation = "independent"

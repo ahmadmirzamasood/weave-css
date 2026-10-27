@@ -1,0 +1,3 @@
+description = "Mismatched brackets in values are E0005: an unclosed `(` ended by the block's `}` (reported at the innermost open bracket) and a `]` that matches nothing; unclosed blocks are reported at their `{`."
+spec = ["LANGUAGE.md 3.2", "grammar.ebnf CSS_TEXT_UNTIL"]
+expect = "error"

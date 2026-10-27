@@ -1,0 +1,4 @@
+description = "Declaration values are CSS component values: `;`, `{`, `}` and `/*` inside strings, URLs and comments do not end them; data URLs, escapes, `!important` inside strings, unicode-range, hex colors in any case and CSS functions are emitted exactly; nothing is evaluated."
+spec = ["LANGUAGE.md 3.2", "CSS-COMPATIBILITY.md 6"]
+expect = "css"
+validation = "independent"

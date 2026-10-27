@@ -3,14 +3,15 @@
 use crate::diagnostic::{Code, Diagnostic, Diagnostics};
 use crate::options::{CompileOptions, Limit};
 use crate::resolve::{ModuleId, ModuleResolver, ResolveError};
-use crate::source::SourceManager;
+use crate::source::{FileId, SourceManager};
+use crate::{emit, parser};
 
 /// A successful build.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompileOutput {
     /// UTF-8 CSS with LF line breaks (LANGUAGE.md §15).
     pub css: String,
-    /// An ECMA-426 source map, when requested. Not produced yet.
+    /// An ECMA-426 source map, when requested. Not produced yet (phase 08).
     pub source_map: Option<String>,
     /// Every module that contributed to the build, entry first.
     pub dependencies: Vec<ModuleId>,
@@ -28,9 +29,11 @@ pub struct Compilation {
 
 /// Compiles the module `entry`, reading modules through `resolver`.
 ///
-/// This build reads and validates the entry module (resolution, size limits,
-/// UTF-8 and U+0000 checks) and then reports E5001: the Weave language
-/// itself is not implemented yet, so no CSS is ever produced.
+/// This build compiles the plain-CSS subset of Weave: `rule` blocks at
+/// stylesheet level, declarations, known and unknown at-rules, `opaque`
+/// blocks and comments. Every other Weave construct (bindings, control
+/// flow, functions, recipes, modules, interpolation, nesting) is reported
+/// as E5001 instead of being ignored.
 pub fn compile(
     entry: &ModuleId,
     resolver: &mut dyn ModuleResolver,
@@ -40,25 +43,42 @@ pub fn compile(
     let limit = usize::try_from(options.limits.get(Limit::Diagnostics)).unwrap_or(usize::MAX);
     let mut diagnostics = Diagnostics::new(limit);
 
-    if let Err(diagnostic) = load_module(entry, resolver, options, &mut sources) {
-        diagnostics.push(diagnostic);
+    let file = match load_module(entry, resolver, options, &mut sources) {
+        Ok(file) => file,
+        Err(diagnostic) => {
+            diagnostics.push(diagnostic);
+            return failed(sources, diagnostics);
+        }
+    };
+    let Some(source) = sources.get(file) else {
+        return failed(sources, diagnostics);
+    };
+    let max_depth = u32::try_from(options.limits.get(Limit::NestingDepth)).unwrap_or(u32::MAX);
+    let sheet = parser::parse(
+        source.text(),
+        source.content_start() as usize,
+        file,
+        max_depth,
+        &mut diagnostics,
+    );
+    if diagnostics.has_errors() {
         return failed(sources, diagnostics);
     }
-
-    diagnostics.push(
-        Diagnostic::error(
-            Code::E5001,
-            "compiling Weave source is not implemented in this build",
-        )
-        .with_note(format!(
-            "`{entry}` was read and passed source-text validation; no CSS was produced"
-        ))
-        .with_note(format!(
-            "weave-compiler {} provides only the compiler foundation",
-            crate::VERSION
-        )),
-    );
-    failed(sources, diagnostics)
+    match emit::emit(&sheet, options.limits.get(Limit::OutputBytes)) {
+        Ok(css) => Compilation {
+            sources,
+            outcome: Ok(CompileOutput {
+                css,
+                source_map: None,
+                dependencies: vec![entry.clone()],
+                warnings: diagnostics.into_vec(),
+            }),
+        },
+        Err(diagnostic) => {
+            diagnostics.push(diagnostic);
+            failed(sources, diagnostics)
+        }
+    }
 }
 
 fn failed(sources: SourceManager, diagnostics: Diagnostics) -> Compilation {
@@ -73,7 +93,7 @@ fn load_module(
     resolver: &mut dyn ModuleResolver,
     options: &CompileOptions,
     sources: &mut SourceManager,
-) -> Result<(), Diagnostic> {
+) -> Result<FileId, Diagnostic> {
     let file_limit = options.limits.get(Limit::FileBytes);
     let module = resolver
         .load(id, file_limit)
@@ -112,7 +132,7 @@ fn load_module(
         ));
     }
 
-    sources.add(module.display_name, module.bytes).map(|_| ())
+    sources.add(module.display_name, module.bytes)
 }
 
 /// Maps a resolver failure to its diagnostic code (LANGUAGE.md §16).
@@ -143,21 +163,53 @@ mod tests {
         }
     }
 
-    #[test]
-    fn valid_source_reports_unsupported_instead_of_output() {
-        let result = run(b"rule a { color: red; }\n", &CompileOptions::default());
-        assert_eq!(codes(&result), [Code::E5001]);
-        let Err(diags) = &result.outcome else {
-            panic!("compilation must not succeed");
-        };
-        assert!(diags[0].is_error());
-        assert!(diags[0].message().contains("not implemented"));
-        assert_eq!(result.sources.files().count(), 1);
+    fn css(compilation: &Compilation) -> &str {
+        match &compilation.outcome {
+            Ok(output) => &output.css,
+            Err(diags) => panic!("compilation failed: {diags:?}"),
+        }
     }
 
     #[test]
-    fn empty_source_is_still_unsupported() {
-        assert_eq!(codes(&run(b"", &CompileOptions::default())), [Code::E5001]);
+    fn plain_css_compiles() {
+        let result = run(
+            b"rule a { color: red; }
+",
+            &CompileOptions::default(),
+        );
+        assert_eq!(
+            css(&result),
+            "a {
+  color: red;
+}
+"
+        );
+        let Ok(output) = &result.outcome else {
+            unreachable!()
+        };
+        assert_eq!(output.dependencies, [ModuleId::new("main.weave").unwrap()]);
+        assert!(output.warnings.is_empty());
+        assert_eq!(output.source_map, None);
+    }
+
+    #[test]
+    fn empty_source_produces_zero_bytes() {
+        assert_eq!(css(&run(b"", &CompileOptions::default())), "");
+        assert_eq!(
+            css(&run(b"\xef\xbb\xbf /* x */ ;", &CompileOptions::default())),
+            ""
+        );
+    }
+
+    #[test]
+    fn unimplemented_statements_are_reported() {
+        let result = run(
+            b"bind x = 1;
+rule a { color: red; }
+",
+            &CompileOptions::default(),
+        );
+        assert_eq!(codes(&result), [Code::E5001]);
     }
 
     #[test]
@@ -176,8 +228,20 @@ mod tests {
     fn file_size_limit_is_inclusive() {
         let mut options = CompileOptions::default();
         options.limits.set(Limit::FileBytes, 4).unwrap();
-        assert_eq!(codes(&run(b"abcd", &options)), [Code::E5001]);
-        assert_eq!(codes(&run(b"abcde", &options)), [Code::E8001]);
+        assert_eq!(codes(&run(b"/**/", &options)), []);
+        assert_eq!(codes(&run(b"/***/", &options)), [Code::E8001]);
+    }
+
+    #[test]
+    fn output_limit_applies() {
+        let mut options = CompileOptions::default();
+        options.limits.set(Limit::OutputBytes, 20).unwrap();
+        assert_eq!(css(&run(b"rule a { color: red; }", &options)).len(), 20);
+        options.limits.set(Limit::OutputBytes, 19).unwrap();
+        assert_eq!(
+            codes(&run(b"rule a { color: red; }", &options)),
+            [Code::E8006]
+        );
     }
 
     #[test]

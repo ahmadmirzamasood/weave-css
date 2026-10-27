@@ -1,0 +1,4 @@
+description = "Unknown and vendor-prefixed at-rules are emitted as their exact source text in every context, with no interpolation and no comment removal; `}` and `;` inside strings, comments and URLs do not end them; `@font-feature-values` is preserved the same way."
+spec = ["LANGUAGE.md 13", "CSS-COMPATIBILITY.md 3", "CSS-COMPATIBILITY.md 7"]
+expect = "css"
+validation = "independent"

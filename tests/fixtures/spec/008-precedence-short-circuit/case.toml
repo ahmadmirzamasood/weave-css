@@ -1,5 +1,5 @@
 description = "Operator precedence and left associativity; `&&`/`||` short-circuit so the skipped operands (division by zero, out-of-range index) are never evaluated; string concatenation and equality."
 spec = ["LANGUAGE.md 5.2"]
-status = "specification-pending-runner"
+status = "specification"
 entry = "main.weave"
 expect = "css"

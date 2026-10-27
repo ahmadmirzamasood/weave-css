@@ -1,0 +1,19 @@
+@media screen   and /* c */ (width >= 48em) {
+    rule .a { color: red; }
+    rule .b { }
+    rule .c { color: blue; }
+}
+@supports (display: grid) and (not (display: inline-grid)) {
+    @media print {
+        rule .d { display: grid; }
+    }
+}
+@container sidebar (min-width: 30em) { rule .e { columns: 2; } }
+@layer base {
+    rule html { color: black; }
+}
+@layer empty { }
+@starting-style {
+    rule .f { opacity: 0; }
+}
+@media print { rule .gone { } }

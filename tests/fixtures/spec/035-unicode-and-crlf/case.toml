@@ -1,5 +1,5 @@
 description = "CRLF source (kept by .gitattributes) produces LF output; non-ASCII identifiers, strings and selector interpolation are preserved; a multi-line value keeps its internal whitespace."
 spec = ["LANGUAGE.md 2", "LANGUAGE.md 3.2", "LANGUAGE.md 7.2"]
-status = "specification-pending-runner"
+status = "specification"
 entry = "main.weave"
 expect = "css"

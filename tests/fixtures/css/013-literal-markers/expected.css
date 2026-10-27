@@ -1,0 +1,17 @@
+@media (min-width: 1px) and (#{x}) {
+  .m {
+    color: red;
+  }
+}
+
+.s {
+  --tpl: #{handlebars};
+  content: "#{not interpolated}";
+  background: url(#{a}.png);
+  --c: /* \#{comment} */ x;
+  content: "\\";
+}
+
+.o { content: "\#{raw}"; }
+
+@unknown "\#{raw}";

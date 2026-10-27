@@ -1,0 +1,9 @@
+.legacy { *zoom: 1; _height: 1px; }
+    .tpl::after { content: "}#{raw}\#{x}"; } /* } */
+
+.host {
+  color: red;
+  @nest-future & { color: blue; }
+          second-line: kept;
+  margin: 0;
+}

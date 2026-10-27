@@ -1,12 +1,12 @@
 # Weave v0.1 specification fixtures
 
-Status: **specification fixtures, pending a compiler runner.** No compiler exists yet; none of these fixtures has been executed. Expected outputs were derived by hand from [LANGUAGE.md](../../../docs/LANGUAGE.md), [TYPES.md](../../../docs/TYPES.md) and [CSS-COMPATIBILITY.md](../../../docs/CSS-COMPATIBILITY.md) and reviewed as documents. When a runner disagrees with a fixture, decide whether the fixture or the specification is wrong; do not silently update expectations.
+Status: **specification fixtures, executed by the fixture runner** ([crates/weave-compiler/tests/fixtures.rs](../../../crates/weave-compiler/tests/fixtures.rs), run by `cargo test`). Expected outputs were derived by hand from [LANGUAGE.md](../../../docs/LANGUAGE.md), [TYPES.md](../../../docs/TYPES.md) and [CSS-COMPATIBILITY.md](../../../docs/CSS-COMPATIBILITY.md) and reviewed as documents. The runner classifies each case as *pass*, *pending* (the build reports E5001 for a construct it does not implement yet) or *fail*; no case may fail, and the list of passing cases is pinned in the runner. Phase 03 (plain-CSS subset) passes 001, 024, 029 and 033; the other 31 are pending. When the runner disagrees with a fixture, decide whether the fixture or the specification is wrong; do not silently update expectations.
 
 ## Layout
 
 Each directory is one case:
 
-- `case.toml`: `description`, `spec` (sections exercised), `status`, `entry` (always `main.weave`), `expect` (`css` or `error`).
+- `case.toml`: `description`, `spec` (sections exercised), `status` (always `specification`), `entry` (always `main.weave`), `expect` (`css` or `error`).
 - `*.weave`: the entry module and any modules it loads (paths relative to the case directory, which is the module root).
 - `expected.css`: exact expected bytes for successful builds (LF line endings, UTF-8, trailing newline).
 - `expected.diag`: for failing builds. One diagnostic per line: `severity code file:line:column "message substring"`. Lines starting with `#` are comments. Line and column are 1-based; columns count Unicode scalar values. A runner must match severity, code, file and start position exactly, and require the message (or its notes) to contain the substring case-insensitively. Listed diagnostics are the required primary diagnostics; additional diagnostics are allowed only if they are independent errors.

@@ -1,9 +1,10 @@
-"""Consistency checks for the Weave specification fixtures and documentation.
+"""Consistency checks for the Weave fixtures and documentation.
 
 Checks fixture structure and metadata, diagnostic expectation syntax and
-positions, line endings, the fixture index, and relative Markdown links in git-tracked files.
-It does not compile anything: fixtures stay specification fixtures until a
-compiler runner exists.
+positions, line endings, the fixture indexes, and relative Markdown links in
+git-tracked files, for the specification fixtures (tests/fixtures/spec) and the
+CSS-subset fixtures (tests/fixtures/css). It does not compile anything: the
+fixture runner in crates/weave-compiler/tests/fixtures.rs executes them.
 
 Usage: python scripts/check_spec.py [repo-root]
 """
@@ -14,9 +15,13 @@ import sys
 import tomllib
 from pathlib import Path
 
-FIXTURE_DIR = Path("tests/fixtures/spec")
-CRLF_FIXTURES = {"035-unicode-and-crlf/main.weave"}
-CASE_KEYS = {"description", "spec", "status", "entry", "expect"}
+FIXTURE_SETS = {
+    # directory: required case.toml keys
+    Path("tests/fixtures/spec"): {"description", "spec", "status", "entry", "expect"},
+    Path("tests/fixtures/css"): {"description", "spec", "expect", "validation"},
+}
+CRLF_FIXTURES = {"tests/fixtures/spec/035-unicode-and-crlf/main.weave"}
+VALIDATION = {"independent", "preserve-only"}
 DIAG_LINE = re.compile(
     r'^(error|warning) ([EW]\d{4}) ([A-Za-z0-9_./-]+\.weave):(\d+):(\d+) "(.+)"$'
 )
@@ -40,8 +45,8 @@ class Checker:
             self.fail(path, "not valid UTF-8")
             return None
 
-    def check_fixture(self, case: Path) -> None:
-        rel = case.relative_to(self.root / FIXTURE_DIR)
+    def check_fixture(self, case: Path, keys: set[str]) -> None:
+        rel = case.relative_to(self.root)
         if not re.fullmatch(r"\d{3}-[a-z0-9]+(-[a-z0-9]+)*", case.name):
             self.fail(case, "directory name must be NNN-kebab-case")
 
@@ -54,15 +59,19 @@ class Checker:
         except (tomllib.TOMLDecodeError, UnicodeDecodeError) as err:
             self.fail(meta_path, f"invalid TOML: {err}")
             return
-        if set(meta) != CASE_KEYS:
-            self.fail(meta_path, f"keys must be exactly {sorted(CASE_KEYS)}")
+        if meta.get("expect") == "error":
+            keys = keys - {"validation"}  # a validation mode applies to CSS output only
+        if set(meta) != keys:
+            self.fail(meta_path, f"keys must be exactly {sorted(keys)}")
             return
-        if meta["status"] != "specification-pending-runner":
-            self.fail(meta_path, "status must stay 'specification-pending-runner' until a runner exists")
+        if "status" in meta and meta["status"] != "specification":
+            self.fail(meta_path, "status must be 'specification'")
+        if "validation" in meta and meta["validation"] not in VALIDATION:
+            self.fail(meta_path, f"validation must be one of {sorted(VALIDATION)}")
         if not isinstance(meta["spec"], list) or not meta["spec"]:
             self.fail(meta_path, "spec must be a non-empty list")
-        if not (case / meta["entry"]).is_file():
-            self.fail(meta_path, f"entry {meta['entry']} does not exist")
+        if not (case / meta.get("entry", "main.weave")).is_file():
+            self.fail(meta_path, f"entry {meta.get('entry', 'main.weave')} does not exist")
 
         sources: dict[str, list[str]] = {}
         for weave in sorted(case.glob("*.weave")):
@@ -122,8 +131,8 @@ class Checker:
         if entries == 0:
             self.fail(diag, "no diagnostics listed")
 
-    def check_index(self, cases: list[Path]) -> None:
-        readme = self.root / FIXTURE_DIR / "README.md"
+    def check_index(self, directory: Path, cases: list[Path]) -> None:
+        readme = self.root / directory / "README.md"
         text = self.read_text(readme) if readme.is_file() else None
         if text is None:
             self.fail(readme, "missing fixture index")
@@ -144,13 +153,16 @@ class Checker:
                 self.fail(md, f"broken link: {target}")
 
     def run(self) -> int:
-        cases = sorted(p for p in (self.root / FIXTURE_DIR).iterdir() if p.is_dir())
-        numbers = [c.name[:3] for c in cases]
-        if len(numbers) != len(set(numbers)):
-            self.fail(FIXTURE_DIR, "fixture numbers must be unique")
-        for case in cases:
-            self.check_fixture(case)
-        self.check_index(cases)
+        total = 0
+        for directory, keys in FIXTURE_SETS.items():
+            cases = sorted(p for p in (self.root / directory).iterdir() if p.is_dir())
+            numbers = [c.name[:3] for c in cases]
+            if len(numbers) != len(set(numbers)):
+                self.fail(directory.as_posix(), "fixture numbers must be unique")
+            for case in cases:
+                self.check_fixture(case, keys)
+            self.check_index(directory, cases)
+            total += len(cases)
         tracked = subprocess.run(
             ["git", "ls-files", "-z", "--", "*.md"],
             cwd=self.root, capture_output=True, check=True,
@@ -160,7 +172,7 @@ class Checker:
 
         for error in self.errors:
             print(f"error: {error}")
-        print(f"checked {len(cases)} fixtures: {len(self.errors)} problem(s)")
+        print(f"checked {total} fixtures: {len(self.errors)} problem(s)")
         return 1 if self.errors else 0
 
 

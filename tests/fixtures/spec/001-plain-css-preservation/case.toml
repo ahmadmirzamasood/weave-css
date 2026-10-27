@@ -1,5 +1,5 @@
 description = "Plain CSS inside `rule`: selector normalization, verbatim values with strings/URLs/comments containing `;` and braces, custom properties with blocks and empty values, `!important` normalization, comment policy, final declaration without `;`."
 spec = ["LANGUAGE.md 3.2", "LANGUAGE.md 13", "LANGUAGE.md 15", "CSS-COMPATIBILITY.md 6"]
-status = "specification-pending-runner"
+status = "specification"
 entry = "main.weave"
 expect = "css"

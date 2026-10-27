@@ -1,0 +1,4 @@
+description = "Statement at-rules: `@charset \"UTF-8\"` as the first item, `@import` and `@layer` statements before rules, `@namespace` after imports; preludes have comments removed and whitespace collapsed."
+spec = ["LANGUAGE.md 12", "CSS-COMPATIBILITY.md 3", "CSS-COMPATIBILITY.md 5.2"]
+expect = "css"
+validation = "independent"

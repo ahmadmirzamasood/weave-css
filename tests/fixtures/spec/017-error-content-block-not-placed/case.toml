@@ -1,5 +1,5 @@
 description = "A content block passed to a recipe that never executes `slot` is an error, reported at `apply`."
 spec = ["LANGUAGE.md 9"]
-status = "specification-pending-runner"
+status = "specification"
 entry = "main.weave"
 expect = "error"

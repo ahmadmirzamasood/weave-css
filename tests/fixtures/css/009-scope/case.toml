@@ -1,0 +1,4 @@
+description = "`@scope` at stylesheet level contains style rules (use `:scope` rather than `&`)."
+spec = ["CSS-COMPATIBILITY.md 3"]
+expect = "css"
+validation = "independent"

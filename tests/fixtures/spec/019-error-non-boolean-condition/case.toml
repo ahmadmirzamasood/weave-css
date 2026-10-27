@@ -1,5 +1,5 @@
 description = "No implicit truthiness: a number used as a condition is rejected at the condition expression."
 spec = ["LANGUAGE.md 5.2", "LANGUAGE.md 10"]
-status = "specification-pending-runner"
+status = "specification"
 entry = "main.weave"
 expect = "error"

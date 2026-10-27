@@ -1,0 +1,3 @@
+description = "Context matrix errors: declarations at stylesheet level (E6001), `&` without a parent (E6003), `rule` in a declaration list (E6002), items not allowed in an at-rule context (E6005), `@scope` in a rule (E6006), top-level-only statements elsewhere (E0104), `yield` outside a function (E4013), `slot` outside a recipe (E4012)."
+spec = ["CSS-COMPATIBILITY.md 2", "CSS-COMPATIBILITY.md 3"]
+expect = "error"

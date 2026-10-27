@@ -1,0 +1,3 @@
+description = "A `{` at depth 0 in a non-custom property value is E0111 (a forgotten `;` or a selector written without `rule`); recovery skips the block; custom properties may contain blocks."
+spec = ["LANGUAGE.md 3.2"]
+expect = "error"

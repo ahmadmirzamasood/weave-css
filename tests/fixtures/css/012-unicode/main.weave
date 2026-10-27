@@ -1,0 +1,8 @@
+﻿rule .naïve-日本, .\31 0, #é {
+    content: "→ café 😀";
+    --emoji: "👍🏽";
+    font-family: "מערכת", sans-serif;
+    content: "\00e9\1F600 ";
+    grid-template-areas: "a b"
+        "c d";
+}

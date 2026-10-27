@@ -1,0 +1,6 @@
+rule .a {
+    a:hover { color: blue; }
+    color: red
+    margin: 0 { }
+    --ok: { fine };
+}

@@ -1,5 +1,5 @@
 description = "Typed functions with defaults referring to module bindings and earlier parameters, named and reordered arguments, early `yield` inside `when`, recursion, hoisting (a function used before its definition)."
 spec = ["LANGUAGE.md 4.3", "LANGUAGE.md 5.4", "LANGUAGE.md 8"]
-status = "specification-pending-runner"
+status = "specification"
 entry = "main.weave"
 expect = "css"

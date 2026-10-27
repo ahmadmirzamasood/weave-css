@@ -1,0 +1,3 @@
+description = "`@charset` must be the first item of the entry module."
+spec = ["CSS-COMPATIBILITY.md 3", "CSS-COMPATIBILITY.md 5.2"]
+expect = "error"

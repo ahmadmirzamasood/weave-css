@@ -45,9 +45,9 @@ At-rule names match ASCII case-insensitively and are emitted as written. Vendor-
 
 | At-rule | Kind | Prelude | Body context | Where allowed | Notes |
 |---|---|---|---|---|---|
-| `@charset` | statement | `"UTF-8"` only, no interpolation | — | first item of the entry module | emitted first; anything else E6008 |
-| `@import` | statement | value context | — | stylesheet | ordering checked (§5), never resolved or inlined |
-| `@namespace` | statement | value context | — | stylesheet | ordering checked (§5) |
+| `@charset` | statement | `"UTF-8"` only (exactly that string), no interpolation | — | first item of the entry module (only whitespace and dropped comments may precede it) | emitted first; anything else E6008 |
+| `@import` | statement | value context | — | module top level (inside a group at-rule: E6005) | ordering checked (§5), never resolved or inlined |
+| `@namespace` | statement | value context | — | module top level (inside a group at-rule: E6005) | ordering checked (§5) |
 | `@layer` (statement) | statement | value context | — | stylesheet | name list |
 | `@layer` (block) | group | value context | enclosing | stylesheet, rule body | always emitted, even if empty |
 | `@media` | group | value context | enclosing | stylesheet, rule body | nested `@media` stays nested; preludes are never merged |

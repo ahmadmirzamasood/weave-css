@@ -1,5 +1,5 @@
 description = "A load cycle is rejected at the load that closes it, with the full load chain (main.weave, a.weave, b.weave, a.weave) in the message or notes."
 spec = ["LANGUAGE.md 14"]
-status = "specification-pending-runner"
+status = "specification"
 entry = "main.weave"
 expect = "error"

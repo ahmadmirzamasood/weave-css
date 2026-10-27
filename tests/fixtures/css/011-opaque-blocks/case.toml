@@ -1,0 +1,4 @@
+description = "`opaque` blocks are trimmed and emitted verbatim at stylesheet level and inside a rule's segment: hacks, `#{`, `\\#{`, comments and unknown syntax survive; strings and comments containing `}` do not end the block; later lines keep their source indentation; empty `opaque` emits nothing. Validation is preservation-only: CSS parsers reject the hacks."
+spec = ["LANGUAGE.md 13", "CSS-COMPATIBILITY.md 7"]
+expect = "css"
+validation = "preserve-only"

@@ -1,0 +1,3 @@
+description = "A declaration named by a remaining keyword is E0103 (escape it); a star hack is not a declaration name (E0101, use `opaque`); a raw selector block is E0110."
+spec = ["LANGUAGE.md 3.1", "CSS-COMPATIBILITY.md 6"]
+expect = "error"

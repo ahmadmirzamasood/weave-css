@@ -1,0 +1,4 @@
+description = "Values keep internal whitespace and line breaks; leading and trailing whitespace is trimmed; tabs are preserved inside values; empty items, stray `;` and dropped comments between rules add no output."
+spec = ["LANGUAGE.md 3.2", "LANGUAGE.md 15"]
+expect = "css"
+validation = "independent"

@@ -1,0 +1,3 @@
+description = "An interpolation without a closing `}` is E0004 at `#{`; it runs to the end of input, so the rule block is unclosed too."
+spec = ["LANGUAGE.md 16"]
+expect = "error"

@@ -1,0 +1,3 @@
+# severity code file:line:column "message substring"
+error E0002 main.weave:2:14 "unterminated string"
+error E0005 main.weave:4:15 "unmatched `)`"

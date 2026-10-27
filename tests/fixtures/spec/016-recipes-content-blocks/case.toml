@@ -1,5 +1,5 @@
 description = "Recipes with defaults and optional argument lists; recipe hygiene (recipe body sees its definition scope, content block sees the caller scope); slot inside a nested rule; segment order around recipe output."
 spec = ["LANGUAGE.md 9", "LANGUAGE.md 11"]
-status = "specification-pending-runner"
+status = "specification"
 entry = "main.weave"
 expect = "css"

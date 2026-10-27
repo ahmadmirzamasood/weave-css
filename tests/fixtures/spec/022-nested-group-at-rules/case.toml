@@ -1,5 +1,5 @@
 description = "@media/@supports/@container/@layer/@starting-style nested in a rule are lowered by wrapping; nested @media preludes are not merged; an empty nested @media is omitted; empty @layer blocks are kept."
 spec = ["LANGUAGE.md 12", "LANGUAGE.md 15", "CSS-COMPATIBILITY.md 3", "CSS-COMPATIBILITY.md 4.3"]
-status = "specification-pending-runner"
+status = "specification"
 entry = "main.weave"
 expect = "css"

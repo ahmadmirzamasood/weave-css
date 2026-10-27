@@ -1,0 +1,23 @@
+@custom-media --narrow (width < 30em);
+
+@future   prelude(#{x}) /* kept */ {
+    a: "}"; b: url(x;y}); /* } */
+    nested { deep: [1]; }
+}
+
+@font-feature-values Font One {
+    @styleset { nice-style: 12; }
+}
+
+.host {
+  color: red;
+  @unknown-inner x { y: z; }
+  @statement-like foo;
+}
+
+@font-face {
+  font-family: X;
+  @descriptor-extension stuff;
+}
+
+@-moz-document url-prefix() { rule-text { color: red } }

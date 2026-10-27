@@ -1,0 +1,6 @@
+rule { color: red; }
+rule .a;
+@media print;
+@import "a.css" { }
+}
+rule .ok { color: red; }

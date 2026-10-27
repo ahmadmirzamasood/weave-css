@@ -1,0 +1,4 @@
+description = "`@keyframes` contains keyframe blocks with native selectors (`from`, `to`, percentages, lists); each block is a declaration list. Vendor-prefixed keyframes are unknown at-rules and stay verbatim."
+spec = ["CSS-COMPATIBILITY.md 2", "CSS-COMPATIBILITY.md 3"]
+expect = "css"
+validation = "independent"

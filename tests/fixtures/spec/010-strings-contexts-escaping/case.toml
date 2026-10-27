@@ -1,5 +1,5 @@
 description = "String serialization in the value, string and url contexts; CSS-style string escapes; control characters; literal `\\#{` markers in strings and bare values."
 spec = ["LANGUAGE.md 7.1", "LANGUAGE.md 7.4", "TYPES.md 3", "TYPES.md 5"]
-status = "specification-pending-runner"
+status = "specification"
 entry = "main.weave"
 expect = "css"

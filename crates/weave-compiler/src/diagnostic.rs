@@ -35,30 +35,93 @@ pub struct Code(&'static str);
 impl Code {
     /// Invalid UTF-8.
     pub const E0001: Code = Code("E0001");
+    /// Unterminated string.
+    pub const E0002: Code = Code("E0002");
+    /// Unterminated comment.
+    pub const E0003: Code = Code("E0003");
+    /// Unterminated interpolation.
+    pub const E0004: Code = Code("E0004");
+    /// Unbalanced bracket.
+    pub const E0005: Code = Code("E0005");
     /// U+0000 in source.
     pub const E0006: Code = Code("E0006");
+    /// Unexpected token.
+    pub const E0101: Code = Code("E0101");
+    /// Expected `;`.
+    pub const E0102: Code = Code("E0102");
+    /// Keyword used as a name or declaration name.
+    pub const E0103: Code = Code("E0103");
+    /// Statement allowed only at top level.
+    pub const E0104: Code = Code("E0104");
+    /// Qualified rule without `rule`.
+    pub const E0110: Code = Code("E0110");
+    /// `{` in a non-custom declaration value.
+    pub const E0111: Code = Code("E0111");
+    /// `slot` outside a recipe.
+    pub const E4012: Code = Code("E4012");
+    /// `yield` outside a function.
+    pub const E4013: Code = Code("E4013");
     /// Feature not implemented by this compiler build.
     pub const E5001: Code = Code("E5001");
+    /// Declaration at stylesheet level.
+    pub const E6001: Code = Code("E6001");
+    /// Rule in a declaration-list context.
+    pub const E6002: Code = Code("E6002");
+    /// `&` without a parent rule.
+    pub const E6003: Code = Code("E6003");
+    /// Item not allowed in this at-rule context.
+    pub const E6005: Code = Code("E6005");
+    /// `@scope` nested in a rule.
+    pub const E6006: Code = Code("E6006");
+    /// Invalid `@charset`.
+    pub const E6008: Code = Code("E6008");
     /// Module not found.
     pub const E7001: Code = Code("E7001");
     /// Invalid load path.
     pub const E7004: Code = Code("E7004");
     /// Path outside the module root.
     pub const E7006: Code = Code("E7006");
+    /// Native `@import`/`@namespace` order violation.
+    pub const E7010: Code = Code("E7010");
     /// Input size limit.
     pub const E8001: Code = Code("E8001");
+    /// Nesting or parse depth limit.
+    pub const E8002: Code = Code("E8002");
+    /// Output size limit.
+    pub const E8006: Code = Code("E8006");
     /// Module count limit.
     pub const E8008: Code = Code("E8008");
 
     /// Every code defined so far.
-    pub const ALL: [Code; 8] = [
+    pub const ALL: [Code; 29] = [
         Code::E0001,
+        Code::E0002,
+        Code::E0003,
+        Code::E0004,
+        Code::E0005,
         Code::E0006,
+        Code::E0101,
+        Code::E0102,
+        Code::E0103,
+        Code::E0104,
+        Code::E0110,
+        Code::E0111,
+        Code::E4012,
+        Code::E4013,
         Code::E5001,
+        Code::E6001,
+        Code::E6002,
+        Code::E6003,
+        Code::E6005,
+        Code::E6006,
+        Code::E6008,
         Code::E7001,
         Code::E7004,
         Code::E7006,
+        Code::E7010,
         Code::E8001,
+        Code::E8002,
+        Code::E8006,
         Code::E8008,
     ];
 

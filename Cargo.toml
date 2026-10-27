@@ -1,0 +1,32 @@
+[workspace]
+resolver = "3"
+members = ["crates/weave-compiler", "crates/weave-cli"]
+
+[workspace.package]
+version = "0.1.0-dev"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+repository = "https://github.com/ahmadmirzamasood/weave-css"
+publish = false
+
+[workspace.dependencies]
+weave-compiler = { path = "crates/weave-compiler" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+dbg_macro = "warn"
+expect_used = "warn"
+indexing_slicing = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+unwrap_used = "warn"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"

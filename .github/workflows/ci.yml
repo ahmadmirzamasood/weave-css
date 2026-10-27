@@ -38,19 +38,41 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # The Rust workspace does not exist yet; these steps start running when Cargo.toml is added.
-      - name: Report missing workspace
-        if: hashFiles('Cargo.toml') == ''
-        run: echo "No Cargo.toml yet; Rust checks skipped."
+      # Installs the exact toolchain and components from rust-toolchain.toml.
       - name: Install toolchain
-        if: hashFiles('Cargo.toml') != ''
-        run: rustup toolchain install stable --profile minimal --component rustfmt,clippy && rustup default stable
+        run: rustup toolchain install && rustc --version --verbose && cargo --version
       - name: Format
-        if: hashFiles('Cargo.toml') != ''
         run: cargo fmt --all --check
       - name: Clippy
-        if: hashFiles('Cargo.toml') != ''
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - name: Test
-        if: hashFiles('Cargo.toml') != ''
         run: cargo test --workspace --all-features --locked
+
+  msrv:
+    name: Rust MSRV (1.85)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Keep in sync with `rust-version` in Cargo.toml.
+      - name: Install toolchain
+        run: rustup toolchain install 1.85.0 --profile minimal && rustc +1.85.0 --version --verbose
+      - name: Test
+        run: cargo +1.85.0 test --workspace --all-features --locked
+
+  dependencies:
+    name: Dependency policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install toolchain
+        run: rustup toolchain install
+      - name: Check dependency licenses and native build requirements
+        run: python3 scripts/check_deps.py

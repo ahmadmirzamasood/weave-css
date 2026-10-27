@@ -1,0 +1,6 @@
+# Exact development toolchain. The minimum supported Rust version is
+# `rust-version` in Cargo.toml and is checked separately in CI.
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

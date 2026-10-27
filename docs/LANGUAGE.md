@@ -323,6 +323,7 @@ Each diagnostic has a stable code, severity, primary span (file, line, column), 
 | E2xxx | types and values: E2001 operand type mismatch, E2002 non-boolean condition, E2003 value not insertable in this context, E2004 list or map interpolated directly, E2005 index out of range, E2006 invalid CSS fragment, E2007 missing map key, E2008 duplicate map key, E2009 integer required, E2010 not iterable / wrong loop arity, E2011 string expected |
 | E3xxx | numbers and units: E3001 incompatible units, E3002 overflow or non-finite result, E3003 division or remainder by zero, E3004 unsupported unit product or quotient, E3005 unknown conversion unit |
 | E4xxx | calls: E4001 missing argument, E4002 unknown named argument, E4003 duplicate argument, E4004 too many positional arguments, E4005 argument type mismatch, E4006 yield type mismatch, E4007 function ended without `yield`, E4010 content block not placed, E4011 slot executed more than once, E4012 `slot` outside a recipe, E4013 `yield` outside a function, E4014 statement not allowed in a function body |
+| E5xxx | implementation status: E5001 feature not implemented by this compiler build (not a language error; the same input may compile with a later build) |
 | E6xxx | CSS contexts: E6001 declaration at stylesheet level, E6002 rule in declaration-list context, E6003 `&` without a parent rule, E6004 nesting under a pseudo-element, E6005 item not allowed in this at-rule context, E6006 `@scope` nested in a rule (unsupported in v0.1), E6007 invalid selector or identifier after interpolation, E6008 invalid `@charset` |
 | E7xxx | modules: E7001 module not found, E7002 load cycle, E7003 member not exported, E7004 invalid load path, E7005 `load` after other statements, E7006 path outside root, E7010 native `@import`/`@namespace` order violation |
 | E8xxx | limits: E8001 input size, E8002 nesting/parse depth, E8003 call depth, E8004 evaluation steps, E8005 selector expansion, E8006 output size, E8007 collection or string size, E8008 module count |
@@ -331,7 +332,7 @@ Each diagnostic has a stable code, severity, primary span (file, line, column), 
 
 ## 17. Resource limits
 
-Initial defaults (configurable; overrides never disable all limits implicitly): 16 MiB per file, 128 MiB total input, 4096 modules, nesting/parse depth 128 (blocks, expressions and brackets combined), call depth 128 (functions and recipe applications), 1,000,000 evaluation steps, 100,000 emitted selectors, 64 MiB output, 65,536 elements per list or map, 1 MiB per string or fragment, 100 diagnostics. Exceeding a limit is the matching E8xxx error, never a crash.
+Initial defaults (configurable; overrides never disable all limits implicitly): 16 MiB per file, 128 MiB total input, 4096 modules, nesting/parse depth 128 (blocks, expressions and brackets combined), call depth 128 (functions and recipe applications), 1,000,000 evaluation steps, 100,000 emitted selectors, 64 MiB output, 65,536 elements per list or map, 1 MiB per string or fragment, 100 diagnostics. Exceeding a limit is the matching E8xxx error, never a crash. Overrides are validated when set: zero is rejected rather than meaning "unlimited", and the reference compiler caps byte limits at 4,294,967,295 (spans use 32-bit offsets) and depth limits at 4096.
 
 ## 18. Core built-ins
 

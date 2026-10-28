@@ -16,7 +16,7 @@
 
 use std::rc::Rc;
 
-use crate::css_text::{Seg, normalize_newlines, render_token, replace_markers};
+use crate::css_text::{Seg, push_quoted, render_token};
 use crate::diagnostic::{Code, Diagnostic};
 use crate::lexer::{Lexer, Mode, Token, TokenKind as K};
 use crate::number::{Number, Unit};
@@ -98,6 +98,19 @@ impl Template {
             last.push_str(text);
         } else {
             self.pieces.push(Piece::Text(text.to_string()));
+        }
+    }
+
+    /// [`Template::push_text`] for an owned string, moved rather than copied
+    /// when it starts a text piece.
+    fn push_owned(&mut self, text: String) {
+        if text.is_empty() {
+            return;
+        }
+        if let Some(Piece::Text(last)) = self.pieces.last_mut() {
+            last.push_str(&text);
+        } else {
+            self.pieces.push(Piece::Text(text));
         }
     }
 
@@ -1987,20 +2000,20 @@ fn fragment_template(cx: Cx<'_>, tokens: &[Token]) -> Result<Template, Diagnosti
     for &token in trimmed {
         crate::css_text::push_token(&mut segs, token, cx.text);
     }
-    css_template(cx, &segs, Ctx::Value)
+    css_template(cx, segs, Ctx::Value)
 }
 
 /// Builds the template of a CSS region (declaration value, name, selector,
 /// prelude, fragment) from its segments. Interpolations take `ctx`, except
 /// inside quoted strings (string context) and `url(…)` (url context).
-pub(crate) fn css_template(cx: Cx<'_>, segs: &[Seg], ctx: Ctx) -> Result<Template, Diagnostic> {
+pub(crate) fn css_template(cx: Cx<'_>, segs: Vec<Seg>, ctx: Ctx) -> Result<Template, Diagnostic> {
     let mut template = Template::default();
     for seg in segs {
         match seg {
-            Seg::Text(text) => template.push_text(text),
+            Seg::Text(text) => template.push_owned(text),
             Seg::Token(token) => match token.kind {
                 K::Interpolation { terminated: true } => {
-                    let interp = interpolation(cx, *token, ctx)?;
+                    let interp = interpolation(cx, token, ctx)?;
                     template.pieces.push(Piece::Interp(Box::new(interp)));
                 }
                 K::Interpolation { terminated: false } => {
@@ -2008,7 +2021,7 @@ pub(crate) fn css_template(cx: Cx<'_>, segs: &[Seg], ctx: Ctx) -> Result<Templat
                         Code::E0004,
                         "unterminated interpolation: `#{` has no `}`",
                     )
-                    .with_primary(cx.token_span(*token)));
+                    .with_primary(cx.token_span(token)));
                 }
                 K::String { .. } | K::BadString => {
                     let quote = if cx.text.as_bytes().get(token.start as usize) == Some(&b'\'') {
@@ -2016,12 +2029,12 @@ pub(crate) fn css_template(cx: Cx<'_>, segs: &[Seg], ctx: Ctx) -> Result<Templat
                     } else {
                         '"'
                     };
-                    split_quoted(cx, *token, Ctx::Str(quote), &mut template)?;
+                    split_quoted(cx, token, Ctx::Str(quote), &mut template)?;
                 }
-                K::Url { .. } => split_quoted(cx, *token, Ctx::Url, &mut template)?,
+                K::Url { .. } => split_quoted(cx, token, Ctx::Url, &mut template)?,
                 _ => {
                     let mut text = String::new();
-                    render_token(*token, cx.text, &mut text);
+                    render_token(token, cx.text, &mut text);
                     template.push_text(&text);
                 }
             },
@@ -2045,7 +2058,9 @@ fn split_quoted(
     let mut seg_start = i;
     let flush = |template: &mut Template, from: usize, to: usize| {
         let raw = text.get(from..to).unwrap_or("");
-        template.push_text(&replace_markers(&normalize_newlines(raw)));
+        let mut piece = String::new();
+        push_quoted(&mut piece, raw);
+        template.push_owned(piece);
     };
     while i < end {
         let Some(c) = text.get(i..end).and_then(|r| r.chars().next()) else {

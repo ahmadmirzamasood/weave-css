@@ -63,6 +63,13 @@ type Eval<T> = Result<T, Fail>;
 /// Callers see at most this many enclosing calls in a diagnostic.
 const TRACE_LABELS: usize = 3;
 
+/// What an entry of the evaluator's call trace is.
+#[derive(Clone, Copy, Debug)]
+enum Active {
+    Call,
+    Expansion,
+}
+
 // ----- environments ------------------------------------------------------------
 
 /// Functions and recipes carry the index of their defining module.
@@ -77,31 +84,81 @@ enum Slot<'s> {
     Namespace(usize),
 }
 
+/// Scopes with at most this many names are searched linearly.
+const SMALL_TABLE: usize = 8;
+
+/// The names of one scope. Most scopes hold a few names, which a short
+/// list finds faster than hashing; a scope that grows past
+/// [`SMALL_TABLE`] names switches to a hash map, so lookups in scopes with
+/// many bindings stay cheap.
+#[derive(Debug)]
+enum Table<V> {
+    Small(Vec<(Rc<str>, V)>),
+    Large(HashMap<Rc<str>, V>),
+}
+
+impl<V> Table<V> {
+    fn new() -> Self {
+        Table::Small(Vec::new())
+    }
+
+    fn get(&self, name: &str) -> Option<&V> {
+        match self {
+            Table::Small(entries) => entries.iter().find(|(k, _)| &**k == name).map(|(_, v)| v),
+            Table::Large(map) => map.get(name),
+        }
+    }
+
+    fn contains(&self, name: &str) -> bool {
+        self.get(name).is_some()
+    }
+
+    /// Inserts or replaces the value of `name`.
+    fn insert(&mut self, name: Rc<str>, value: V) {
+        match self {
+            Table::Small(entries) => {
+                if let Some(entry) = entries.iter_mut().find(|(k, _)| *k == name) {
+                    entry.1 = value;
+                } else if entries.len() < SMALL_TABLE {
+                    entries.push((name, value));
+                } else {
+                    let mut map: HashMap<Rc<str>, V> =
+                        std::mem::take(entries).into_iter().collect();
+                    map.insert(name, value);
+                    *self = Table::Large(map);
+                }
+            }
+            Table::Large(map) => {
+                map.insert(name, value);
+            }
+        }
+    }
+}
+
 /// One lexical scope.
 #[derive(Debug)]
 struct Env<'s> {
     parent: Option<Rc<Env<'s>>>,
     /// Names this scope binds, bound or not yet.
-    declared: HashSet<Rc<str>>,
-    slots: RefCell<HashMap<Rc<str>, Slot<'s>>>,
+    declared: Table<()>,
+    slots: RefCell<Table<Slot<'s>>>,
 }
 
 impl<'s> Env<'s> {
-    /// A scope for a block: its `bind` names plus `names` (parameters or
-    /// loop variables).
+    /// A scope for a block: its `bind` names plus `names` (parameters).
     fn block(parent: Option<Rc<Env<'s>>>, items: &[Item], names: &[&Rc<str>]) -> Rc<Env<'s>> {
-        let declared = items
-            .iter()
-            .filter_map(|item| match item {
-                Item::Bind { name, .. } => Some(Rc::clone(name)),
-                _ => None,
-            })
-            .chain(names.iter().map(|n| Rc::clone(n)))
-            .collect();
+        let mut declared = Table::new();
+        let binds = items.iter().filter_map(|item| match item {
+            Item::Bind { name, .. } => Some(name),
+            _ => None,
+        });
+        for name in binds.chain(names.iter().copied()) {
+            declared.insert(Rc::clone(name), ());
+        }
         Rc::new(Env {
             parent,
             declared,
-            slots: RefCell::new(HashMap::new()),
+            slots: RefCell::new(Table::new()),
         })
     }
 
@@ -192,13 +249,9 @@ impl<'s> Loop<'s> {
         };
         self.next += 1;
         let each = self.each;
-        let names: Vec<&Rc<str>> = each
-            .key
-            .iter()
-            .map(|(n, _)| n)
-            .chain(std::iter::once(&each.value.0))
-            .collect();
-        let env = Env::block(Some(Rc::clone(&self.parent)), &each.body, &names);
+        // The loop variables are bound before the body runs, so they need
+        // no entry among the declared-but-unbound names.
+        let env = Env::block(Some(Rc::clone(&self.parent)), &each.body, &[]);
         if let Some((name, _)) = &each.key {
             env.set(name, Slot::Value(key));
         }
@@ -507,7 +560,8 @@ struct Evaluator<'s, 'd> {
     depth: u64,
     max_depth: u64,
     /// The active calls and expansions, innermost last, for diagnostics.
-    trace: Vec<(String, Span)>,
+    /// Labels are formatted only when a diagnostic is reported.
+    trace: Vec<(Active, &'s str, Span)>,
     /// The active recipe applications, recorded in emitted nodes.
     calls: Option<Rc<CallSite>>,
     /// Bytes of CSS produced so far (an upper bound of the output).
@@ -540,8 +594,12 @@ impl<'s> Evaluator<'s, '_> {
             }
         }
         let mut diagnostic = diagnostic;
-        for (what, span) in self.trace.iter().rev().take(TRACE_LABELS) {
-            diagnostic = diagnostic.with_label(*span, what.clone());
+        for (active, name, span) in self.trace.iter().rev().take(TRACE_LABELS) {
+            let label = match active {
+                Active::Call => format!("in a call to `{name}`"),
+                Active::Expansion => format!("in the expansion of `{name}`"),
+            };
+            diagnostic = diagnostic.with_label(*span, label);
         }
         if self.trace.len() > TRACE_LABELS {
             diagnostic = diagnostic.with_note(format!(
@@ -627,7 +685,7 @@ impl<'s> Evaluator<'s, '_> {
         self.charge(used / 64, site)
     }
 
-    fn enter(&mut self, what: String, site: Span) -> Eval<()> {
+    fn enter(&mut self, active: Active, name: &'s str, site: Span) -> Eval<()> {
         if self.depth >= self.max_depth {
             let diagnostic = Diagnostic::error(
                 Code::E8003,
@@ -641,7 +699,7 @@ impl<'s> Evaluator<'s, '_> {
             return Err(self.report(diagnostic));
         }
         self.depth += 1;
-        self.trace.push((what, site));
+        self.trace.push((active, name, site));
         Ok(())
     }
 
@@ -749,7 +807,8 @@ impl<'s> Evaluator<'s, '_> {
             };
             return Err(self.report(diagnostic.with_primary(callee.span)));
         };
-        let full = format!("{namespace}.{}", callee.name);
+        // Only diagnostics need the full name.
+        let full = || format!("{namespace}.{}", callee.name);
         match find(env, namespace) {
             Found::Missing => {}
             Found::Namespace(module) => {
@@ -757,12 +816,12 @@ impl<'s> Evaluator<'s, '_> {
                     Found::Function(def, module) => return Ok(Callee::User(def, module)),
                     Found::Recipe(..) => Diagnostic::error(
                         Code::E1004,
-                        format!("`{full}` is a recipe, not a function"),
+                        format!("`{}` is a recipe, not a function", full()),
                     )
                     .with_note("recipes emit CSS and are expanded with `apply`"),
                     _ => Diagnostic::error(
                         Code::E1004,
-                        format!("`{full}` is a value, not a function"),
+                        format!("`{}` is a value, not a function", full()),
                     ),
                 };
                 return Err(self.report(diagnostic.with_primary(callee.span)));
@@ -771,7 +830,10 @@ impl<'s> Evaluator<'s, '_> {
                 return Err(self.error(
                     Code::E1004,
                     callee.span,
-                    format!("`{full}` is not a function: `{namespace}` is not a namespace"),
+                    format!(
+                        "`{}` is not a function: `{namespace}` is not a namespace",
+                        full()
+                    ),
                 ));
             }
         }
@@ -797,7 +859,7 @@ impl<'s> Evaluator<'s, '_> {
             Member::Specified => Err(self.report(
                 Diagnostic::error(
                     Code::E5001,
-                    format!("built-in `{full}` is not implemented in this build"),
+                    format!("built-in `{}` is not implemented in this build", full()),
                 )
                 .with_primary(callee.span)
                 .with_note("docs/BUILTINS.md lists the built-ins this build implements"),
@@ -824,7 +886,7 @@ impl<'s> Evaluator<'s, '_> {
             return Ok(find(&env, name));
         }
         let id = state.name.clone();
-        let private = env.declared.contains(name) || env.slots.borrow().contains_key(name);
+        let private = env.declared.contains(name) || env.slots.borrow().contains(name);
         let diagnostic = if private {
             Diagnostic::error(
                 Code::E7003,
@@ -1154,7 +1216,7 @@ impl<'s> Evaluator<'s, '_> {
         let params: Vec<&Rc<str>> = def.params.iter().map(|p| &p.name).collect();
         let parent = self.module_env(module, call.callee.span)?;
         let env = Env::block(Some(parent), &def.body, &params);
-        self.enter(format!("in a call to `{}`", def.name), call.callee.span)?;
+        self.enter(Active::Call, &def.name, call.callee.span)?;
         Ok(Task::Call(CallTask {
             def,
             callee: call.callee.span,
@@ -2244,7 +2306,7 @@ impl<'s> Evaluator<'s, '_> {
             .as_deref()
             .map(|items| Content { items, env, slot });
         let errors = self.errors;
-        self.enter(format!("in the expansion of `{}`", def.name), apply.span)?;
+        self.enter(Active::Expansion, &def.name, apply.span)?;
         self.calls = Some(Rc::new(CallSite {
             span: apply.span,
             parent: self.calls.take(),

@@ -118,31 +118,53 @@ pub struct CacheStats {
     pub misses: u64,
 }
 
+/// Everything a parsed tree depends on. A tree is reused only when every
+/// field matches the module as read in the new build.
+#[derive(Debug, PartialEq, Eq)]
+struct CacheKey {
+    /// The compiler that parsed it ([`crate::VERSION`]).
+    compiler: &'static str,
+    /// The exact source text, byte-order mark included.
+    text: String,
+    /// Spans in the tree name this file.
+    file: FileId,
+    /// Only the entry module may start with `@charset`. (The entry is
+    /// always file 0, so `file` changes with the role too.)
+    entry: bool,
+    /// The `nesting-depth` limit, the only limit the parser applies.
+    max_depth: u32,
+}
+
 #[derive(Debug)]
 struct CacheEntry {
-    /// The exact source text the tree was parsed from.
-    text: String,
-    file: FileId,
-    entry: bool,
-    max_depth: u32,
+    key: CacheKey,
     sheet: Rc<Stylesheet>,
 }
 
 /// Parsed modules kept between builds.
 ///
 /// The cache only ever saves parsing. Every build still reads every module
-/// through the resolver, and a parsed tree is reused only when the module's
-/// source text is byte-for-byte identical, the module has the same role
-/// (entry or not), the nesting limit is the same and its file has the same
-/// position in the new build's [`SourceManager`]. A changed module is
-/// therefore always parsed again, whatever the caller does. Evaluation is
-/// never cached: imported values are recomputed in every build.
+/// through the resolver, and a parsed tree is reused only when everything
+/// it was derived from is unchanged: the module identity, the compiler
+/// version, the source text byte for byte, the module's role (entry or
+/// not), the `nesting-depth` limit (the only limit the parser applies) and
+/// the file's position in the new build's [`SourceManager`] (spans in the
+/// tree name it). A changed module is therefore always parsed again,
+/// whatever the caller does. The other limits are checked on every build
+/// before the cache is consulted, and source maps are built from each
+/// build's own sources, so file names and source-map options never come
+/// from the cache. Evaluation is never cached: imported values, and so
+/// every effect of a changed dependency, are recomputed in every build.
+///
+/// Trees whose parse reported an error are never stored. After a build has
+/// discovered its modules, entries for modules it did not reach (deleted,
+/// renamed or no longer loaded) are dropped, so the cache holds at most the
+/// modules of the latest build.
 ///
 /// [`ModuleCache::invalidate`] and [`ModuleCache::clear`] drop entries
-/// explicitly, for example when a watcher reports a change; together with
-/// [`DependencyGraph::affected_by`] they are the hooks for incremental
-/// rebuilds. Persistent incremental correctness beyond the guarantees above
-/// is not claimed.
+/// explicitly; together with [`DependencyGraph::affected_by`] they are hooks
+/// for callers that track changes themselves. Correctness never depends on
+/// calling them.
 #[derive(Debug, Default)]
 pub struct ModuleCache {
     entries: HashMap<ModuleId, CacheEntry>,
@@ -330,6 +352,8 @@ pub(crate) fn discover(
             module.targets.push(target);
         }
     }
+    // Drop entries for modules this build no longer reaches.
+    loader.cache.entries.retain(|id, _| index.contains_key(id));
     Discovered { modules, emission }
 }
 
@@ -378,10 +402,12 @@ impl Loader<'_> {
             return module;
         };
         if let Some(cached) = self.cache.entries.get(&module.id) {
-            if cached.file == file
-                && cached.entry == entry
-                && cached.max_depth == self.max_depth
-                && cached.text == source.text()
+            let key = &cached.key;
+            if key.compiler == crate::VERSION
+                && key.file == file
+                && key.entry == entry
+                && key.max_depth == self.max_depth
+                && key.text == source.text()
             {
                 self.cache.stats.hits += 1;
                 module.sheet = Some(Rc::clone(&cached.sheet));
@@ -389,6 +415,9 @@ impl Loader<'_> {
             }
         }
         self.cache.stats.misses += 1;
+        // A parse that starts with the diagnostic list full could stop
+        // early without recording an error, so its tree is never stored.
+        let complete = !self.diags.is_full();
         let errors = error_count(self.diags);
         let sheet = Rc::new(parser::parse(
             source.text(),
@@ -398,14 +427,17 @@ impl Loader<'_> {
             self.max_depth,
             self.diags,
         ));
-        if error_count(self.diags) == errors {
+        if complete && error_count(self.diags) == errors && !self.diags.is_full() {
             self.cache.entries.insert(
                 module.id.clone(),
                 CacheEntry {
-                    text: source.text().to_string(),
-                    file,
-                    entry,
-                    max_depth: self.max_depth,
+                    key: CacheKey {
+                        compiler: crate::VERSION,
+                        text: source.text().to_string(),
+                        file,
+                        entry,
+                        max_depth: self.max_depth,
+                    },
                     sheet: Rc::clone(&sheet),
                 },
             );

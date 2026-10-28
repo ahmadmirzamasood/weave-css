@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/weave-compiler", "crates/weave-cli"]
+members = ["crates/weave-compiler", "crates/weave-cli", "crates/weave-bench"]
 
 [workspace.package]
 version = "0.1.0-dev"

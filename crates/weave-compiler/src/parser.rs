@@ -464,7 +464,7 @@ impl<'a> Parser<'a, '_> {
 
     /// Builds the template of a CSS region; interpolation errors are
     /// reported and leave an empty template.
-    fn template(&mut self, segs: &[Seg], ctx: expr::Ctx) -> Template {
+    fn template(&mut self, segs: Vec<Seg>, ctx: expr::Ctx) -> Template {
         match expr::css_template(self.cx(), segs, ctx) {
             Ok(template) => template,
             Err(diagnostic) => {
@@ -1064,9 +1064,9 @@ impl<'a> Parser<'a, '_> {
         }
         let (value, important) = split_important(&tokens, self.text);
         let name_segs = render(name, self.text);
-        let name = self.template(&name_segs, expr::Ctx::Name);
+        let name = self.template(name_segs, expr::Ctx::Name);
         let value_segs = render(value, self.text);
-        let value = self.template(&value_segs, expr::Ctx::Value);
+        let value = self.template(value_segs, expr::Ctx::Value);
         items.push(Item::Declaration {
             name,
             value,
@@ -1698,7 +1698,7 @@ impl<'a> Parser<'a, '_> {
         let pending = if keep {
             let segs = normalize_selector(&tokens, self.text);
             Pending::Rule {
-                selector: self.template(&segs, expr::Ctx::Selector),
+                selector: self.template(segs, expr::Ctx::Selector),
                 span,
                 dynamic: ctx == Ctx::Dynamic,
             }
@@ -1826,7 +1826,7 @@ impl<'a> Parser<'a, '_> {
 
         let (prelude_tokens, end) = self.scan(Scan::Prelude);
         let prelude = normalize_prelude(&prelude_tokens, self.text);
-        let prelude = self.template(&prelude, expr::Ctx::Value);
+        let prelude = self.template(prelude, expr::Ctx::Value);
         let statement = match kind {
             AtKind::Charset | AtKind::Import | AtKind::Namespace => true,
             AtKind::Layer => !matches!(end, End::OpenBrace(_)),
@@ -2054,7 +2054,7 @@ impl<'a> Parser<'a, '_> {
                 span: self.span(first),
                 selectors: {
                     let segs = normalize_prelude(&tokens, self.text);
-                    self.template(&segs, expr::Ctx::Value)
+                    self.template(segs, expr::Ctx::Value)
                 },
             },
         })

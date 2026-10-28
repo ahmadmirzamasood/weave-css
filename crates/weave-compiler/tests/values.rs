@@ -107,6 +107,32 @@ fn bindings_are_not_hoisted() {
     );
 }
 
+/// Scopes switch from a short list to a hash map as they grow (phase 09);
+/// lookups, shadowing and the not-yet-bound rule must not change at the
+/// switch, in either direction of the size threshold.
+#[test]
+fn scopes_of_every_size_resolve_names_the_same_way() {
+    for count in [1usize, 7, 8, 9, 40] {
+        let mut source = String::new();
+        for i in 0..count {
+            let _ = writeln!(source, "bind v{i} = {i}px;");
+        }
+        let last = count - 1;
+        let _ = writeln!(
+            source,
+            "rule a {{ first: #{{v0}}; last: #{{v{last}}}; }}\nrule b {{ bind v0 = 99px; w: #{{v0}}; }}"
+        );
+        assert_eq!(
+            css(&source),
+            format!("a {{\n  first: 0px;\n  last: {last}px;\n}}\n\nb {{\n  w: 99px;\n}}\n"),
+            "{count} bindings"
+        );
+        // A name used before its `bind`, with the scope at every size.
+        let early = format!("rule c {{ w: #{{late}}; }}\n{source}bind late = 1;");
+        assert_eq!(codes(&early), [Code::E1003], "{count} bindings");
+    }
+}
+
 #[test]
 fn a_failed_binding_is_reported_once() {
     // `y` and `z` depend on the failed `x` and add no diagnostics.

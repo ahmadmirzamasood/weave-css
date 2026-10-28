@@ -35,20 +35,45 @@ pub(crate) fn push_text(segs: &mut Vec<Seg>, text: &str) {
     }
 }
 
-/// Appends a token: rendered, or kept if it carries interpolation.
+/// Appends a token: rendered, or kept if it carries interpolation. Text is
+/// rendered straight into a preceding text segment.
 pub(crate) fn push_token(segs: &mut Vec<Seg>, token: Token, source: &str) {
     if has_interpolation(token) {
         segs.push(Seg::Token(token));
+    } else if let Some(Seg::Text(last)) = segs.last_mut() {
+        render_token(token, source, last);
     } else {
         let mut text = String::new();
         render_token(token, source, &mut text);
-        push_text(segs, &text);
+        if !text.is_empty() {
+            segs.push(Seg::Text(text));
+        }
     }
 }
 
 /// Writes CR, CRLF and FF as LF.
 pub(crate) fn normalize_newlines(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
+    push_normalized(&mut out, text);
+    out
+}
+
+/// Appends `text` with string and URL rendering: line breaks as LF and
+/// literal markers as `#{`.
+pub(crate) fn push_quoted(out: &mut String, text: &str) {
+    if text.contains('\\') {
+        out.push_str(&replace_markers(&normalize_newlines(text)));
+    } else {
+        push_normalized(out, text);
+    }
+}
+
+/// Appends `text` with CR, CRLF and FF written as LF.
+pub(crate) fn push_normalized(out: &mut String, text: &str) {
+    if !text.bytes().any(|b| b == b'\r' || b == b'\x0c') {
+        out.push_str(text);
+        return;
+    }
     let mut chars = text.chars().peekable();
     while let Some(c) = chars.next() {
         match c {
@@ -62,7 +87,6 @@ pub(crate) fn normalize_newlines(text: &str) -> String {
             _ => out.push(c),
         }
     }
-    out
 }
 
 /// Replaces each literal marker `\#{` by `#{`, leaving every other escape
@@ -100,10 +124,8 @@ pub(crate) fn render_token(token: Token, source: &str, out: &mut String) {
     let text = token.text(source);
     match token.kind {
         K::LiteralHash => out.push('#'),
-        K::String { .. } | K::BadString | K::Url { .. } | K::BadUrl => {
-            out.push_str(&replace_markers(&normalize_newlines(text)));
-        }
-        _ => out.push_str(&normalize_newlines(text)),
+        K::String { .. } | K::BadString | K::Url { .. } | K::BadUrl => push_quoted(out, text),
+        _ => push_normalized(out, text),
     }
 }
 

@@ -4,8 +4,13 @@
 //! links that point outside the root are rejected (E7006). Checks use
 //! ordinary paths: a concurrent filesystem change between the check and the
 //! read is not defended against.
+//!
+//! A resolver serves one build. It canonicalizes each path once and reuses
+//! the result for the rest of the build (canonicalization dominated module
+//! loading in the phase 09 measurements); every build starts with a new
+//! resolver, so a later build sees the file system as it is then.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::{Component, Path, PathBuf};
@@ -25,6 +30,9 @@ pub struct FsResolver {
     /// Every filesystem path a build looked at: lexical paths of `load`
     /// specifiers (even when missing) and canonical paths of loaded modules.
     touched: BTreeSet<PathBuf>,
+    /// Canonicalization results of this build, by the module path that was
+    /// canonicalized.
+    canonical: HashMap<ModuleId, Result<PathBuf, ResolveError>>,
 }
 
 impl FsResolver {
@@ -54,6 +62,7 @@ impl FsResolver {
             root,
             stdin: None,
             touched: BTreeSet::new(),
+            canonical: HashMap::new(),
         })
     }
 
@@ -93,6 +102,16 @@ impl FsResolver {
         Some(self.path_of(id))
     }
 
+    /// The canonical path of a module (canonicalized at most once per
+    /// build), or `None` for standard input. A path that cannot be
+    /// canonicalized is returned as is.
+    pub fn canonical_path(&mut self, id: &ModuleId) -> Option<PathBuf> {
+        if self.is_stdin(id) {
+            return None;
+        }
+        Some(self.canonical(id).unwrap_or_else(|_| self.path_of(id)))
+    }
+
     /// Returns and forgets the paths looked at since the last call.
     pub fn take_touched(&mut self) -> BTreeSet<PathBuf> {
         std::mem::take(&mut self.touched)
@@ -129,11 +148,18 @@ impl FsResolver {
         ModuleId::new(segments.join("/"))
     }
 
-    /// Canonicalizes the path of `id`, following symbolic links.
-    fn canonical(&self, id: &ModuleId) -> Result<PathBuf, ResolveError> {
-        self.path_of(id)
+    /// Canonicalizes the path of `id`, following symbolic links, once per
+    /// build.
+    fn canonical(&mut self, id: &ModuleId) -> Result<PathBuf, ResolveError> {
+        if let Some(known) = self.canonical.get(id) {
+            return known.clone();
+        }
+        let result = self
+            .path_of(id)
             .canonicalize()
-            .map_err(|err| io_error(id, &err))
+            .map_err(|err| io_error(id, &err));
+        self.canonical.insert(id.clone(), result.clone());
+        result
     }
 }
 

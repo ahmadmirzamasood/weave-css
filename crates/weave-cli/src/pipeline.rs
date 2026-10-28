@@ -88,7 +88,7 @@ impl Session {
                 outcome.report = self.report(Some(&sources), &diagnostics, &problems, false, names);
             }
             Ok(output) => {
-                let written = self.write_outputs(&output, &resolver, &mut problems);
+                let written = self.write_outputs(&output, &mut resolver, &mut problems);
                 outcome.success = written.is_some();
                 outcome.css_bytes = written.unwrap_or(0);
                 outcome.report = self.report(
@@ -184,7 +184,7 @@ impl Session {
     fn write_outputs(
         &self,
         output: &CompileOutput,
-        resolver: &FsResolver,
+        resolver: &mut FsResolver,
         problems: &mut Vec<Problem>,
     ) -> Option<usize> {
         let shown = |path: &Path| escape_control(&path.to_string_lossy());
@@ -206,13 +206,15 @@ impl Session {
                 }
             }
         }
+        // Canonical module paths, from the resolver's record of this build.
+        let modules: Vec<(&ModuleId, PathBuf)> = output
+            .dependencies
+            .iter()
+            .filter_map(|module| Some((module, resolver.canonical_path(module)?)))
+            .collect();
         for (i, (file, id)) in identities.iter().enumerate() {
-            for module in &output.dependencies {
-                let Some(path) = resolver.path(module) else {
-                    continue;
-                };
-                let module_id = path.canonicalize().unwrap_or(path);
-                if output::same_file(id, &module_id) {
+            for (module, module_id) in &modules {
+                if output::same_file(id, module_id) {
                     problems.push(Problem::new(
                         None,
                         format!(

@@ -14,6 +14,7 @@
 //! A [`Template`] is CSS or string text with interpolations; each
 //! interpolation records the context its value is inserted in.
 
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::css_text::{Seg, push_quoted, render_token};
@@ -693,9 +694,11 @@ enum BKind {
     Top,
     Paren,
     List,
-    Map(Vec<(Rc<str>, Span)>),
+    /// The keys in source order, and the same keys for duplicate detection.
+    Map(Vec<(Rc<str>, Span)>, HashSet<Rc<str>>),
     Index,
-    Call(Callee, Vec<Arg>),
+    /// The callee, the arguments so far and the names of the named ones.
+    Call(Callee, Vec<Arg>, HashSet<Rc<str>>),
 }
 
 #[derive(Debug)]
@@ -845,7 +848,7 @@ impl<'t> ExprParser<'_, 't> {
                 return Ok(true);
             }
             TK::P(P::LBrace) => {
-                self.open(BKind::Map(Vec::new()), tok)?;
+                self.open(BKind::Map(Vec::new(), HashSet::new()), tok)?;
                 return Ok(!self.map_key()?);
             }
             TK::P(P::Minus) => {
@@ -921,7 +924,7 @@ impl<'t> ExprParser<'_, 't> {
             }
             P::LParen => {
                 let callee = self.take_callee(span)?;
-                self.open(BKind::Call(callee, Vec::new()), tok)?;
+                self.open(BKind::Call(callee, Vec::new(), HashSet::new()), tok)?;
                 self.arg_start()?;
                 Ok(true)
             }
@@ -1075,7 +1078,7 @@ impl<'t> ExprParser<'_, 't> {
             self.next += 2;
         }
         let Some(Bracket {
-            kind: BKind::Call(_, args),
+            kind: BKind::Call(_, args, names),
             ..
         }) = self.brackets.last_mut()
         else {
@@ -1083,7 +1086,7 @@ impl<'t> ExprParser<'_, 't> {
         };
         match &name {
             Some(n) => {
-                if args.iter().any(|a| a.name.as_deref() == Some(n)) {
+                if !names.insert(Rc::clone(n)) {
                     return Err(Diagnostic::error(
                         Code::E4003,
                         format!("argument `{n}` is passed more than once"),
@@ -1092,7 +1095,9 @@ impl<'t> ExprParser<'_, 't> {
                 }
             }
             None => {
-                if args.iter().any(|a| a.name.is_some()) {
+                // Named arguments only ever follow positional ones, so the
+                // last argument tells whether any is named.
+                if args.last().is_some_and(|a| a.name.is_some()) {
                     return Err(Diagnostic::error(
                         Code::E0113,
                         "a positional argument cannot follow a named argument",
@@ -1127,11 +1132,11 @@ impl<'t> ExprParser<'_, 't> {
         }
         let span = self.span(tok);
         if let Some(Bracket {
-            kind: BKind::Map(keys),
+            kind: BKind::Map(keys, seen),
             ..
         }) = self.brackets.last_mut()
         {
-            if keys.iter().any(|(k, _)| *k == key) {
+            if !seen.insert(Rc::clone(&key)) {
                 return Err(
                     Diagnostic::error(Code::E2008, format!("duplicate map key `{key}`"))
                         .with_primary(span),
@@ -1147,13 +1152,13 @@ impl<'t> ExprParser<'_, 't> {
         let Some(bracket) = self.brackets.last_mut() else {
             return Ok(true);
         };
-        if !matches!(bracket.kind, BKind::List | BKind::Map(_) | BKind::Call(..)) {
+        if !matches!(bracket.kind, BKind::List | BKind::Map(..) | BKind::Call(..)) {
             return Err(self.unexpected(tok, "expected an operator"));
         }
         bracket.count += 1;
         bracket.pending = false;
         match bracket.kind {
-            BKind::Map(_) => Ok(!self.map_key()?),
+            BKind::Map(..) => Ok(!self.map_key()?),
             BKind::Call(..) => {
                 self.arg_start()?;
                 Ok(true)
@@ -1178,7 +1183,7 @@ impl<'t> ExprParser<'_, 't> {
             }
             BKind::Paren | BKind::Call(..) => ")",
             BKind::List | BKind::Index => "]",
-            BKind::Map(_) => "}",
+            BKind::Map(..) => "}",
         };
         if expected != closer {
             return Err(Diagnostic::error(
@@ -1192,8 +1197,10 @@ impl<'t> ExprParser<'_, 't> {
             BKind::Top | BKind::Paren => {}
             BKind::List => self.ops.push(Op::List(items, bracket.open)),
             BKind::Index => self.ops.push(Op::Index(bracket.open)),
-            BKind::Map(keys) => self.ops.push(Op::Map(keys.into(), bracket.open)),
-            BKind::Call(callee, args) => self.ops.push(Op::Call(Box::new(Call { callee, args }))),
+            BKind::Map(keys, _) => self.ops.push(Op::Map(keys.into(), bracket.open)),
+            BKind::Call(callee, args, _) => {
+                self.ops.push(Op::Call(Box::new(Call { callee, args })))
+            }
         }
         Ok(())
     }
@@ -1703,6 +1710,7 @@ pub(crate) fn parse_def_head(cx: Cx<'_>, start: usize, function: bool) -> Stmt<D
     let (name, span) =
         bound_name(cx, toks.first(), &format!("a {what} name"), open).map_err(fail)?;
     let mut params: Vec<Param> = Vec::new();
+    let mut seen: HashMap<Rc<str>, Span> = HashMap::new();
     let mut i = 1;
     if toks
         .get(i)
@@ -1719,9 +1727,10 @@ pub(crate) fn parse_def_head(cx: Cx<'_>, start: usize, function: bool) -> Stmt<D
             }
             let (pname, pspan) =
                 bound_name(cx, toks.get(i), "a parameter name or `)`", open).map_err(fail)?;
-            if let Some(earlier) = params.iter().find(|p| p.name == pname) {
-                return Err(fail(duplicate_name(&pname, pspan, earlier.span)));
+            if let Some(&earlier) = seen.get(&pname) {
+                return Err(fail(duplicate_name(&pname, pspan, earlier)));
             }
+            seen.insert(Rc::clone(&pname), pspan);
             i += 1;
             let mut ty = None;
             if toks

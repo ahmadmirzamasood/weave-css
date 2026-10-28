@@ -6,6 +6,7 @@
 //! files, the network, the clock or the environment, and each result is
 //! bounded by the string and collection limits.
 
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::diagnostic::{Code, Diagnostic};
@@ -209,6 +210,20 @@ pub(crate) fn match_args(
 ) -> Result<Vec<Option<usize>>, Diagnostic> {
     let mut slots: Vec<Option<usize>> = vec![None; params.len()];
     let mut position = 0;
+    // Named lookups scan short parameter lists and hash long ones, so a
+    // call never costs parameters × arguments.
+    let index: Option<HashMap<&str, usize>> = (params.len() > 16).then(|| {
+        params
+            .iter()
+            .enumerate()
+            .map(|(i, p)| (*p, i))
+            .rev()
+            .collect()
+    });
+    let find = |name: &str| match &index {
+        Some(index) => index.get(name).copied(),
+        None => params.iter().position(|p| *p == name),
+    };
     for (i, arg) in call.args.iter().enumerate() {
         let index = match &arg.name {
             None => {
@@ -226,7 +241,7 @@ pub(crate) fn match_args(
                 position += 1;
                 position - 1
             }
-            Some(name) => match params.iter().position(|p| *p == &**name) {
+            Some(name) => match find(name) {
                 Some(index) => index,
                 None => {
                     let mut diagnostic = at(

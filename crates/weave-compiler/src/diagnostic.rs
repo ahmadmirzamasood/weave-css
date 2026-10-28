@@ -398,9 +398,11 @@ fn location(sources: &SourceManager, span: Span) -> String {
 }
 
 /// Escapes characters that could manipulate a terminal or hide text:
-/// C0 and C1 controls (including newlines and ESC), DEL, and the bidirectional
-/// formatting characters U+061C, U+200E, U+200F, U+202A–U+202E and
-/// U+2066–U+2069. Each becomes `\u{XX}`; a backslash is left as is.
+/// C0 and C1 controls (including newlines and ESC), DEL, the line and
+/// paragraph separators U+2028 and U+2029 (which some terminals and log
+/// viewers break lines at), and the bidirectional formatting characters
+/// U+061C, U+200E, U+200F, U+202A–U+202E and U+2066–U+2069. Each becomes
+/// `\u{XX}`; a backslash is left as is.
 pub fn escape_control(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for c in text.chars() {
@@ -417,7 +419,13 @@ fn needs_escape(c: char) -> bool {
     c.is_control()
         || matches!(
             c,
-            '\u{061c}' | '\u{200e}' | '\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}'
+            '\u{061c}'
+                | '\u{200e}'
+                | '\u{200f}'
+                | '\u{2028}'
+                | '\u{2029}'
+                | '\u{202a}'..='\u{202e}'
+                | '\u{2066}'..='\u{2069}'
         )
 }
 

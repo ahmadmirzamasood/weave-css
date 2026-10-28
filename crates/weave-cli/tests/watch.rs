@@ -307,3 +307,33 @@ fn human_status_lines() {
     let _ = child.kill();
     let _ = child.wait();
 }
+
+#[test]
+fn control_characters_in_status_lines_are_escaped() {
+    // Found in review (phase 10): the status lines printed the output path
+    // as given. U+202E (right-to-left override) is a valid file-name
+    // character on every supported platform.
+    let dir = scratch("escaped-status");
+    put(&dir.join("main.weave"), "rule a { b: c; }\n");
+    let mut child = Command::new(env!("CARGO_BIN_EXE_weave"))
+        .current_dir(&dir)
+        .args([
+            "watch",
+            "main.weave",
+            "-o",
+            "out\u{202e}ssc.css",
+            "--poll-interval",
+            "20",
+        ])
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut lines = BufReader::new(child.stderr.take().unwrap()).lines();
+    let first = lines.next().unwrap().unwrap();
+    let _ = child.kill();
+    let _ = child.wait();
+    assert_eq!(
+        first,
+        "[weave] wrote out\\u{202e}ssc.css (14 bytes from 1 module)"
+    );
+}

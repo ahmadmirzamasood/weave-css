@@ -58,6 +58,32 @@ pub fn compile_with_cache(
     options: &CompileOptions,
     cache: &mut ModuleCache,
 ) -> Compilation {
+    compile_observed(entry, resolver, options, cache, &mut |_| {})
+}
+
+/// A point a build has reached, reported by [`compile_observed`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Phase {
+    /// Every module has been read and parsed (or taken from the cache).
+    Loaded,
+    /// Every module has been evaluated.
+    Evaluated,
+    /// The CSS (and source map, when requested) has been written.
+    Emitted,
+}
+
+/// [`compile_with_cache`], calling `observer` as the build passes each
+/// [`Phase`]. A failed build stops reporting at the phase that failed.
+///
+/// This exists for benchmarks and profiling: the observer may read a clock,
+/// the compiler itself never does.
+pub fn compile_observed(
+    entry: &ModuleId,
+    resolver: &mut dyn ModuleResolver,
+    options: &CompileOptions,
+    cache: &mut ModuleCache,
+    observer: &mut dyn FnMut(Phase),
+) -> Compilation {
     let mut sources = SourceManager::new();
     let limit = usize::try_from(options.limits.get(Limit::Diagnostics)).unwrap_or(usize::MAX);
     let mut diagnostics = Diagnostics::new(limit);
@@ -74,6 +100,7 @@ pub fn compile_with_cache(
     if diagnostics.has_errors() {
         return failed(sources, graph, diagnostics);
     }
+    observer(Phase::Loaded);
 
     // Evaluate dependencies first: unit `i` is `found.emission[i]`.
     let mut unit_of = vec![usize::MAX; found.modules.len()];
@@ -111,6 +138,7 @@ pub fn compile_with_cache(
     if diagnostics.has_errors() {
         return failed(sources, graph, diagnostics);
     }
+    observer(Phase::Evaluated);
 
     let nodes = concatenate(outputs, &units, &mut diagnostics);
     if diagnostics.has_errors() {
@@ -121,18 +149,22 @@ pub fn compile_with_cache(
         options.limits.get(Limit::OutputBytes),
         options.source_map,
     ) {
-        Ok((css, mappings)) => Compilation {
-            outcome: Ok(CompileOutput {
-                css,
-                source_map: options
-                    .source_map
-                    .then(|| SourceMap::build(mappings, &sources)),
-                dependencies: graph.modules().to_vec(),
-                warnings: diagnostics.into_vec(),
-            }),
-            sources,
-            graph,
-        },
+        Ok((css, mappings)) => {
+            let source_map = options
+                .source_map
+                .then(|| SourceMap::build(mappings, &sources));
+            observer(Phase::Emitted);
+            Compilation {
+                outcome: Ok(CompileOutput {
+                    css,
+                    source_map,
+                    dependencies: graph.modules().to_vec(),
+                    warnings: diagnostics.into_vec(),
+                }),
+                sources,
+                graph,
+            }
+        }
         Err(diagnostic) => {
             diagnostics.push(diagnostic);
             failed(sources, graph, diagnostics)
@@ -399,6 +431,33 @@ rule a { width: #{x}; }
         let mut options = CompileOptions::default();
         options.limits.set(Limit::TotalInputBytes, 3).unwrap();
         assert_eq!(codes(&run(b"abcd", &options)), [Code::E8001]);
+    }
+
+    #[test]
+    fn observer_sees_each_phase_once_in_order() {
+        let observe = |bytes: &[u8]| {
+            let mut resolver = crate::MemoryResolver::new();
+            let entry = ModuleId::new("main.weave").unwrap();
+            resolver.insert(entry.clone(), bytes);
+            let mut phases = Vec::new();
+            let result = compile_observed(
+                &entry,
+                &mut resolver,
+                &CompileOptions::default(),
+                &mut ModuleCache::new(),
+                &mut |phase| phases.push(phase),
+            );
+            (phases, result.outcome.is_ok())
+        };
+        assert_eq!(
+            observe(b"rule a { color: red; }"),
+            (vec![Phase::Loaded, Phase::Evaluated, Phase::Emitted], true)
+        );
+        assert_eq!(
+            observe(b"rule a { width: #{1px + 1em}; }"),
+            (vec![Phase::Loaded], false)
+        );
+        assert_eq!(observe(b"rule a { color: red;"), (vec![], false));
     }
 
     #[test]

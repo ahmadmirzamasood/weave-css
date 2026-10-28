@@ -1,0 +1,19 @@
+[package]
+name = "weave-bench"
+description = "Benchmark workload generators and in-process measurements for Weave"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "weave-bench"
+path = "src/main.rs"
+
+[dependencies]
+weave-compiler.workspace = true
+
+[lints]
+workspace = true

@@ -34,7 +34,10 @@ pub mod source_map;
 mod syntax;
 mod value;
 
-pub use compile::{Compilation, CompileOutput, compile, compile_with_cache, resolve_diagnostic};
+pub use compile::{
+    Compilation, CompileOutput, Phase, compile, compile_observed, compile_with_cache,
+    resolve_diagnostic,
+};
 pub use diagnostic::{Code, Diagnostic, Diagnostics, Label, Severity};
 pub use modules::{CacheStats, DependencyGraph, ModuleCache};
 pub use options::{CompileOptions, Limit, LimitError, OutputStyle, ResourceLimits};

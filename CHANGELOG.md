@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Phase 09: performance. New `weave-bench` workspace crate (unpublished) with seven deterministic benchmark workloads and in-process warm, cached and incremental scenarios that check every build's output; `scripts/bench.py` measures cold processes, peak memory and environment, and compares a baseline checkout in interleaved rounds. New library API `compile_observed` and `Phase` report build phases to a caller-supplied observer (the compiler still reads no clock).
+- Faster builds with byte-identical output: fewer allocations while parsing templates, small-list scopes and lazily formatted diagnostics labels in the evaluator, and one canonicalization per path per build in the CLI resolver (also reused by the output collision check). On the reference machine cold builds are 12–48 % faster on the large, module-graph and function-heavy workloads; small files are unchanged within noise.
+- The module cache key now explicitly includes the compiler version; trees are not cached from parses that started or ended with a full diagnostic list; entries for modules the latest build no longer reaches (renamed, deleted, unloaded) are dropped. New incremental tests compare every cached build with an uncached one across edits, deletions, renames, missing-file recovery, relocation, limit changes and source maps.
+
 - Publish the repository with license, security policy and contribution guide.
 - Add the Weave v0.1 language specification: docs/LANGUAGE.md, docs/grammar.ebnf, docs/TYPES.md, docs/CSS-COMPATIBILITY.md; 35 specification fixtures in tests/fixtures/spec (pending a compiler runner).
 - Notable v0.1 choices: `rule` takes a raw CSS selector prelude; statement keywords always start statements; `load` must precede other statements; CSS fragment literal `` `…` ``; `\#{` literal marker; parent lists with more than one selector lower to `:is()`.

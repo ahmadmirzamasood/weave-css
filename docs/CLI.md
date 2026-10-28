@@ -35,6 +35,23 @@ could not be written; `2` invalid command line.
 
 Options take their value as the next argument or after `=` (`--output=out.css`).
 
+## Module files and the root
+
+Each module is resolved lexically (`load` paths cannot contain `..` beyond
+the root), then canonicalized, following symbolic links and Windows
+junctions; a canonical path outside the root is E7006. Only regular files
+are read: a directory, FIFO or device named like a module is reported as
+unreadable (E7001) instead of being opened. Reads stop one byte past the
+file limit.
+
+These checks use ordinary path operations. A process that can modify the
+module tree while a build runs can replace a checked directory or file with
+a link between the check and the read (time-of-check to time-of-use), so the
+root confines honest mistakes and untrusted *content*, not untrusted
+*concurrent writers*. Weave is not a sandbox; to compile trees that others
+can write to during the build, copy them first or use operating-system
+isolation.
+
 ## Outputs
 
 - Outputs are written only after a successful build. Each file is written
@@ -116,7 +133,9 @@ the human format. Problems outside the compiler (an input that cannot be
 read, an output that cannot be written, a collision) have `"location":null`,
 and `"code":null` unless they have a diagnostic code (a missing input is
 E7001). Warnings use `"severity":"warning"`. Messages are JSON-escaped; the
-human format escapes terminal control characters instead.
+human format (including `watch` status lines) instead writes C0/C1 control
+characters, DEL, U+2028, U+2029 and the bidirectional formatting characters
+as `\u{…}`.
 
 ## Watch
 

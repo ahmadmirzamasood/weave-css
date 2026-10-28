@@ -5,7 +5,8 @@ Builds the release binaries, generates the benchmark corpus with
 peak memory), runs the in-process scenarios of `weave-bench run`, and writes
 one JSON file with the environment, the corpus hashes and every raw sample.
 
-    python scripts/bench.py run --out report.json [--samples 30] [--cold-samples 20]
+    python scripts/bench.py run --out-dir DIR [--baseline CHECKOUT] [--rounds 4]
+                                [--samples 40] [--cold-samples 20]
     python scripts/bench.py summary report.json
     python scripts/bench.py compare before.json after.json
 
@@ -14,6 +15,10 @@ cache is warm: every workload is built once, untimed, before its samples, so
 cold numbers measure process start, file reading and compilation, not disk
 latency. Spawning from Python adds overhead to every cold sample; the
 `process-baseline` scenario (`weave --version`) measures it.
+
+With --baseline, both builds are measured in alternating rounds (the order
+flips every round) so that slow drift in machine speed affects both alike;
+before.json and after.json then hold the merged samples of each build.
 
 Peak memory is the peak working set (Windows) or maximum resident set size
 (Linux, macOS) of each `weave build` process.
@@ -25,6 +30,7 @@ import hashlib
 import json
 import os
 import platform
+import shutil
 import statistics
 import subprocess
 import sys
@@ -183,38 +189,102 @@ def cold(weave: Path, corpus: Path, entries: dict, bench: dict, samples: int) ->
     return results
 
 
+def measure(weave: Path, bench_exe: Path, args, tmp: Path, samples: int, cold_samples: int) -> dict:
+    """One measurement of one build: corpus, in-process and cold samples."""
+    corpus = tmp / "corpus"
+    if corpus.exists():
+        shutil.rmtree(corpus)
+    listing = subprocess.run(
+        [str(bench_exe), "generate", str(corpus)], check=True, capture_output=True, text=True
+    ).stdout
+    entries = dict(line.split("\t") for line in listing.splitlines() if line)
+    raw = tmp / "inprocess.json"
+    cmd = [str(bench_exe), "run", "--samples", str(samples), "--warmup", str(args.warmup), "--out", str(raw)]
+    for name in args.workload or []:
+        cmd += ["--workload", name]
+    subprocess.run(cmd, check=True, capture_output=True)
+    in_process = json.loads(raw.read_text())
+    return {
+        "corpus": corpus_hashes(corpus),
+        "in_process": in_process,
+        "cold": cold(weave, corpus, entries, in_process, cold_samples),
+    }
+
+
+def merge(parts: list) -> dict:
+    """Concatenates the samples of several measurements of one build."""
+    first = parts[0]
+    for part in parts[1:]:
+        if part["corpus"] != first["corpus"]:
+            raise SystemExit("the corpus changed between rounds")
+        for wa, wb in zip(first["in_process"]["workloads"], part["in_process"]["workloads"]):
+            if wa["output_fnv1a64"] != wb["output_fnv1a64"]:
+                raise SystemExit(f"{wa['name']}: output changed between rounds")
+            for sa, sb in zip(wa["scenarios"], wb["scenarios"]):
+                for key in ("total", "load", "eval", "emit"):
+                    sa[key] += sb[key]
+        for ca, cb in zip(first["cold"], part["cold"]):
+            ca["wall"] += cb["wall"]
+            ca["peak_memory"] += cb["peak_memory"]
+    first["in_process"]["samples"] = sum(p["in_process"]["samples"] for p in parts)
+    return first
+
+
+def binaries(tree: Path) -> tuple[Path, Path]:
+    target = tree / "target" / "release"
+    return target / f"weave{EXE}", target / f"weave-bench{EXE}"
+
+
 def run(args) -> None:
+    trees = [("after", ROOT)]
+    if args.baseline:
+        trees.insert(0, ("before", Path(args.baseline).resolve()))
     if not args.no_build:
-        subprocess.run(
-            ["cargo", "build", "--release", "--locked", "-p", "weave-cli", "-p", "weave-bench"],
-            cwd=ROOT,
-            check=True,
-        )
-    target = ROOT / "target" / "release"
-    weave = Path(args.weave) if args.weave else target / f"weave{EXE}"
-    bench_exe = target / f"weave-bench{EXE}"
-    report = {"label": args.label, "environment": environment()}
+        for _, tree in trees:
+            subprocess.run(
+                ["cargo", "build", "--release", "--locked", "-p", "weave-cli", "-p", "weave-bench"],
+                cwd=tree,
+                check=True,
+            )
+    rounds = max(1, args.rounds)
+    samples = max(1, args.samples // rounds)
+    cold_samples = max(1, args.cold_samples // rounds)
+    parts: dict = {label: [] for label, _ in trees}
     with tempfile.TemporaryDirectory() as tmp:
-        corpus = Path(tmp) / "corpus"
-        listing = subprocess.run(
-            [str(bench_exe), "generate", str(corpus)], check=True, capture_output=True, text=True
-        ).stdout
-        entries = dict(line.split("	") for line in listing.splitlines() if line)
-        report["corpus"] = corpus_hashes(corpus)
-        raw = Path(tmp) / "inprocess.json"
-        cmd = [str(bench_exe), "run", "--samples", str(args.samples), "--warmup", str(args.warmup), "--out", str(raw)]
-        for name in args.workload or []:
-            cmd += ["--workload", name]
-        subprocess.run(cmd, check=True)
-        report["in_process"] = json.loads(raw.read_text())
-        report["cold_process"] = {
-            "binary": str(weave.relative_to(ROOT)) if weave.is_relative_to(ROOT) else weave.name,
-            "samples": args.cold_samples,
-            "cache_state": "process cold, OS file cache warm (one untimed build first)",
-            "scenarios": cold(weave, corpus, entries, report["in_process"], args.cold_samples),
+        for r in range(rounds):
+            # Alternate the order so slow drift affects both builds alike.
+            order = trees if r % 2 == 0 else list(reversed(trees))
+            for label, tree in order:
+                print(f"round {r + 1}/{rounds}: {label}", file=sys.stderr)
+                weave, bench_exe = binaries(tree)
+                parts[label].append(measure(weave, bench_exe, args, Path(tmp), samples, cold_samples))
+    env = environment()
+    for label, tree in trees:
+        data = merge(parts[label])
+        revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=tree, capture_output=True, text=True, check=False
+        ).stdout.strip()
+        report = {
+            "label": label,
+            "environment": dict(env, revision=revision),
+            "method": {
+                "rounds": rounds,
+                "interleaved_with": [other for other, _ in trees if other != label],
+                "in_process_samples": samples * rounds,
+                "cold_samples": cold_samples * rounds,
+                "warmup_per_round": args.warmup,
+            },
+            "corpus": data["corpus"],
+            "in_process": data["in_process"],
+            "cold_process": {
+                "samples": cold_samples * rounds,
+                "cache_state": "process cold, OS file cache warm (one untimed build first in each round)",
+                "scenarios": data["cold"],
+            },
         }
-    Path(args.out).write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8", newline="\n")
-    print(f"wrote {args.out}")
+        out = Path(args.out_dir) / f"{label}.json"
+        out.write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8", newline="\n")
+        print(f"wrote {out}")
 
 
 def stats(values: list) -> dict:
@@ -276,6 +346,14 @@ def compare(args) -> None:
     a, b = rows(before), rows(after)
     print(f"Before: {before['label']} ({before['environment']['revision'][:12]}); "
           f"after: {after['label']} ({after['environment']['revision'][:12]})\n")
+    outputs = {w["name"]: w["output_fnv1a64"] for w in before["in_process"]["workloads"]}
+    for w in after["in_process"]["workloads"]:
+        same = outputs.get(w["name"]) == w["output_fnv1a64"]
+        print(f"- {w['name']}: output {'byte-identical' if same else 'DIFFERS'} "
+              f"({w['output_bytes']} bytes, FNV-1a 64 {w['output_fnv1a64']})")
+    if before["corpus"] != after["corpus"]:
+        print("- WARNING: the corpus differs between the two reports")
+    print()
     print("| series | before median | after median | change | before IQR | after IQR | verdict |")
     print("|---|---:|---:|---:|---:|---:|---|")
     for key in a:
@@ -290,7 +368,10 @@ def compare(args) -> None:
         overlap = not (y["q3"] < x["q1"] or y["q1"] > x["q3"])
         verdict = "within noise (IQRs overlap)" if overlap else ("faster" if change < 0 else "slower")
         if part == "peak":
-            verdict = "within noise (IQRs overlap)" if overlap else ("less" if change < 0 else "more")
+            if abs(change) < 1.0:
+                verdict = "unchanged (<1%)"
+            else:
+                verdict = "within noise (IQRs overlap)" if overlap else ("less" if change < 0 else "more")
         label = f"{kind}: {name}" + (" peak memory" if part == "peak" else "")
         print(f"| {label} | {fmt(x['median'])} | {fmt(y['median'])} | {change:+.1f}% | "
               f"{fmt(x['q1'])}–{fmt(x['q3'])} | {fmt(y['q1'])}–{fmt(y['q3'])} | {verdict} |")
@@ -300,13 +381,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("run")
-    p.add_argument("--out", required=True)
-    p.add_argument("--label", default="unlabelled")
+    p.add_argument("--out-dir", required=True, help="writes after.json (and before.json)")
+    p.add_argument("--baseline", help="a checkout of the baseline revision, measured interleaved")
+    p.add_argument("--rounds", type=int, default=4)
     p.add_argument("--samples", type=int, default=30)
     p.add_argument("--warmup", type=int, default=3)
     p.add_argument("--cold-samples", type=int, default=20)
     p.add_argument("--workload", action="append")
-    p.add_argument("--weave", help="weave binary for the cold scenarios (default: target/release)")
     p.add_argument("--no-build", action="store_true")
     p.set_defaults(func=run)
     p = sub.add_parser("summary")

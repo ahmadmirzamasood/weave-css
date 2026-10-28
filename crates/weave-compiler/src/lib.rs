@@ -1,12 +1,13 @@
 //! Compiler library for the Weave stylesheet language.
 //!
-//! Status: nesting and rule contexts (phase 06). [`compile`] tokenizes,
-//! parses, evaluates and emits the plain-CSS subset (`rule` blocks,
-//! declarations, known and unknown at-rules, `opaque` blocks, comments)
-//! together with `bind` statements, expressions, `#{…}` interpolation in
-//! every CSS context, functions, control flow, recipes, the built-ins of
-//! docs/BUILTINS.md, and nested rules and group at-rules lowered to flat
-//! CSS. Modules and the `color` built-ins are reported as E5001 (not
+//! Status: modules (phase 07). [`compile`] tokenizes, parses, evaluates and
+//! emits the plain-CSS subset (`rule` blocks, declarations, known and
+//! unknown at-rules, `opaque` blocks, comments) together with `bind`
+//! statements, expressions, `#{…}` interpolation in every CSS context,
+//! functions, control flow, recipes, the built-ins of docs/BUILTINS.md,
+//! nested rules and group at-rules lowered to flat CSS, and modules
+//! (`load`, `export`, namespaces) read through an injected
+//! [`ModuleResolver`]. The `color` built-ins are reported as E5001 (not
 //! implemented by this build); they are never silently ignored.
 
 #![forbid(unsafe_code)]
@@ -20,6 +21,7 @@ mod eval;
 mod expr;
 mod ir;
 mod lexer;
+mod modules;
 mod number;
 pub mod options;
 mod parser;
@@ -29,8 +31,9 @@ pub mod source;
 mod syntax;
 mod value;
 
-pub use compile::{Compilation, CompileOutput, compile, resolve_diagnostic};
+pub use compile::{Compilation, CompileOutput, compile, compile_with_cache, resolve_diagnostic};
 pub use diagnostic::{Code, Diagnostic, Diagnostics, Label, Severity};
+pub use modules::{CacheStats, DependencyGraph, ModuleCache};
 pub use options::{CompileOptions, Limit, LimitError, OutputStyle, ResourceLimits};
 pub use resolve::{LoadedModule, MemoryResolver, ModuleId, ModuleResolver, ResolveError};
 pub use source::{FileId, LineCol, SourceFile, SourceManager, Span};

@@ -318,22 +318,36 @@ fn diagnostic_limit_stops_parsing() {
 // ----- unsupported constructs ------------------------------------------------
 
 #[test]
-fn skipped_statements_report_once_but_keep_end_of_input_errors() {
+fn malformed_load_and_export_statements_recover() {
     let options = CompileOptions::default();
-    // One E5001 for the statement, none for interpolation inside it.
-    assert_eq!(codes(br##"load "#{y}" as #{z};"##, &options), [Code::E5001]);
+    // The namespace name must be a plain identifier.
+    assert_eq!(codes(br##"load "#{y}" as #{z};"##, &options), [Code::E0101]);
+    // Only `bind`, `fn` and `recipe` can be exported (no re-exports).
     assert_eq!(
         codes(
-            b"export fn f() { yield #{a}; } export recipe r { b: #{c}; }",
+            b"export load \"./a.weave\" as a;
+export rule a { b: c; }
+rule x { y: z; }",
             &options
         ),
-        [Code::E5001, Code::E5001]
+        [Code::E0101, Code::E0101]
     );
-    // An unterminated comment inside a skipped statement is still reported.
+    // An unterminated comment inside a `load` is still reported.
     assert_eq!(
         codes(b"load \"./a.weave\" /* never closed", &options),
-        [Code::E5001, Code::E0003]
+        [Code::E0003, Code::E0101]
     );
+    // `load` after other statements is E7005 (it is still resolved).
+    assert_eq!(
+        codes(
+            b"bind a = 1;
+load \"./b.weave\" as b;",
+            &options
+        ),
+        [Code::E7005, Code::E7001]
+    );
+    // A keyword cannot name a namespace.
+    assert!(codes(b"load \"./a.weave\" as rule;", &options).contains(&Code::E0103));
 }
 
 #[test]
@@ -353,17 +367,18 @@ fn keyword_function_tokens_start_statements() {
 fn nothing_unsupported_is_silently_dropped() {
     // Every compile-time construct either compiles or is reported.
     for source in [
-        "load \"./a.weave\" as a;",
-        "export bind x = 1;",
         "rule a { b: #{color.rgb(1, 2, 3)}; }",
+        "bind x = color.mix(#000, #fff);",
     ] {
         assert!(
             codes(source.as_bytes(), &CompileOptions::default()).contains(&Code::E5001),
             "{source}"
         );
     }
-    // Nesting is implemented since phase 06.
+    // Nesting is implemented since phase 06, modules since phase 07.
     for source in [
+        "export bind x = 1;",
+        "export fn f() { yield 1; } export recipe r { a: b; }",
         "rule a { rule b { c: d; } }",
         "rule a { @media print { b: c; } }",
         "recipe r { @media print { b: c; } }",

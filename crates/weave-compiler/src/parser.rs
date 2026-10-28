@@ -17,10 +17,10 @@
 //! recipe bodies and content blocks are kept too, and their placement is
 //! checked where they are expanded.
 //!
-//! Compile-time constructs that this build does not implement — `load`
-//! and `export` — are reported as E5001 and never
-//! silently dropped. Their extent is skipped so that parsing continues and
-//! later independent errors are reported.
+//! `load` statements are collected separately from the items
+//! (LANGUAGE.md §14): they must precede every other statement (E7005), and
+//! the compiler resolves them before evaluation. `export` marks a top-level
+//! `bind`, `fn` or `recipe` as visible through namespaces.
 //!
 //! Recovery is bounded: every step consumes at least one token, bracket and
 //! block nesting share the nesting-depth limit (E8002, which stops parsing),
@@ -38,7 +38,7 @@ use crate::expr::{self, Call, Cx, DefHead, EachHead, Program, Resume, StmtError,
 use crate::lexer::{Lexer, Mode, Token, TokenKind as K, ident_value};
 use crate::source::{FileId, Span};
 use crate::syntax::{
-    Apply, Branch, Context, Each, FnDef, Item, RecipeDef, Stylesheet, VerbatimKind,
+    Apply, Branch, Context, Each, FnDef, Item, Load, RecipeDef, Stylesheet, VerbatimKind,
 };
 
 /// LANGUAGE.md §3.1 rule 4.
@@ -70,7 +70,7 @@ const PAGE_MARGINS: [&str; 16] = [
     "right-bottom",
 ];
 
-const NOT_IMPLEMENTED_NOTE: &str = "this build implements the plain-CSS subset, bindings, expressions, interpolation, functions, control flow, recipes, nesting and the built-ins of docs/BUILTINS.md; modules are not implemented yet";
+const NOT_IMPLEMENTED_NOTE: &str = "this build implements the plain-CSS subset, bindings, expressions, interpolation, functions, control flow, recipes, nesting, modules and the built-ins of docs/BUILTINS.md; the `color` built-ins are not implemented yet";
 
 /// The kind of block being parsed (CSS-COMPATIBILITY.md §2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -172,8 +172,10 @@ fn at_kind(name: &str) -> AtKind {
 enum TopClass {
     Import,
     Namespace,
-    /// `@charset`, `@layer` statements and `/*!` comments.
+    /// `@layer` statements.
     Neutral,
+    /// `@charset` and `/*!` comments, which may also precede `load`.
+    Comment,
     Other,
 }
 
@@ -288,11 +290,13 @@ fn brace(at: usize) -> Token {
 }
 
 /// Parses one module. Diagnostics go to `diags`; the tree is meaningful only
-/// if no error was reported.
+/// if no error was reported. `entry` marks the entry module, the only one
+/// that may start with `@charset`.
 pub(crate) fn parse(
     text: &str,
     start: usize,
     file: FileId,
+    entry: bool,
     max_depth: u32,
     diags: &mut Diagnostics,
 ) -> Stylesheet {
@@ -309,9 +313,16 @@ pub(crate) fn parse(
         top_items: 0,
         import_blocker: None,
         namespace_blocker: None,
+        entry,
+        body_started: false,
+        loads: Vec::new(),
+        exports: Vec::new(),
     };
+    let items = parser.run();
     Stylesheet {
-        items: parser.run(),
+        loads: parser.loads,
+        exports: parser.exports,
+        items,
     }
 }
 
@@ -336,6 +347,13 @@ struct Parser<'a, 'd> {
     import_blocker: Option<Span>,
     /// The first top-level item after which `@namespace` is no longer allowed.
     namespace_blocker: Option<Span>,
+    /// Whether this is the entry module.
+    entry: bool,
+    /// Whether a top-level item other than `load`, `@charset` or a comment
+    /// was seen, after which `load` is E7005.
+    body_started: bool,
+    loads: Vec<Load>,
+    exports: Vec<(Rc<str>, Span)>,
 }
 
 impl<'a> Parser<'a, '_> {
@@ -599,7 +617,7 @@ impl<'a> Parser<'a, '_> {
                                 kind: VerbatimKind::Comment,
                                 span: self.span(token),
                             });
-                            self.top_item(ctx, TopClass::Neutral, token);
+                            self.top_item(ctx, TopClass::Comment, token);
                         }
                     }
                     None
@@ -654,7 +672,12 @@ impl<'a> Parser<'a, '_> {
             let _ = self.finish(frame.pending, frame.ctx, body, &mut items);
         }
         self.depth = 0;
-        self.check_bindings(&items, &[]);
+        let names: Vec<(Rc<str>, Span)> = self
+            .loads
+            .iter()
+            .map(|load| (Rc::clone(&load.name), load.name_span))
+            .collect();
+        self.check_bindings(&items, &names);
         items
     }
 
@@ -865,6 +888,9 @@ impl<'a> Parser<'a, '_> {
             return;
         }
         self.top_items += 1;
+        if class != TopClass::Comment {
+            self.body_started = true;
+        }
         let span = self.span(token);
         match class {
             TopClass::Other => {
@@ -874,7 +900,7 @@ impl<'a> Parser<'a, '_> {
             TopClass::Namespace => {
                 self.import_blocker.get_or_insert(span);
             }
-            TopClass::Import | TopClass::Neutral => {}
+            TopClass::Import | TopClass::Neutral | TopClass::Comment => {}
         }
     }
 
@@ -912,6 +938,7 @@ impl<'a> Parser<'a, '_> {
         }
         if ctx == Ctx::TopLevel {
             self.top_items += 1;
+            self.body_started = true;
         }
         None
     }
@@ -1148,6 +1175,9 @@ impl<'a> Parser<'a, '_> {
             // Statements emit nothing themselves but still precede a later
             // `@charset`.
             self.top_items += 1;
+            if word != "load" {
+                self.body_started = true;
+            }
         }
         match word.as_str() {
             "rule" | "opaque" | "apply" if ctx == Ctx::Function => {
@@ -1193,6 +1223,11 @@ impl<'a> Parser<'a, '_> {
                 );
             }
             "fn" | "recipe" => return self.definition(keyword, &word),
+            "load" => {
+                self.load(keyword);
+                return None;
+            }
+            "export" => return self.export(keyword, items),
             _ => self.not_implemented(span, &format!("`{word}` statements are")),
         }
         self.skip_statement(&word);
@@ -1353,6 +1388,164 @@ impl<'a> Parser<'a, '_> {
                     recipe: !function,
                     ..opened
                 }),
+        }
+    }
+
+    /// `load "./path.weave" as name;` (LANGUAGE.md §14). The path is
+    /// validated and resolved by the compiler, not here.
+    fn load(&mut self, keyword: Token) {
+        let span = self.span(keyword);
+        if self.body_started {
+            self.report(
+                Diagnostic::error(
+                    Code::E7005,
+                    "`load` must come before every other statement of the module",
+                )
+                .with_primary(span)
+                .with_note("only comments and an initial `@charset` may precede `load` statements; move it to the top"),
+            );
+        }
+        let path = self.next_skipped(true);
+        if path.kind != (K::String { terminated: true }) {
+            self.report(
+                Diagnostic::error(Code::E0101, "expected a quoted module path after `load`")
+                    .with_primary(self.span(path))
+                    .with_note("write `load \"./file.weave\" as name;`"),
+            );
+            self.unread(path);
+            self.skip_statement("load");
+            return;
+        }
+        let raw = self.text_of(path);
+        let path_text = raw
+            .get(1..raw.len().saturating_sub(1))
+            .unwrap_or("")
+            .to_string();
+        let path_span = self.span(path);
+
+        let as_token = self.next_skipped(true);
+        if !(as_token.kind == K::Ident && self.text_of(as_token) == "as") {
+            self.report(
+                Diagnostic::error(
+                    Code::E0101,
+                    "expected `as` and a namespace name after the module path",
+                )
+                .with_primary(self.span(as_token))
+                .with_note(
+                    "every loaded module is bound to a namespace: `load \"./file.weave\" as name;`",
+                ),
+            );
+            self.unread(as_token);
+            self.skip_statement("load");
+            return;
+        }
+        let name = self.next_skipped(true);
+        let name_text = self.text_of(name).to_string();
+        let name_span = self.span(name);
+        if name.kind != K::Ident || !expr::is_identifier(&name_text) {
+            self.error(
+                Code::E0101,
+                name_span,
+                "expected a namespace name after `as`",
+            );
+            self.unread(name);
+            self.skip_statement("load");
+            return;
+        }
+        if expr::KEYWORDS.contains(&name_text.as_str()) {
+            self.error(
+                Code::E0103,
+                name_span,
+                format!("`{name_text}` is a keyword and cannot name a namespace"),
+            );
+        }
+        let end = self.next_skipped(true);
+        if end.kind != K::Semicolon {
+            self.error(
+                Code::E0102,
+                self.span(end),
+                "expected `;` after the `load` statement",
+            );
+            self.unread(end);
+            self.skip_statement("load");
+        }
+        if let Some(earlier) = self
+            .loads
+            .iter()
+            .find(|load| *load.name == *name_text)
+            .map(|load| load.name_span)
+        {
+            self.report(
+                Diagnostic::error(
+                    Code::E1001,
+                    format!("duplicate name: `{name_text}` is already bound in this scope"),
+                )
+                .with_primary(name_span)
+                .with_label(earlier, "first bound here")
+                .with_note(
+                    "one module may be loaded under two names, but each name must be unique",
+                ),
+            );
+            return;
+        }
+        self.loads.push(Load {
+            path: path_text,
+            path_span,
+            name: name_text.into(),
+            name_span,
+            span,
+        });
+    }
+
+    /// `export bind …;`, `export fn …` or `export recipe …`.
+    fn export(&mut self, keyword: Token, items: &mut Vec<Item>) -> Option<Opened> {
+        let next = self.next_skipped(true);
+        let word = if next.kind == K::Ident {
+            self.text_of(next).to_string()
+        } else {
+            String::new()
+        };
+        match word.as_str() {
+            "bind" => {
+                let before = items.len();
+                self.bind(next, items);
+                if items.len() > before {
+                    if let Some(Item::Bind { name, span, .. }) = items.last() {
+                        self.exports.push((Rc::clone(name), *span));
+                    }
+                }
+                None
+            }
+            "fn" | "recipe" => {
+                let opened = self.definition(next, &word);
+                if let Some(Opened {
+                    pending: Pending::Fn(head) | Pending::Recipe(head),
+                    ..
+                }) = &opened
+                {
+                    self.exports.push((Rc::clone(&head.name), head.span));
+                }
+                opened
+            }
+            _ => {
+                let note = if word == "load" {
+                    "re-exports are not part of Weave v0.1; load the module where it is needed"
+                } else {
+                    "only top-level `bind`, `fn` and `recipe` definitions can be exported"
+                };
+                self.report(
+                    Diagnostic::error(
+                        Code::E0101,
+                        "`export` must be followed by `bind`, `fn` or `recipe`",
+                    )
+                    .with_primary(self.span(keyword))
+                    .with_note(note),
+                );
+                self.unread(next);
+                let first = self.next_skipped(true);
+                self.skip(first, true);
+                None
+            }
         }
     }
 
@@ -1765,7 +1958,18 @@ impl<'a> Parser<'a, '_> {
                     prelude.iter().copied().filter(|t| !t.is_trivia()).collect();
                 let utf8 = matches!(significant.as_slice(), [t] if self.text_of(*t) == "\"UTF-8\"");
                 let first = ctx == Ctx::TopLevel && self.top_items == 0;
-                self.top_item(ctx, TopClass::Neutral, at);
+                self.top_item(ctx, TopClass::Comment, at);
+                if first && !self.entry {
+                    self.report(
+                        Diagnostic::error(
+                            Code::E6008,
+                            "`@charset` is allowed only in the entry module",
+                        )
+                        .with_primary(span)
+                        .with_note("a loaded module's CSS follows other CSS, where `@charset` is invalid; remove it"),
+                    );
+                    return false;
+                }
                 if !first {
                     self.report(
                         Diagnostic::error(

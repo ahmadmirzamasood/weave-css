@@ -147,10 +147,14 @@ impl Code {
     pub const E6008: Code = Code("E6008");
     /// Module not found.
     pub const E7001: Code = Code("E7001");
+    /// Load cycle.
+    pub const E7002: Code = Code("E7002");
     /// Member not exported.
     pub const E7003: Code = Code("E7003");
     /// Invalid load path.
     pub const E7004: Code = Code("E7004");
+    /// `load` after other statements.
+    pub const E7005: Code = Code("E7005");
     /// Path outside the module root.
     pub const E7006: Code = Code("E7006");
     /// Native `@import`/`@namespace` order violation.
@@ -177,7 +181,7 @@ impl Code {
     pub const W9001: Code = Code("W9001");
 
     /// Every code defined so far.
-    pub const ALL: [Code; 71] = [
+    pub const ALL: [Code; 73] = [
         Code::E0001,
         Code::E0002,
         Code::E0003,
@@ -235,8 +239,10 @@ impl Code {
         Code::E6007,
         Code::E6008,
         Code::E7001,
+        Code::E7002,
         Code::E7003,
         Code::E7004,
+        Code::E7005,
         Code::E7006,
         Code::E7010,
         Code::E8001,

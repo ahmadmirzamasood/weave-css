@@ -16,7 +16,24 @@ use crate::value::Type;
 /// One parsed module.
 #[derive(Debug, Default)]
 pub(crate) struct Stylesheet {
+    /// The module's `load` statements, in source order.
+    pub loads: Vec<Load>,
+    /// Names declared with `export`, in source order.
+    pub exports: Vec<(Rc<str>, Span)>,
     pub items: Vec<Item>,
+}
+
+/// `load "path" as name;` (LANGUAGE.md §14).
+#[derive(Debug)]
+pub(crate) struct Load {
+    /// The path as written between the quotes; not interpolated.
+    pub path: String,
+    /// The path string, quotes included.
+    pub path_span: Span,
+    pub name: Rc<str>,
+    pub name_span: Span,
+    /// The `load` keyword.
+    pub span: Span,
 }
 
 /// The kind of block an at-rule body is (CSS-COMPATIBILITY.md §2).

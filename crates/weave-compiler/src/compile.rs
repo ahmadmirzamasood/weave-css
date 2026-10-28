@@ -1,10 +1,14 @@
 //! The compilation entry point.
 
+use std::rc::Rc;
+
 use crate::diagnostic::{Code, Diagnostic, Diagnostics};
+use crate::ir::Node;
+use crate::modules::{self, DependencyGraph, ModuleCache};
 use crate::options::{CompileOptions, Limit};
 use crate::resolve::{ModuleId, ModuleResolver, ResolveError};
-use crate::source::{FileId, SourceManager};
-use crate::{emit, eval, parser};
+use crate::source::{SourceManager, Span};
+use crate::{emit, eval};
 
 /// A successful build.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -13,7 +17,8 @@ pub struct CompileOutput {
     pub css: String,
     /// An ECMA-426 source map, when requested. Not produced yet (phase 08).
     pub source_map: Option<String>,
-    /// Every module that contributed to the build, entry first.
+    /// Every module that contributed to the build, entry first, then in
+    /// discovery order.
     pub dependencies: Vec<ModuleId>,
     pub warnings: Vec<Diagnostic>,
 }
@@ -22,6 +27,9 @@ pub struct CompileOutput {
 #[derive(Debug)]
 pub struct Compilation {
     pub sources: SourceManager,
+    /// The modules reached and their `load` edges. After a failure it holds
+    /// what was discovered before the build stopped.
+    pub graph: DependencyGraph,
     /// On failure: every reported diagnostic (errors and warnings), up to the
     /// diagnostic limit.
     pub outcome: Result<CompileOutput, Vec<Diagnostic>>,
@@ -29,45 +37,83 @@ pub struct Compilation {
 
 /// Compiles the module `entry`, reading modules through `resolver`.
 ///
-/// This build compiles the plain-CSS subset of Weave (`rule` blocks,
-/// declarations, known and unknown at-rules, `opaque` blocks and comments)
-/// with `bind` statements, expressions, `#{…}` interpolation, functions,
-/// control flow, recipes, nesting and the built-ins of docs/BUILTINS.md.
-/// Modules and the `color` built-ins are reported as E5001 instead of being
-/// ignored.
+/// This build compiles the Weave language of LANGUAGE.md: CSS with `rule`
+/// blocks, bindings, expressions, `#{…}` interpolation, functions, control
+/// flow, recipes, nesting, modules and the built-ins of docs/BUILTINS.md.
+/// The `color` built-ins are reported as E5001 instead of being ignored.
 pub fn compile(
     entry: &ModuleId,
     resolver: &mut dyn ModuleResolver,
     options: &CompileOptions,
 ) -> Compilation {
+    compile_with_cache(entry, resolver, options, &mut ModuleCache::new())
+}
+
+/// [`compile`], reusing parsed modules from `cache` where their source text
+/// is unchanged and storing the modules it parses (see [`ModuleCache`]).
+pub fn compile_with_cache(
+    entry: &ModuleId,
+    resolver: &mut dyn ModuleResolver,
+    options: &CompileOptions,
+    cache: &mut ModuleCache,
+) -> Compilation {
     let mut sources = SourceManager::new();
     let limit = usize::try_from(options.limits.get(Limit::Diagnostics)).unwrap_or(usize::MAX);
     let mut diagnostics = Diagnostics::new(limit);
 
-    let file = match load_module(entry, resolver, options, &mut sources) {
-        Ok(file) => file,
-        Err(diagnostic) => {
-            diagnostics.push(diagnostic);
-            return failed(sources, diagnostics);
-        }
-    };
-    let Some(source) = sources.get(file) else {
-        return failed(sources, diagnostics);
-    };
-    let max_depth = u32::try_from(options.limits.get(Limit::NestingDepth)).unwrap_or(u32::MAX);
-    let sheet = parser::parse(
-        source.text(),
-        source.content_start() as usize,
-        file,
-        max_depth,
+    let found = modules::discover(
+        entry,
+        resolver,
+        options,
+        &mut sources,
         &mut diagnostics,
+        cache,
     );
+    let graph = found.graph();
     if diagnostics.has_errors() {
-        return failed(sources, diagnostics);
+        return failed(sources, graph, diagnostics);
     }
-    let nodes = eval::evaluate(&sheet.items, file, &options.limits, &mut diagnostics);
+
+    // Evaluate dependencies first: unit `i` is `found.emission[i]`.
+    let mut unit_of = vec![usize::MAX; found.modules.len()];
+    for (unit, &module) in found.emission.iter().enumerate() {
+        if let Some(slot) = unit_of.get_mut(module) {
+            *slot = unit;
+        }
+    }
+    let mut units = Vec::with_capacity(found.emission.len());
+    for &index in &found.emission {
+        let Some(module) = found.modules.get(index) else {
+            continue;
+        };
+        let (Some(sheet), Some(file)) = (module.sheet.as_deref(), module.file) else {
+            continue;
+        };
+        let imports = sheet
+            .loads
+            .iter()
+            .zip(&module.targets)
+            .filter_map(|(load, target)| {
+                let unit = target.and_then(|t| unit_of.get(t).copied())?;
+                Some((Rc::clone(&load.name), unit))
+            })
+            .collect();
+        units.push(eval::Unit {
+            items: &sheet.items,
+            file,
+            name: module.id.to_string(),
+            exports: &sheet.exports,
+            imports,
+        });
+    }
+    let outputs = eval::evaluate(&units, &options.limits, &mut diagnostics);
     if diagnostics.has_errors() {
-        return failed(sources, diagnostics);
+        return failed(sources, graph, diagnostics);
+    }
+
+    let nodes = concatenate(outputs, &units, &mut diagnostics);
+    if diagnostics.has_errors() {
+        return failed(sources, graph, diagnostics);
     }
     match emit::emit(&nodes, options.limits.get(Limit::OutputBytes)) {
         Ok(css) => Compilation {
@@ -75,69 +121,141 @@ pub fn compile(
             outcome: Ok(CompileOutput {
                 css,
                 source_map: None,
-                dependencies: vec![entry.clone()],
+                dependencies: graph.modules().to_vec(),
                 warnings: diagnostics.into_vec(),
             }),
+            graph,
         },
         Err(diagnostic) => {
             diagnostics.push(diagnostic);
-            failed(sources, diagnostics)
+            failed(sources, graph, diagnostics)
         }
     }
 }
 
-fn failed(sources: SourceManager, diagnostics: Diagnostics) -> Compilation {
+fn failed(sources: SourceManager, graph: DependencyGraph, diagnostics: Diagnostics) -> Compilation {
     Compilation {
         sources,
+        graph,
         outcome: Err(diagnostics.into_vec()),
     }
 }
 
-fn load_module(
-    id: &ModuleId,
-    resolver: &mut dyn ModuleResolver,
-    options: &CompileOptions,
-    sources: &mut SourceManager,
-) -> Result<FileId, Diagnostic> {
-    let file_limit = options.limits.get(Limit::FileBytes);
-    let module = resolver
-        .load(id, file_limit)
-        .map_err(|err| resolve_diagnostic(&err))?;
+/// How a top-level node takes part in `@import`/`@namespace` ordering
+/// (CSS-COMPATIBILITY.md §5.2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Order {
+    Import,
+    Namespace,
+    /// `@charset`, `@layer` statements and comments.
+    Neutral,
+    Other,
+}
 
-    let len = u64::try_from(module.bytes.len()).unwrap_or(u64::MAX);
-    if len > file_limit {
-        return Err(Diagnostic::error(
-            Code::E8001,
-            format!(
-                "`{}` exceeds the per-file input limit of {file_limit} bytes",
-                module.display_name
-            ),
-        )
-        .with_note(format!("raise it with the `{}` limit", Limit::FileBytes)));
+fn order_of(node: &Node) -> Order {
+    match node {
+        Node::AtRule {
+            name, body: None, ..
+        } => match name.to_ascii_lowercase().as_str() {
+            "@import" => Order::Import,
+            "@namespace" => Order::Namespace,
+            "@charset" | "@layer" => Order::Neutral,
+            _ => Order::Other,
+        },
+        Node::Verbatim { text, .. } if is_comment(text) => Order::Neutral,
+        _ => Order::Other,
     }
-    let total_limit = options.limits.get(Limit::TotalInputBytes);
-    if sources.total_bytes().saturating_add(len) > total_limit {
-        return Err(Diagnostic::error(
-            Code::E8001,
-            format!(
-                "loading `{}` exceeds the total input limit of {total_limit} bytes",
-                module.display_name
-            ),
-        )
-        .with_note(format!(
-            "raise it with the `{}` limit",
-            Limit::TotalInputBytes
-        )));
-    }
-    let module_limit = options.limits.get(Limit::Modules);
-    if u64::try_from(sources.files().count()).unwrap_or(u64::MAX) >= module_limit {
-        return Err(Diagnostic::error(
-            Code::E8008,
-            format!("the build exceeds the module limit of {module_limit}"),
-        ));
-    }
+}
 
-    sources.add(module.display_name, module.bytes)
+/// Whether `text` is exactly one CSS comment.
+fn is_comment(text: &str) -> bool {
+    text.len() >= 4
+        && text.starts_with("/*")
+        && text.find("*/").is_some_and(|end| end + 2 == text.len())
+}
+
+fn origin_span(node: &Node) -> Option<Span> {
+    match node {
+        Node::Rule { origin, .. }
+        | Node::Declaration { origin, .. }
+        | Node::AtRule { origin, .. }
+        | Node::Keyframe { origin, .. }
+        | Node::Verbatim { origin, .. } => origin.as_ref().map(|o| o.span),
+    }
+}
+
+/// Joins the modules' CSS in emission order. The entry module's leading
+/// `@charset` is moved to the very start (CSS-COMPATIBILITY.md §5.2); it is
+/// the only item that moves. A native `@import` or `@namespace` that would
+/// follow CSS another module emitted is E7010: CSS is never reordered to
+/// satisfy CSS ordering rules.
+fn concatenate(
+    outputs: Vec<Vec<Node>>,
+    units: &[eval::Unit<'_>],
+    diags: &mut Diagnostics,
+) -> Vec<Node> {
+    let count = outputs.len();
+    let mut nodes = Vec::new();
+    let mut charset = None;
+    // The first node (and its module) after which `@import`, respectively
+    // `@namespace`, is no longer allowed.
+    let mut import_blocker: Option<(Option<Span>, &str)> = None;
+    let mut namespace_blocker: Option<(Option<Span>, &str)> = None;
+    for (index, (output, unit)) in outputs.into_iter().zip(units).enumerate() {
+        let entry = index + 1 == count;
+        for (position, node) in output.into_iter().enumerate() {
+            let order = order_of(&node);
+            if entry && position == 0 {
+                if let Node::AtRule { name, .. } = &node {
+                    if name.eq_ignore_ascii_case("@charset") {
+                        charset = Some(node);
+                        continue;
+                    }
+                }
+            }
+            let blocker = match order {
+                Order::Import => import_blocker,
+                Order::Namespace => namespace_blocker,
+                Order::Neutral | Order::Other => None,
+            };
+            if let Some((earlier, module)) = blocker {
+                let name = match &node {
+                    Node::AtRule { name, .. } => name.as_str(),
+                    _ => "@import",
+                };
+                let mut diagnostic = Diagnostic::error(
+                    Code::E7010,
+                    format!("`{name}` would follow CSS emitted by module `{module}`; Weave does not reorder CSS"),
+                )
+                .with_note("a module's CSS is emitted after the CSS of the modules it loads, so this statement would be invalid in the output")
+                .with_note(format!("move `{name}` into the first module that is loaded, or into a module emitted before `{module}`"));
+                if let Some(span) = origin_span(&node) {
+                    diagnostic = diagnostic.with_primary(span);
+                }
+                if let Some(span) = earlier {
+                    diagnostic =
+                        diagnostic.with_label(span, format!("emitted earlier, by `{module}`"));
+                }
+                diags.push(diagnostic);
+            }
+            match order {
+                Order::Other => {
+                    let here = (origin_span(&node), unit.name.as_str());
+                    import_blocker.get_or_insert(here);
+                    namespace_blocker.get_or_insert(here);
+                }
+                Order::Namespace => {
+                    import_blocker.get_or_insert((origin_span(&node), unit.name.as_str()));
+                }
+                Order::Import | Order::Neutral => {}
+            }
+            nodes.push(node);
+        }
+    }
+    if let Some(charset) = charset {
+        nodes.insert(0, charset);
+    }
+    nodes
 }
 
 /// Maps a resolver failure to its diagnostic code (LANGUAGE.md §16).
@@ -207,14 +325,14 @@ mod tests {
     }
 
     #[test]
-    fn unimplemented_statements_are_reported() {
+    fn missing_dependency_is_reported_at_the_load() {
         let result = run(
             b"load \"./a.weave\" as a;
 rule a { color: red; }
 ",
             &CompileOptions::default(),
         );
-        assert_eq!(codes(&result), [Code::E5001]);
+        assert_eq!(codes(&result), [Code::E7001]);
     }
 
     #[test]

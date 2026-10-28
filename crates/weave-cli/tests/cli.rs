@@ -100,10 +100,50 @@ fn build_writes_css_and_check_writes_nothing() {
 }
 
 #[test]
+fn modules_build_from_the_filesystem_inside_the_root() {
+    let dir = scratch("modules");
+    let root = dir.join("root");
+    fs::create_dir_all(root.join("ui")).expect("create dirs");
+    fs::write(
+        root.join("main.weave"),
+        "load \"./ui/button.weave\" as button;\nload \"./tokens.weave\" as t;\nrule .main { gap: #{t.gap}; }\n",
+    )
+    .expect("write main");
+    fs::write(
+        root.join("ui/button.weave"),
+        "load \"../tokens.weave\" as t;\nrule .button { padding: #{t.gap * 2}; }\n",
+    )
+    .expect("write button");
+    fs::write(root.join("tokens.weave"), "export bind gap = 4px;\n").expect("write tokens");
+    let main = root.join("main.weave");
+    let out = weave(&["build", main.to_str().expect("UTF-8 path")]);
+    assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
+    assert_eq!(
+        stdout(&out),
+        ".button {\n  padding: 8px;\n}\n\n.main {\n  gap: 4px;\n}\n"
+    );
+
+    // Leaving the root (the entry's directory) is E7006 at the load path,
+    // without leaking the absolute path.
+    fs::write(dir.join("outside.weave"), "export bind x = 1;\n").expect("write outside");
+    fs::write(&main, "load \"../outside.weave\" as o;\n").expect("rewrite main");
+    let out = weave(&["check", main.to_str().expect("UTF-8 path")]);
+    assert_eq!(out.status.code(), Some(1));
+    let err = stderr(&out);
+    assert!(err.starts_with("error[E7006]: "), "{err}");
+    assert!(err.contains("--> main.weave:1:6\n"), "{err}");
+    assert!(!err.contains(dir.to_str().expect("UTF-8 path")), "{err}");
+}
+
+#[test]
 fn errors_exit_1_with_positions_and_no_css() {
     let dir = scratch("errors");
     let input = dir.join("main.weave");
-    fs::write(&input, ".card {\n  color: red;\n}\nexport bind x = 1;\n").expect("write input");
+    fs::write(
+        &input,
+        ".card {\n  color: red;\n}\nload \"./a.weave\" as a;\n",
+    )
+    .expect("write input");
     for command in ["build", "check"] {
         let out = weave(&[command, input.to_str().expect("UTF-8 path")]);
         assert_eq!(out.status.code(), Some(1), "{command}");
@@ -111,7 +151,7 @@ fn errors_exit_1_with_positions_and_no_css() {
         let err = stderr(&out);
         assert!(err.starts_with("error[E0110]: "), "{err}");
         assert!(err.contains("--> main.weave:1:1\n"), "{err}");
-        assert!(err.contains("error[E5001]: "), "{err}");
+        assert!(err.contains("error[E7005]: "), "{err}");
         assert!(err.contains("--> main.weave:4:1\n"), "{err}");
         // The absolute scratch path is not leaked into diagnostics.
         assert!(!err.contains(dir.to_str().expect("UTF-8 path")), "{err}");
@@ -189,6 +229,6 @@ fn specification_fixtures_run_through_the_cli() {
     assert_eq!(count, 35, "expected the 35 phase 01 fixtures");
     // 001, 002, 006, 008, 010, 024, 030 and 035 build since phase 04;
     // 011, 014, 018 and 023 since phase 05; 003, 016, 020, 021 and 022
-    // since phase 06.
-    assert_eq!(built, 17, "specification fixtures that build");
+    // since phase 06; 025 since phase 07.
+    assert_eq!(built, 18, "specification fixtures that build");
 }

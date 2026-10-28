@@ -1,0 +1,12 @@
+rule .btn {
+    rule :not(&) { border-top-width: 3px; border-top-style: solid; }
+    rule :where(&) { color: red; }
+    rule div:has(> &) { outline-width: 2px; outline-style: solid; }
+    rule :is(&.on, .other) { background-color: red; }
+}
+rule span.x, em.x {
+    rule p& { text-decoration-line: underline; }
+}
+rule button { color: blue; }
+rule p.x { text-decoration-line: line-through; }
+rule p { text-decoration-line: overline; }

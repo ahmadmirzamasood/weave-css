@@ -1,0 +1,4 @@
+rule .a .b {
+    rule .x & { color: red; }
+    rule &.on { background-color: red; }
+}

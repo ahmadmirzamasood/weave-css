@@ -1,0 +1,51 @@
+@layer base, theme;
+
+.nav, #top {
+  display: flex;
+}
+
+@media (width >= 40em) {
+  .nav, #top {
+    gap: 1rem;
+  }
+  @supports (display: grid) {
+    .nav, #top {
+      display: grid;
+    }
+    :is(.nav, #top) .item {
+      grid-column: span 2;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :is(.nav, #top):hover {
+      transition: none;
+    }
+  }
+}
+
+@container sidebar (inline-size > 20em) {
+  :is(.nav, #top) > a {
+    padding: 0;
+  }
+}
+
+@layer theme {
+  .nav, #top {
+    color: navy;
+  }
+}
+
+@layer base {
+}
+
+@starting-style {
+  .nav, #top {
+    opacity: 0;
+  }
+}
+
+@media (hover: hover) {
+  :is(.nav, #top) .link {
+    text-decoration: underline;
+  }
+}

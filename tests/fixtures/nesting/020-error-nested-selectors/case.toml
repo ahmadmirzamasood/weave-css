@@ -1,0 +1,3 @@
+description = "Nested selectors rejected while lowering: nesting under a pseudo-element (also a legacy one-colon pseudo-element and a functional one) is E6004; a type selector after `&` in a compound, an empty selector in a list, a dangling or doubled combinator and an interpolated type after `&` are E6007. Declarations and group at-rules under a pseudo-element are fine."
+spec = ["CSS-COMPATIBILITY.md 4.1", "LANGUAGE.md 16"]
+expect = "error"

@@ -1,0 +1,8 @@
+.btn { color: red; }
+:not(.btn) { border-top-width: 3px; border-top-style: solid; }
+div:has(> .btn) { outline-width: 2px; outline-style: solid; }
+.btn.on, .other { background-color: red; }
+p.x { text-decoration-line: underline; }
+button { color: blue; }
+p.x { text-decoration-line: line-through; }
+p { text-decoration-line: overline; }

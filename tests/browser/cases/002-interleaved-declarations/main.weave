@@ -1,0 +1,10 @@
+rule .a {
+    color: red;
+    margin-top: 1px;
+    rule & { color: blue; margin-top: 2px; }
+    color: green;
+    @media all { margin-top: 3px; padding-top: 1px; }
+    padding-top: 2px;
+    rule &.b { border-top-width: 1px; border-top-style: solid; }
+    border-top-width: 2px;
+}

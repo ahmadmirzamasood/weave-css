@@ -1,0 +1,2 @@
+description = "A parent list with mixed specificity (`#main, .side`): native `&` takes the maximum, (1,1,0) for every match. Cartesian expansion gives `.side .item` only (0,2,0), so a later (0,2,0) rule would win."
+properties = ["color", "background-color"]

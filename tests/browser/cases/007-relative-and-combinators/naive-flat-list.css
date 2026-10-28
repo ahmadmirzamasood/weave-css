@@ -1,0 +1,6 @@
+ul > li, ol > li { color: red; }
+ul > li + li, ol > li + li { background-color: red; }
+ul > li ~ li.k, ol > li ~ li.k { margin-left: 3px; }
+ul > li + ul > li, ol > li + ol > li { padding-left: 4px; }
+ul > li a, ol > li a { border-left-width: 2px; border-left-style: solid; }
+li { color: blue; }

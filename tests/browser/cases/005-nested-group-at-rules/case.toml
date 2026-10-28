@@ -1,0 +1,2 @@
+description = "`@media`, `@supports`, `@container` and `@layer` nested in rules wrap the current selector; nested `@media` stays nested; layer order still decides between layered declarations."
+properties = ["color", "background-color", "padding-top", "margin-top", "border-top-width"]

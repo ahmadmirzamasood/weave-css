@@ -1,0 +1,15 @@
+.menu.is-open {
+  display: block;
+}
+
+.menu.\32 x {
+  width: 2px;
+}
+
+.menu > .child, .menu .other {
+  margin: 0;
+}
+
+li:has(> .menu) {
+  list-style: none;
+}

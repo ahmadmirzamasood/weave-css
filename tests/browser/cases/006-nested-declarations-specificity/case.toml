@@ -1,0 +1,2 @@
+description = "Declarations in a group at-rule nested in a list rule, and declarations after a nested rule, match each selector of the list with its own specificity (like the parent rule), not with the `:is()` maximum."
+properties = ["color", "background-color"]

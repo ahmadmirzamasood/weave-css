@@ -1,0 +1,15 @@
+recipe top-only {
+    @font-face { font-family: X; }
+    @keyframes k { to { color: red; } }
+    @layer a, b;
+    @font-feature-values F { }
+}
+recipe scoped { @scope (.x) { } }
+recipe wide { @media print { color: red; } }
+recipe hover { rule &:hover { color: red; } }
+
+rule .a { apply top-only; }
+rule .b { apply scoped; }
+@font-face { apply wide; }
+apply wide;
+rule .c::before { apply hover; }

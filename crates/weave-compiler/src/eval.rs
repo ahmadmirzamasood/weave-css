@@ -21,6 +21,13 @@
 //!   limit (E8006), checked as nodes are created.
 //! - After interpolation, every CSS region is re-checked: inserted text can
 //!   never change the structure of the surrounding CSS (§7.3).
+//! - Nested rules are lowered as their frames open: each rule frame holds
+//!   its lowered selector list, which nested rules refer to as `&`
+//!   ([`crate::selector`]). When a rule frame closes, its declarations are
+//!   cut into segments around the nested rules and at-rules it produced
+//!   (CSS-COMPATIBILITY.md §4.3); a group at-rule in a rule body wraps the
+//!   segments of its own declarations. Each close flattens one level, so
+//!   the result is flat CSS without recursion.
 
 use std::cell::{Cell, RefCell};
 use std::cmp::Ordering;
@@ -34,6 +41,7 @@ use crate::ir::{CallSite, Node, Origin};
 use crate::lexer::{Lexer, Mode, TokenKind as K};
 use crate::number::NumError;
 use crate::options::{Limit, ResourceLimits};
+use crate::selector::{Problem, SelectorList};
 use crate::source::{FileId, Span};
 use crate::syntax::{Apply, Branch, Context, Each, FnDef, Item, Param, RecipeDef, VerbatimKind};
 use crate::value::{
@@ -310,7 +318,8 @@ enum Place {
 impl Place {
     fn of(context: Context) -> Place {
         match context {
-            Context::Stylesheet => Place::Stylesheet,
+            // `Enclosing` is resolved by the caller.
+            Context::Stylesheet | Context::Enclosing => Place::Stylesheet,
             Context::Declarations => Place::Declarations,
             Context::Keyframes => Place::Keyframes,
             Context::Page => Place::Page,
@@ -373,14 +382,24 @@ struct Frame<'s> {
     expansion: Option<usize>,
     /// Where limit errors about the frame point.
     site: Span,
+    /// In a rule body: the lowered selector list of the innermost rule,
+    /// which `&` refers to. `None` at stylesheet level, or when that
+    /// rule's selector failed.
+    parent: Option<Rc<SelectorList>>,
 }
 
 /// The CSS region a template belongs to, for the structure check.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Region {
-    Value { custom: bool },
+    Value {
+        custom: bool,
+    },
     Prelude,
-    Selector,
+    /// A `rule` selector; `nested` when it has a parent rule, so `&` is
+    /// allowed.
+    Selector {
+        nested: bool,
+    },
     Name,
 }
 
@@ -414,6 +433,8 @@ pub(crate) fn evaluate(
         calls: None,
         output: 0,
         max_output: limits.get(Limit::OutputBytes),
+        selectors: 0,
+        max_selectors: limits.get(Limit::EmittedSelectors),
         top_blocked: false,
         bounds: Bounds {
             string_bytes: size(Limit::StringBytes),
@@ -443,6 +464,10 @@ struct Evaluator<'s, 'd> {
     /// Bytes of CSS produced so far (an upper bound of the output).
     output: u64,
     max_output: u64,
+    /// Complex selectors produced by lowering nested rules so far, counting
+    /// every inserted copy of a parent list (E8005).
+    selectors: u64,
+    max_selectors: u64,
     /// Whether a rule or block was emitted at the top level, which
     /// `@import` and `@namespace` may not follow.
     top_blocked: bool,
@@ -1373,6 +1398,7 @@ impl<'s> Evaluator<'s, '_> {
             slot: None,
             each: None,
             expansion: None,
+            parent: None,
         }];
         loop {
             let next = match stack.last_mut() {
@@ -1428,29 +1454,122 @@ impl<'s> Evaluator<'s, '_> {
         if let Build::Top = done.build {
             return Some(done.out);
         }
-        let node = match done.build {
-            // A rule without declarations is not emitted (LANGUAGE.md §11).
-            Build::Rule(Some(selector)) if done.out.iter().any(Node::emits) => Node::Rule {
-                selector,
-                body: done.out,
-                origin: self.origin(site),
-            },
-            Build::AtRule(name, Some(prelude)) => Node::AtRule {
-                name,
-                prelude,
-                body: Some(done.out),
-                origin: self.origin(site),
-            },
-            Build::Keyframe(Some(selectors)) => Node::Keyframe {
-                selectors,
-                body: done.out,
-                origin: self.origin(site),
-            },
-            _ => return None,
-        };
         let target = stack.last().map_or(0, |f| f.target);
-        let _ = self.emit(stack, target, node, false, site);
+        match done.build {
+            Build::Rule(Some(selector)) => {
+                // Segments around nested output; nested rules and at-rules
+                // were already lowered when they closed.
+                for node in self.segments(&selector, done.out, site) {
+                    self.place(stack, target, node, site);
+                }
+                return None;
+            }
+            Build::AtRule(name, Some(prelude)) => {
+                let body = match (done.place, &done.parent) {
+                    (Place::Rule, Some(parent)) => {
+                        let body = self.segments(&parent.text, done.out, site);
+                        // An empty nested group rule is omitted; an empty
+                        // `@layer` block still declares the layer
+                        // (LANGUAGE.md §15).
+                        let layer = name.eq_ignore_ascii_case("@layer");
+                        if !layer && !body.iter().any(Node::emits) {
+                            return None;
+                        }
+                        body
+                    }
+                    (Place::Rule, None) => return None,
+                    _ => done.out,
+                };
+                let node = Node::AtRule {
+                    name,
+                    prelude,
+                    body: Some(body),
+                    origin: self.origin(site),
+                };
+                let _ = self.emit(stack, target, node, false, site);
+            }
+            Build::Keyframe(Some(selectors)) => {
+                let node = Node::Keyframe {
+                    selectors,
+                    body: done.out,
+                    origin: self.origin(site),
+                };
+                let _ = self.emit(stack, target, node, false, site);
+            }
+            _ => {}
+        }
         None
+    }
+
+    /// Cuts the output of a rule body into rule segments: each maximal run
+    /// of declarations and verbatim items becomes a rule with `selector`,
+    /// in place; nested rules and at-rules stay between them (LANGUAGE.md
+    /// §11). A segment without output is dropped. Segment headers count
+    /// toward the output limit; the nodes they wrap were counted already.
+    fn segments(&mut self, selector: &str, out: Vec<Node>, site: Span) -> Vec<Node> {
+        let mut result = Vec::new();
+        let mut run: Vec<Node> = Vec::new();
+        for node in out {
+            match node {
+                Node::Declaration { .. } | Node::Verbatim { .. } => run.push(node),
+                other => {
+                    self.segment(selector, &mut run, &mut result, site);
+                    result.push(other);
+                }
+            }
+        }
+        self.segment(selector, &mut run, &mut result, site);
+        result
+    }
+
+    fn segment(&mut self, selector: &str, run: &mut Vec<Node>, result: &mut Vec<Node>, site: Span) {
+        if !run.iter().any(Node::emits) {
+            run.clear();
+            return;
+        }
+        if self.count_output(selector.len() as u64 + 5, site).is_err() {
+            run.clear();
+            return;
+        }
+        result.push(Node::Rule {
+            selector: selector.to_string(),
+            body: std::mem::take(run),
+            origin: self.origin(site),
+        });
+    }
+
+    /// Adds an already counted node to the output of frame `target`.
+    fn place(&mut self, stack: &mut [Frame<'s>], target: usize, node: Node, site: Span) {
+        if self.step(site).is_err() {
+            return;
+        }
+        if target == 0 {
+            self.top_blocked = true;
+        }
+        if let Some(frame) = stack.get_mut(target) {
+            frame.out.push(node);
+        }
+    }
+
+    /// Counts bytes toward the output limit (E8006).
+    fn count_output(&mut self, bytes: u64, site: Span) -> Eval<()> {
+        self.output = self.output.saturating_add(bytes);
+        if self.output > self.max_output {
+            let fail = self.report(
+                Diagnostic::error(
+                    Code::E8006,
+                    format!(
+                        "the emitted CSS exceeds the output limit of {} bytes",
+                        self.max_output
+                    ),
+                )
+                .with_primary(site)
+                .with_note("raise it with the `output-bytes` limit"),
+            );
+            self.aborted = true;
+            return Err(fail);
+        }
+        Ok(())
     }
 
     /// Adds a node to the output of frame `target`, checking the output
@@ -1484,22 +1603,7 @@ impl<'s> Evaluator<'s, '_> {
             Node::Keyframe { selectors, .. } => selectors.len() + 5,
             Node::Verbatim { text, .. } => text.len() + 1,
         };
-        self.output = self.output.saturating_add(bytes as u64);
-        if self.output > self.max_output {
-            let fail = self.report(
-                Diagnostic::error(
-                    Code::E8006,
-                    format!(
-                        "the emitted CSS exceeds the output limit of {} bytes",
-                        self.max_output
-                    ),
-                )
-                .with_primary(site)
-                .with_note("raise it with the `output-bytes` limit"),
-            );
-            self.aborted = true;
-            return Err(fail);
-        }
+        self.count_output(bytes as u64, site)?;
         if target == 0 && !neutral {
             self.top_blocked = true;
         }
@@ -1520,6 +1624,7 @@ impl<'s> Evaluator<'s, '_> {
             return;
         };
         let (target, place, site) = (parent.target, parent.place, parent.site);
+        let selectors = parent.parent.clone();
         stack.push(Frame {
             site,
             items: items.iter(),
@@ -1531,6 +1636,7 @@ impl<'s> Evaluator<'s, '_> {
             slot,
             each: None,
             expansion: None,
+            parent: selectors,
         });
     }
 
@@ -1547,12 +1653,83 @@ impl<'s> Evaluator<'s, '_> {
         self.report(diagnostic);
     }
 
+    /// Reports an at-rule allowed only at stylesheet level that its
+    /// expansion placed elsewhere.
+    fn top_only(&mut self, name: &str, span: Span, place: Place) {
+        if place == Place::Rule && name.eq_ignore_ascii_case("@scope") {
+            self.report(
+                Diagnostic::error(
+                    Code::E6006,
+                    "`@scope` nested in a rule is not supported in Weave v0.1",
+                )
+                .with_primary(span)
+                .with_note("the recipe or content block is expanded inside a rule"),
+            );
+            return;
+        }
+        self.misplaced(Code::E6005, span, &format!("`{name}`"), place);
+    }
+
+    /// Lowers a nested rule's selector list against its parent's
+    /// (CSS-COMPATIBILITY.md §4.1), counting the result against the
+    /// selector-expansion limit (E8005).
+    fn lower(&mut self, parent: &SelectorList, text: &str, span: Span) -> Option<SelectorList> {
+        let max_bytes = usize::try_from(self.max_output).unwrap_or(usize::MAX);
+        let list = match parent.lower(text, max_bytes) {
+            Ok(list) => list,
+            Err(Problem::PseudoElement) => {
+                self.report(
+                    Diagnostic::error(
+                        Code::E6004,
+                        "a nested rule cannot be placed under a pseudo-element",
+                    )
+                    .with_primary(span)
+                    .with_note(format!("the parent selector `{}` contains a pseudo-element, which `&` (`:is()`) cannot represent; declarations and nested group at-rules are still allowed", shorten(&parent.text))),
+                );
+                return None;
+            }
+            Err(Problem::Invalid(problem)) => {
+                self.report(
+                    Diagnostic::error(Code::E6007, format!("invalid nested selector: {problem}"))
+                        .with_primary(span)
+                        .with_note(format!("the selector was `{}`", shorten(text))),
+                );
+                return None;
+            }
+            Err(Problem::TooLong) => {
+                let _ = self.count_output(self.max_output.saturating_add(1), span);
+                return None;
+            }
+        };
+        if self.charge(list.text.len() as u64 / 1024, span).is_err() {
+            return None;
+        }
+        self.selectors = self.selectors.saturating_add(list.weight);
+        if self.selectors > self.max_selectors {
+            self.report(
+                Diagnostic::error(
+                    Code::E8005,
+                    format!(
+                        "nested rules expand to more than {} selectors",
+                        self.max_selectors
+                    ),
+                )
+                .with_primary(span)
+                .with_note("every `&` inserts a copy of the parent selector list; raise the limit with `emitted-selectors`"),
+            );
+            self.aborted = true;
+            return None;
+        }
+        Some(list)
+    }
+
     fn item(&mut self, item: &'s Item, stack: &mut Vec<Frame<'s>>) {
         let Some(frame) = stack.last() else {
             return;
         };
         let env = Rc::clone(&frame.env);
         let (target, place, slot) = (frame.target, frame.place, frame.slot.clone());
+        let frame_parent = frame.parent.clone();
         let index = stack.len() - 1;
         match item {
             Item::Rule {
@@ -1565,18 +1742,7 @@ impl<'s> Evaluator<'s, '_> {
                     return;
                 }
                 match place {
-                    Place::Stylesheet => {}
-                    Place::Rule => {
-                        self.report(
-                            Diagnostic::error(
-                                Code::E5001,
-                                "nested `rule`s (nesting) are not implemented in this build",
-                            )
-                            .with_primary(*span)
-                            .with_note("the recipe or content block is expanded inside a rule; nesting arrives in a later phase"),
-                        );
-                        return;
-                    }
+                    Place::Stylesheet | Place::Rule => {}
                     Place::Declarations => {
                         return self.misplaced(Code::E6002, *span, "a `rule`", place);
                     }
@@ -1584,19 +1750,30 @@ impl<'s> Evaluator<'s, '_> {
                         return self.misplaced(Code::E6005, *span, "a `rule`", place);
                     }
                 }
+                let nested = place == Place::Rule;
                 let check = dynamic.then_some(*span);
-                let selector = self.region(selector, Region::Selector, &env, check).ok();
+                let region = Region::Selector { nested };
+                let list = match self.region(selector, region, &env, check) {
+                    Ok(text) if nested => match &frame_parent {
+                        Some(parent) => self.lower(parent, &text, *span),
+                        None => None,
+                    },
+                    Ok(text) => Some(SelectorList::top_level(&text)),
+                    Err(Fail) => None,
+                }
+                .map(Rc::new);
                 stack.push(Frame {
                     site: *span,
                     items: body.iter(),
                     env: Env::block(Some(env), body, &[]),
                     out: Vec::new(),
-                    build: Build::Rule(selector),
+                    build: Build::Rule(list.as_ref().map(|l| l.text.clone())),
                     target: index + 1,
                     place: Place::Rule,
                     slot,
                     each: None,
                     expansion: None,
+                    parent: list,
                 });
             }
             Item::AtRule {
@@ -1604,11 +1781,27 @@ impl<'s> Evaluator<'s, '_> {
                 prelude,
                 body: Some(body),
                 context,
+                top_only,
                 span,
             } => {
                 if self.step(*span).is_err() {
                     return;
                 }
+                if *top_only && place != Place::Stylesheet {
+                    return self.top_only(name, *span, place);
+                }
+                let (body_place, parent) = if *context == Context::Enclosing {
+                    match place {
+                        Place::Stylesheet => (Place::Stylesheet, None),
+                        Place::Rule => (Place::Rule, frame_parent),
+                        _ => {
+                            let what = format!("`{name}`");
+                            return self.misplaced(Code::E6005, *span, &what, place);
+                        }
+                    }
+                } else {
+                    (Place::of(*context), None)
+                };
                 let prelude = self.region(prelude, Region::Prelude, &env, None).ok();
                 stack.push(Frame {
                     site: *span,
@@ -1617,10 +1810,11 @@ impl<'s> Evaluator<'s, '_> {
                     out: Vec::new(),
                     build: Build::AtRule(name.clone(), prelude),
                     target: index + 1,
-                    place: Place::of(*context),
+                    place: body_place,
                     slot,
                     each: None,
                     expansion: None,
+                    parent,
                 });
             }
             Item::Keyframe {
@@ -1640,6 +1834,7 @@ impl<'s> Evaluator<'s, '_> {
                     slot,
                     each: None,
                     expansion: None,
+                    parent: None,
                 });
             }
             Item::Declaration {
@@ -1676,9 +1871,13 @@ impl<'s> Evaluator<'s, '_> {
                 name,
                 prelude,
                 body: None,
+                top_only,
                 span,
                 ..
             } => {
+                if *top_only && place != Place::Stylesheet {
+                    return self.top_only(name, *span, place);
+                }
                 let lower = name.to_ascii_lowercase();
                 let ordered = matches!(lower.as_str(), "@import" | "@namespace");
                 if ordered && target == 0 && self.top_blocked {
@@ -1711,6 +1910,13 @@ impl<'s> Evaluator<'s, '_> {
                     && matches!(place, Place::Declarations | Place::Keyframes | Place::Page)
                 {
                     return self.misplaced(Code::E6005, *span, "`opaque`", place);
+                }
+                if *kind == VerbatimKind::TopAtRule && place != Place::Stylesheet {
+                    let name = text
+                        .split(|c: char| !(c == '@' || c == '-' || c.is_alphanumeric()))
+                        .next()
+                        .unwrap_or("@");
+                    return self.top_only(name, *span, place);
                 }
                 let neutral = *kind == VerbatimKind::Comment;
                 let node = Node::Verbatim {
@@ -2173,7 +2379,7 @@ impl<'s> Evaluator<'s, '_> {
             let what = match region {
                 Region::Value { .. } => "declaration value",
                 Region::Prelude => "at-rule prelude",
-                Region::Selector => "selector",
+                Region::Selector { .. } => "selector",
                 Region::Name => "declaration name",
             };
             let when = if site.is_some() {
@@ -2267,7 +2473,7 @@ fn structure_problem(text: &str, region: Region) -> Option<(Code, &'static str)>
     let mut stack: Vec<K> = Vec::new();
     let mut tokens = Vec::new();
     let code = match region {
-        Region::Selector | Region::Name => Code::E6007,
+        Region::Selector { .. } | Region::Name => Code::E6007,
         _ => Code::E2003,
     };
     loop {
@@ -2280,10 +2486,10 @@ fn structure_problem(text: &str, region: Region) -> Option<(Code, &'static str)>
             K::String { terminated: false } | K::BadString => Some("a string is not terminated"),
             K::Url { terminated: false } => Some("a `url(` is not terminated"),
             K::Comment { terminated: false } => Some("a comment is not terminated"),
-            K::Semicolon if stack.is_empty() || region == Region::Selector => {
+            K::Semicolon if stack.is_empty() || matches!(region, Region::Selector { .. }) => {
                 Some("`;` would end the item")
             }
-            K::OpenBrace if region == Region::Selector => Some("`{` is not allowed"),
+            K::OpenBrace if matches!(region, Region::Selector { .. }) => Some("`{` is not allowed"),
             K::OpenBrace if stack.is_empty() && region != (Region::Value { custom: true }) => {
                 Some("`{` would open a block")
             }
@@ -2320,11 +2526,11 @@ fn structure_problem(text: &str, region: Region) -> Option<(Code, &'static str)>
             let single = matches!(tokens.as_slice(), [t] if t.kind == K::Ident);
             (!single).then_some((code, "a property name must be one identifier"))
         }
-        Region::Selector => {
+        Region::Selector { nested } => {
             if tokens.iter().all(|t| t.is_trivia()) {
                 return Some((code, "the selector is empty"));
             }
-            if tokens.iter().any(|t| t.kind == K::Delim('&')) {
+            if !nested && tokens.iter().any(|t| t.kind == K::Delim('&')) {
                 return Some((Code::E6003, "`&` has no parent rule here"));
             }
             let dangling = tokens.windows(2).any(|pair| {
@@ -2414,17 +2620,20 @@ mod tests {
         assert!(structure_problem("x y", Region::Name).is_some());
         assert!(structure_problem("", Region::Name).is_some());
         assert_eq!(
-            structure_problem(".a-\\31 , #b > [c=\"{\"]", Region::Selector),
+            structure_problem(
+                ".a-\\31 , #b > [c=\"{\"]",
+                Region::Selector { nested: false }
+            ),
             None
         );
-        assert!(structure_problem(".", Region::Selector).is_some());
-        assert!(structure_problem(".a #", Region::Selector).is_some());
-        assert!(structure_problem("a;b", Region::Selector).is_some());
-        assert!(structure_problem("a{", Region::Selector).is_some());
+        assert!(structure_problem(".", Region::Selector { nested: false }).is_some());
+        assert!(structure_problem(".a #", Region::Selector { nested: false }).is_some());
+        assert!(structure_problem("a;b", Region::Selector { nested: false }).is_some());
+        assert!(structure_problem("a{", Region::Selector { nested: false }).is_some());
         assert_eq!(
-            structure_problem("& .a", Region::Selector).map(|(c, _)| c),
+            structure_problem("& .a", Region::Selector { nested: false }).map(|(c, _)| c),
             Some(Code::E6003)
         );
-        assert!(structure_problem(" ", Region::Selector).is_some());
+        assert!(structure_problem(" ", Region::Selector { nested: false }).is_some());
     }
 }

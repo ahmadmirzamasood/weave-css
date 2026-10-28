@@ -261,6 +261,34 @@ fn deepest_allowed_nesting_does_not_overflow_the_stack() {
 }
 
 #[test]
+fn deepest_nested_rules_do_not_overflow_the_stack() {
+    // Nested rules and nested group at-rules at the largest configurable
+    // depth are lowered without recursion.
+    let handle = std::thread::Builder::new()
+        .stack_size(2 * 1024 * 1024)
+        .spawn(|| {
+            let options = limits(Limit::NestingDepth, 4096);
+            let n = 2047;
+            let source = format!(
+                "rule a {{ {}b: c;{} }}",
+                "rule & { @media x { ".repeat(n),
+                " } }".repeat(n)
+            );
+            compile_with(source.as_bytes(), &options)
+                .outcome
+                .map(|output| output.css)
+                .map_err(|d| d.iter().map(|d| d.code()).collect::<Vec<_>>())
+        })
+        .unwrap();
+    let out = handle.join().unwrap().unwrap();
+    assert!(out.starts_with(
+        "@media x {
+  @media x {"
+    ));
+    assert_eq!(out.matches("b: c;").count(), 1);
+}
+
+#[test]
 fn input_and_output_size_limits() {
     let source = b"rule a { color: red; }";
     let options = limits(Limit::FileBytes, source.len() as u64);
@@ -327,14 +355,23 @@ fn nothing_unsupported_is_silently_dropped() {
     for source in [
         "load \"./a.weave\" as a;",
         "export bind x = 1;",
-        "rule a { rule b { c: d; } }",
-        "rule a { @media print { b: c; } }",
-        "recipe r { @media print { b: c; } }",
-        "recipe r { rule .x { b: c; } } rule a { apply r; }",
         "rule a { b: #{color.rgb(1, 2, 3)}; }",
     ] {
         assert!(
             codes(source.as_bytes(), &CompileOptions::default()).contains(&Code::E5001),
+            "{source}"
+        );
+    }
+    // Nesting is implemented since phase 06.
+    for source in [
+        "rule a { rule b { c: d; } }",
+        "rule a { @media print { b: c; } }",
+        "recipe r { @media print { b: c; } }",
+        "recipe r { rule .x { b: c; } } rule a { apply r; }",
+    ] {
+        assert_eq!(
+            codes(source.as_bytes(), &CompileOptions::default()),
+            [],
             "{source}"
         );
     }

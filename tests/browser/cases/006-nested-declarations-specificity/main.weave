@@ -1,0 +1,6 @@
+rule .a, #b {
+    @media all { color: red; }
+    rule .c { color: inherit; }
+    background-color: red;
+}
+rule div.a { color: blue; background-color: blue; }

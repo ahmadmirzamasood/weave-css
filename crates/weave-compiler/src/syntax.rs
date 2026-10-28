@@ -23,6 +23,10 @@ pub(crate) struct Stylesheet {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Context {
     Stylesheet,
+    /// The body of a group at-rule written in a rule body, recipe body or
+    /// content block: the context it is expanded in (stylesheet or rule
+    /// body).
+    Enclosing,
     Declarations,
     Keyframes,
     Page,
@@ -38,6 +42,10 @@ pub(crate) enum VerbatimKind {
     Opaque,
     /// An unknown at-rule.
     AtRule,
+    /// An at-rule preserved verbatim that is allowed only at stylesheet
+    /// level (`@font-feature-values`), written in a recipe body or content
+    /// block.
+    TopAtRule,
 }
 
 #[derive(Debug)]
@@ -66,6 +74,9 @@ pub(crate) enum Item {
         prelude: Template,
         body: Option<Vec<Item>>,
         context: Context,
+        /// Written in a recipe body or content block, and allowed only at
+        /// stylesheet level: checked where it is expanded.
+        top_only: bool,
         span: Span,
     },
     /// A keyframe block inside `@keyframes`.

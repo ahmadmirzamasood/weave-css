@@ -135,6 +135,8 @@ impl Code {
     pub const E6002: Code = Code("E6002");
     /// `&` without a parent rule.
     pub const E6003: Code = Code("E6003");
+    /// Nesting under a pseudo-element.
+    pub const E6004: Code = Code("E6004");
     /// Item not allowed in this at-rule context.
     pub const E6005: Code = Code("E6005");
     /// `@scope` nested in a rule.
@@ -161,6 +163,8 @@ impl Code {
     pub const E8003: Code = Code("E8003");
     /// Evaluation step limit.
     pub const E8004: Code = Code("E8004");
+    /// Selector expansion.
+    pub const E8005: Code = Code("E8005");
     /// Output size limit.
     pub const E8006: Code = Code("E8006");
     /// Collection or string size limit.
@@ -173,7 +177,7 @@ impl Code {
     pub const W9001: Code = Code("W9001");
 
     /// Every code defined so far.
-    pub const ALL: [Code; 69] = [
+    pub const ALL: [Code; 71] = [
         Code::E0001,
         Code::E0002,
         Code::E0003,
@@ -225,6 +229,7 @@ impl Code {
         Code::E6001,
         Code::E6002,
         Code::E6003,
+        Code::E6004,
         Code::E6005,
         Code::E6006,
         Code::E6007,
@@ -238,6 +243,7 @@ impl Code {
         Code::E8002,
         Code::E8003,
         Code::E8004,
+        Code::E8005,
         Code::E8006,
         Code::E8007,
         Code::E8008,

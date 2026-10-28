@@ -1,0 +1,10 @@
+rule .a {
+    @scope (.b) { }
+    @font-face { font-family: X; }
+    @keyframes k { to { color: red; } }
+    @property --p { syntax: "*"; inherits: false; }
+    @page { margin: 0; }
+    @layer x, y;
+    @import "x.css";
+    @font-feature-values F { }
+}

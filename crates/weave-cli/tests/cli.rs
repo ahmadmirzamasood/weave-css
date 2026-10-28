@@ -188,6 +188,7 @@ fn specification_fixtures_run_through_the_cli() {
     }
     assert_eq!(count, 35, "expected the 35 phase 01 fixtures");
     // 001, 002, 006, 008, 010, 024, 030 and 035 build since phase 04;
-    // 011, 014, 018 and 023 since phase 05.
-    assert_eq!(built, 12, "specification fixtures that build");
+    // 011, 014, 018 and 023 since phase 05; 003, 016, 020, 021 and 022
+    // since phase 06.
+    assert_eq!(built, 17, "specification fixtures that build");
 }

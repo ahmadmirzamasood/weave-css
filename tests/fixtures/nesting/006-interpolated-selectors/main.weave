@@ -1,0 +1,11 @@
+bind state = "is-open";
+bind odd = "2x";
+bind combo = css.fragment(">    .child ,.other");
+bind tag = css.fragment("li");
+
+rule .menu {
+    rule &.#{state} { display: block; }
+    rule &.#{odd} { width: 2px; }
+    rule #{combo} { margin: 0; }
+    rule #{tag}:has(> &) { list-style: none; }
+}

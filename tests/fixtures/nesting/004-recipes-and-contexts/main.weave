@@ -1,0 +1,36 @@
+recipe hover-lift(distance: length = 2px) {
+    transition: transform 0.2s;
+    rule &:hover { transform: translateY(-#{distance}); }
+}
+
+recipe from-wide {
+    @media (width >= 60em) {
+        slot;
+    }
+}
+
+recipe assets(name: string) {
+    @layer reset, components;
+    @font-face { font-family: #{name}; src: url("x.woff2"); }
+    @keyframes spin { to { rotate: 1turn; } }
+    @property --angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+    @page :first { margin: 1in; @top-center { content: #{name}; } }
+    @scope (.card) { rule .title { margin: 0; } }
+    @font-feature-values Font One { @styleset { nice-style: 12; } }
+}
+
+apply assets("Brand");
+
+rule .button {
+    apply hover-lift(4px);
+    apply from-wide {
+        padding: 2rem;
+        rule & + & { margin-left: 1rem; }
+    }
+    each size in [1, 2] {
+        rule &.size-#{size} { font-size: #{size}rem; }
+    }
+    when true {
+        rule .icon { width: 1em; }
+    }
+}

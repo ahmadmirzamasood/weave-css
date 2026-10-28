@@ -1,0 +1,4 @@
+@media all { :is(.a, #b) { color: red; } }
+:is(.a, #b) .c { color: inherit; }
+:is(.a, #b) { background-color: red; }
+div.a { color: blue; background-color: blue; }

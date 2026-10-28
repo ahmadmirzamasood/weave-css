@@ -76,3 +76,19 @@ jobs:
         run: rustup toolchain install
       - name: Check dependency licenses and native build requirements
         run: python3 scripts/check_deps.py
+
+  browser:
+    name: Browser computed styles
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install toolchain
+        run: rustup toolchain install
+      # Uses the Google Chrome preinstalled on the runner image.
+      - name: Compare lowered CSS with native nesting
+        run: google-chrome --version && python3 scripts/browser_check.py --browser google-chrome

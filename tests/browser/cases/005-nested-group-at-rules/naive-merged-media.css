@@ -1,0 +1,9 @@
+@layer base, theme;
+.wrap { container-type: inline-size; }
+.card { color: black; }
+@media (min-width: 1px) { .card { color: red; } .card .t { padding-top: 4px; } }
+@media (min-width: 1px), (max-width: 1px) { .card { color: green; } }
+@supports (display: grid) { .card { margin-top: 5px; } }
+@container (min-width: 10px) { .card .t { margin-top: 6px; } }
+@layer theme { .card { background-color: blue; } }
+@layer base { .card { background-color: red; } }

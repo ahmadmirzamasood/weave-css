@@ -1,0 +1,6 @@
+rule #main, .side {
+    rule .item { color: red; }
+    rule &:first-child { background-color: red; }
+}
+rule .side .item { color: blue; }
+rule .wrap .side:first-child { background-color: blue; }

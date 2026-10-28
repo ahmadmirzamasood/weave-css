@@ -1,0 +1,18 @@
+rule .a, .b {
+    color: red;
+    color: blue;
+    rule .c { margin: 0; }
+    /*! between */
+    padding: 1px !important;
+    --token: { x: y };
+    @media print {
+        display: none;
+        rule & + & { margin: 0; }
+        display: block;
+    }
+    rule .empty { }
+    @unknown-thing x { y: z }
+    opaque { *zoom: 1; }
+    rule .d { width: 1px; }
+    color: green;
+}

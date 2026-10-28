@@ -1,0 +1,3 @@
+description = "Malformed definitions and statement heads, found while parsing, each with recovery: duplicate parameters, a parameter rebound in the body, a recipe and a binding sharing a module name, duplicate loop variables (E1001); a keyword as a parameter (E0103); an unknown type, a missing `in`, an `apply` target that is not a recipe name, a stray `otherwise`, a function without a parameter list (E0101)."
+spec = ["LANGUAGE.md 3.1", "LANGUAGE.md 4", "LANGUAGE.md 8", "grammar.ebnf"]
+expect = "error"

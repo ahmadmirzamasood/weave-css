@@ -1,0 +1,3 @@
+description = "Slot misuse found during expansion: a content block executed twice (E4011, at the second `slot`), including from a loop, and a content block that is never placed (E4010, at `apply`). Without a content block any number of slots is fine."
+spec = ["LANGUAGE.md 9"]
+expect = "error"

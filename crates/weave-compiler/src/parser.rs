@@ -7,11 +7,16 @@
 //! processes become templates whose `#{…}` interpolations are parsed as
 //! expressions ([`crate::expr`]).
 //!
-//! Compile-time constructs that this build does not implement — `when`,
-//! `each`, `apply`, `fn`, `recipe`, `load`, `export`, `fail`, `warn`, nested
-//! `rule`s and group at-rules nested in rules — are reported as E5001 and
-//! never silently dropped. Their extent is skipped so that parsing continues
-//! and later independent errors are reported.
+//! Functions, recipes, `when`, `each`, `apply`, `slot`, `yield`, `fail` and
+//! `warn` are parsed into their statements (§8–§10). Recipe bodies and
+//! content blocks are parsed without knowing where they will be expanded:
+//! the evaluator checks the placement of their declarations and rules.
+//!
+//! Compile-time constructs that this build does not implement — `load`,
+//! `export`, nested `rule`s, at-rules nested in rules and known at-rules in
+//! recipe bodies and content blocks — are reported as E5001 and never
+//! silently dropped. Their extent is skipped so that parsing continues and
+//! later independent errors are reported.
 //!
 //! Recovery is bounded: every step consumes at least one token, bracket and
 //! block nesting share the nesting-depth limit (E8002, which stops parsing),
@@ -23,10 +28,14 @@ use crate::css_text::{
     Seg, normalize_newlines, normalize_prelude, normalize_selector, render, trim_css_whitespace,
 };
 use crate::diagnostic::{Code, Diagnostic, Diagnostics};
-use crate::expr::{self, Cx, Template};
+use std::rc::Rc;
+
+use crate::expr::{self, Call, Cx, DefHead, EachHead, Program, Resume, StmtError, Template};
 use crate::lexer::{Lexer, Mode, Token, TokenKind as K, ident_value};
 use crate::source::{FileId, Span};
-use crate::syntax::{Item, Stylesheet};
+use crate::syntax::{
+    Apply, Branch, Context, Each, FnDef, Item, RecipeDef, Stylesheet, VerbatimKind,
+};
 
 /// LANGUAGE.md §3.1 rule 4.
 const STATEMENT_KEYWORDS: [&str; 14] = [
@@ -57,7 +66,7 @@ const PAGE_MARGINS: [&str; 16] = [
     "right-bottom",
 ];
 
-const NOT_IMPLEMENTED_NOTE: &str = "this build implements the plain-CSS subset, bindings, expressions, interpolation and the css.* constructors; the rest of the language is not implemented yet";
+const NOT_IMPLEMENTED_NOTE: &str = "this build implements the plain-CSS subset, bindings, expressions, interpolation, functions, control flow, recipes and the built-ins of docs/BUILTINS.md; modules and nesting are not implemented yet";
 
 /// The kind of block being parsed (CSS-COMPATIBILITY.md §2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,6 +79,11 @@ enum Ctx {
     Declarations,
     Keyframes,
     Page,
+    /// A recipe body or content block, or a `when`/`each` block in one: a
+    /// rule body whose placement is known only when it is expanded.
+    Dynamic,
+    /// A function body.
+    Function,
 }
 
 impl Ctx {
@@ -84,6 +98,26 @@ impl Ctx {
             Ctx::Declarations => "in a declaration list",
             Ctx::Keyframes => "in `@keyframes`",
             Ctx::Page => "in `@page`",
+            Ctx::Dynamic => "in a recipe body or content block",
+            Ctx::Function => "in a function body",
+        }
+    }
+
+    /// The context of a `when` or `each` block in this context.
+    fn block(self) -> Ctx {
+        match self {
+            Ctx::TopLevel => Ctx::Stylesheet,
+            other => other,
+        }
+    }
+
+    /// The context recorded for an at-rule body.
+    fn context(self) -> Context {
+        match self {
+            Ctx::Declarations => Context::Declarations,
+            Ctx::Keyframes => Context::Keyframes,
+            Ctx::Page => Context::Page,
+            _ => Context::Stylesheet,
         }
     }
 }
@@ -165,16 +199,54 @@ enum Scan {
 enum Pending {
     Rule {
         selector: Template,
+        span: Span,
+        dynamic: bool,
     },
     AtRule {
         name: String,
         prelude: Template,
+        span: Span,
     },
     Keyframe {
         selectors: Template,
+        span: Span,
     },
+    /// A `when` branch; `condition` is `None` for `otherwise`.
+    When {
+        branches: Vec<Branch>,
+        condition: Option<(Program, Span)>,
+    },
+    Each(Box<EachHead>),
+    Apply {
+        call: Box<Call>,
+        args: Program,
+        span: Span,
+    },
+    Fn(Box<DefHead>),
+    Recipe(Box<DefHead>),
     /// A block parsed only for its diagnostics.
     Discard,
+}
+
+impl Pending {
+    /// Names a block binds besides its `bind` statements: parameters and
+    /// loop variables share the block's scope (LANGUAGE.md §4.3).
+    fn names(&self) -> Vec<(Rc<str>, Span)> {
+        match self {
+            Pending::Fn(head) | Pending::Recipe(head) => head
+                .params
+                .iter()
+                .map(|p| (Rc::clone(&p.name), p.span))
+                .collect(),
+            Pending::Each(head) => head
+                .key
+                .iter()
+                .chain(std::iter::once(&head.value))
+                .cloned()
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
 }
 
 /// A block opened by an item; [`Parser::run`] parses its contents.
@@ -183,6 +255,8 @@ struct Opened {
     open: Token,
     ctx: Ctx,
     pending: Pending,
+    /// Whether the block lies lexically inside a recipe body.
+    recipe: bool,
 }
 
 /// An open block on the parser's explicit stack.
@@ -190,20 +264,20 @@ struct Opened {
 struct Frame {
     open: Token,
     pending: Pending,
+    ctx: Ctx,
     parent_ctx: Ctx,
+    parent_recipe: bool,
     parent_items: Vec<Item>,
 }
 
-fn finish(pending: Pending, body: Vec<Item>, items: &mut Vec<Item>) {
-    match pending {
-        Pending::Rule { selector } => items.push(Item::Rule { selector, body }),
-        Pending::AtRule { name, prelude } => items.push(Item::AtRule {
-            name,
-            prelude,
-            body: Some(body),
-        }),
-        Pending::Keyframe { selectors } => items.push(Item::Keyframe { selectors, body }),
-        Pending::Discard => {}
+/// A `{` token at `at`.
+fn brace(at: usize) -> Token {
+    let start = text_offset(at);
+    Token {
+        kind: K::OpenBrace,
+        start,
+        end: start.saturating_add(1),
+        interpolation: None,
     }
 }
 
@@ -222,6 +296,7 @@ pub(crate) fn parse(
         lexer: Lexer::new(text, start, max_depth),
         diags,
         reported: HashSet::new(),
+        in_recipe: false,
         max_depth,
         depth: 0,
         aborted: false,
@@ -242,6 +317,8 @@ struct Parser<'a, 'd> {
     /// (code, offset) pairs already reported, so that re-scanned tokens are
     /// reported once.
     reported: HashSet<(Code, u32)>,
+    /// Whether the current block lies lexically inside a recipe body.
+    in_recipe: bool,
     max_depth: u32,
     /// Current block depth.
     depth: u32,
@@ -279,6 +356,23 @@ impl<'a> Parser<'a, '_> {
 
     fn error(&mut self, code: Code, span: Span, message: impl Into<String>) {
         self.report(Diagnostic::error(code, message).with_primary(span));
+    }
+
+    fn not_in_function(&mut self, span: Span, what: &str) {
+        self.report(
+            Diagnostic::error(Code::E4014, format!("{what} is not allowed in a function body"))
+                .with_primary(span)
+                .with_note("functions only compute values: their bodies may contain `bind`, `when`, `each`, `yield`, `fail` and `warn`; use a recipe to emit CSS"),
+        );
+    }
+
+    /// A known at-rule in a recipe body or content block, whose lowering
+    /// depends on where it is expanded.
+    fn not_in_recipe(&mut self, span: Span, raw: &str) {
+        self.not_implemented(
+            span,
+            &format!("`{raw}` in a recipe body or content block is"),
+        );
     }
 
     fn not_implemented(&mut self, span: Span, what: &str) {
@@ -365,17 +459,26 @@ impl<'a> Parser<'a, '_> {
         }
     }
 
-    /// E1001 for a name bound twice directly in one block.
-    fn check_bindings(&mut self, items: &[Item]) {
+    /// E1001 for a name bound twice directly in one block: by `bind`, by a
+    /// top-level `fn` or `recipe`, or as one of `names` (parameters and
+    /// loop variables, which share the block's scope).
+    fn check_bindings(&mut self, items: &[Item], names: &[(Rc<str>, Span)]) {
         let mut first: HashMap<&str, Span> = HashMap::new();
+        for (name, span) in names {
+            first.entry(name).or_insert(*span);
+        }
         let mut duplicates = Vec::new();
         for item in items {
-            if let Item::Bind { name, span, .. } = item {
-                match first.get(&**name) {
-                    Some(&earlier) => duplicates.push((name.to_string(), *span, earlier)),
-                    None => {
-                        first.insert(name, *span);
-                    }
+            let (name, span) = match item {
+                Item::Bind { name, span, .. } => (name, *span),
+                Item::Fn(def) => (&def.name, def.span),
+                Item::Recipe(def) => (&def.name, def.span),
+                _ => continue,
+            };
+            match first.get(&**name) {
+                Some(&earlier) => duplicates.push((name.to_string(), span, earlier)),
+                None => {
+                    first.insert(name, span);
                 }
             }
         }
@@ -383,7 +486,7 @@ impl<'a> Parser<'a, '_> {
             self.report(
                 Diagnostic::error(
                     Code::E1001,
-                    format!("duplicate binding: `{name}` is already bound in this scope"),
+                    format!("duplicate name: `{name}` is already bound in this scope"),
                 )
                 .with_primary(span)
                 .with_label(earlier, "first bound here")
@@ -474,24 +577,33 @@ impl<'a> Parser<'a, '_> {
             let opened = match token.kind {
                 K::Eof => break,
                 K::Whitespace | K::Semicolon => None,
-                K::CloseBrace => {
-                    match frames.pop() {
-                        Some(frame) => {
-                            let body = std::mem::replace(&mut items, frame.parent_items);
-                            self.check_bindings(&body);
-                            finish(frame.pending, body, &mut items);
-                            ctx = frame.parent_ctx;
-                            self.depth -= 1;
-                        }
-                        None => self.error(Code::E0005, self.span(token), "unmatched `}`"),
+                K::CloseBrace => match frames.pop() {
+                    Some(frame) => {
+                        let body = std::mem::replace(&mut items, frame.parent_items);
+                        self.check_bindings(&body, &frame.pending.names());
+                        ctx = frame.parent_ctx;
+                        self.in_recipe = frame.parent_recipe;
+                        self.depth -= 1;
+                        self.finish(frame.pending, frame.ctx, body, &mut items)
                     }
-                    None
-                }
+                    None => {
+                        self.error(Code::E0005, self.span(token), "unmatched `}`");
+                        None
+                    }
+                },
                 K::Comment { .. } => {
                     let text = self.text_of(token);
                     if text.starts_with("/*!") {
-                        items.push(Item::Verbatim(normalize_newlines(text)));
-                        self.top_item(ctx, TopClass::Neutral, token);
+                        if ctx == Ctx::Function {
+                            self.not_in_function(self.span(token), "a `/*!` comment");
+                        } else {
+                            items.push(Item::Verbatim {
+                                text: normalize_newlines(text),
+                                kind: VerbatimKind::Comment,
+                                span: self.span(token),
+                            });
+                            self.top_item(ctx, TopClass::Neutral, token);
+                        }
                     }
                     None
                 }
@@ -519,10 +631,13 @@ impl<'a> Parser<'a, '_> {
                 frames.push(Frame {
                     open: opened.open,
                     pending: opened.pending,
+                    ctx: opened.ctx,
                     parent_ctx: ctx,
+                    parent_recipe: self.in_recipe,
                     parent_items: std::mem::take(&mut items),
                 });
                 ctx = opened.ctx;
+                self.in_recipe = opened.recipe;
             }
         }
         // End of input (or an aborted parse): close open blocks, innermost
@@ -536,12 +651,213 @@ impl<'a> Parser<'a, '_> {
                 );
             }
             let body = std::mem::replace(&mut items, frame.parent_items);
-            self.check_bindings(&body);
-            finish(frame.pending, body, &mut items);
+            self.check_bindings(&body, &frame.pending.names());
+            self.in_recipe = frame.parent_recipe;
+            // The input is exhausted, so no `otherwise` can follow.
+            let _ = self.finish(frame.pending, frame.ctx, body, &mut items);
         }
         self.depth = 0;
-        self.check_bindings(&items);
+        self.check_bindings(&items, &[]);
         items
+    }
+
+    /// Turns a closed block into its item. After a `when` branch, an
+    /// `otherwise` continues the statement with another block.
+    fn finish(
+        &mut self,
+        pending: Pending,
+        ctx: Ctx,
+        body: Vec<Item>,
+        items: &mut Vec<Item>,
+    ) -> Option<Opened> {
+        match pending {
+            Pending::Rule {
+                selector,
+                span,
+                dynamic,
+            } => items.push(Item::Rule {
+                selector,
+                body,
+                span,
+                dynamic,
+            }),
+            Pending::AtRule {
+                name,
+                prelude,
+                span,
+            } => items.push(Item::AtRule {
+                name,
+                prelude,
+                body: Some(body),
+                context: ctx.context(),
+                span,
+            }),
+            Pending::Keyframe { selectors, span } => items.push(Item::Keyframe {
+                selectors,
+                body,
+                span,
+            }),
+            Pending::When {
+                mut branches,
+                condition,
+            } => {
+                let Some((condition, span)) = condition else {
+                    items.push(Item::When {
+                        branches,
+                        otherwise: Some(body),
+                    });
+                    return None;
+                };
+                branches.push(Branch {
+                    condition,
+                    span,
+                    body,
+                });
+                return self.otherwise(branches, ctx, items);
+            }
+            Pending::Each(head) => {
+                let head = *head;
+                items.push(Item::Each(Box::new(Each {
+                    key: head.key,
+                    value: head.value,
+                    iterable: head.iterable,
+                    span: head.span,
+                    body,
+                })));
+            }
+            Pending::Apply { call, args, span } => items.push(Item::Apply(Box::new(Apply {
+                call: *call,
+                args,
+                content: Some(body),
+                span,
+            }))),
+            Pending::Fn(head) => {
+                let head = *head;
+                items.push(Item::Fn(Box::new(FnDef {
+                    name: head.name,
+                    span: head.span,
+                    params: head.params,
+                    returns: head.returns,
+                    body,
+                })));
+            }
+            Pending::Recipe(head) => {
+                let head = *head;
+                items.push(Item::Recipe(Box::new(RecipeDef {
+                    name: head.name,
+                    span: head.span,
+                    params: head.params,
+                    body,
+                })));
+            }
+            Pending::Discard => {}
+        }
+        None
+    }
+
+    /// After a `when` branch: `otherwise when … {`, `otherwise {` or the end
+    /// of the statement.
+    fn otherwise(
+        &mut self,
+        branches: Vec<Branch>,
+        ctx: Ctx,
+        items: &mut Vec<Item>,
+    ) -> Option<Opened> {
+        let save = self.lexer.pos();
+        let next = self.next_significant(Mode::Weave);
+        if self.aborted || !(next.kind == K::Ident && self.text_of(next) == "otherwise") {
+            self.unread_to(text_offset(save));
+            items.push(Item::When {
+                branches,
+                otherwise: None,
+            });
+            return None;
+        }
+        let after = self.next_significant(Mode::Weave);
+        let when_start = match after.kind {
+            K::Ident if self.text_of(after) == "when" => Some(after.end as usize),
+            K::Function if self.text_of(after) == "when(" => Some(after.end as usize - 1),
+            _ => None,
+        };
+        let recipe = self.in_recipe;
+        if let Some(start) = when_start {
+            return match expr::parse_when_head(self.cx(), start) {
+                Ok(head) => {
+                    self.unread_to(text_offset(head.open + 1));
+                    Some(Opened {
+                        open: brace(head.open),
+                        ctx,
+                        pending: Pending::When {
+                            branches,
+                            condition: Some((head.condition, head.span)),
+                        },
+                        recipe,
+                    })
+                }
+                Err(error) => {
+                    items.push(Item::When {
+                        branches,
+                        otherwise: None,
+                    });
+                    self.head_failed(*error, after, "when", ctx)
+                }
+            };
+        }
+        if after.kind == K::OpenBrace {
+            return Some(Opened {
+                open: after,
+                ctx,
+                pending: Pending::When {
+                    branches,
+                    condition: None,
+                },
+                recipe,
+            });
+        }
+        self.error(
+            Code::E0101,
+            self.span(after),
+            "expected `when` or a `{` block after `otherwise`",
+        );
+        self.unread(after);
+        items.push(Item::When {
+            branches,
+            otherwise: None,
+        });
+        None
+    }
+
+    /// Reports a statement head that failed to parse and resumes after it:
+    /// at an offset, by parsing its block (in `ctx`) only for diagnostics,
+    /// or by skipping the statement.
+    fn head_failed(
+        &mut self,
+        error: StmtError,
+        keyword: Token,
+        word: &str,
+        ctx: Ctx,
+    ) -> Option<Opened> {
+        self.report(error.diagnostic);
+        match error.resume {
+            Resume::At(at) => {
+                self.unread_to(text_offset(at));
+                None
+            }
+            Resume::Block(open) => {
+                self.unread_to(text_offset(open + 1));
+                Some(Opened {
+                    open: brace(open),
+                    ctx,
+                    pending: Pending::Discard,
+                    recipe: self.in_recipe,
+                })
+            }
+            Resume::Skip => {
+                self.unread_to(keyword.end);
+                self.skip_statement(word);
+                None
+            }
+        }
     }
 
     fn top_item(&mut self, ctx: Ctx, class: TopClass, token: Token) {
@@ -575,7 +891,13 @@ impl<'a> Parser<'a, '_> {
         }
         let end = self.skip(first, true);
         let span = self.span(first);
-        if end == End::BadBlock && first.kind != K::OpenBrace {
+        if first.kind == K::Ident && self.text_of(first) == "otherwise" {
+            self.error(
+                Code::E0101,
+                span,
+                "`otherwise` must directly follow the block of a `when` statement",
+            );
+        } else if end == End::BadBlock && first.kind != K::OpenBrace {
             self.report(
                 Diagnostic::error(
                     Code::E0110,
@@ -710,7 +1032,8 @@ impl<'a> Parser<'a, '_> {
                     "a declaration is not allowed directly in `@keyframes`; put it in a keyframe block",
                 );
             }
-            Ctx::Rule | Ctx::Declarations | Ctx::Page => {}
+            Ctx::Function => self.not_in_function(name_span, "a declaration"),
+            Ctx::Rule | Ctx::Declarations | Ctx::Page | Ctx::Dynamic => {}
         }
         let (value, important) = split_important(&tokens, self.text);
         let name_segs = render(name, self.text);
@@ -722,6 +1045,7 @@ impl<'a> Parser<'a, '_> {
             value,
             important,
             custom,
+            span: name_span,
         });
     }
 
@@ -820,19 +1144,45 @@ impl<'a> Parser<'a, '_> {
     fn statement(&mut self, keyword: Token, ctx: Ctx, items: &mut Vec<Item>) -> Option<Opened> {
         let span = self.span(keyword);
         let word = self.text_of(keyword).to_string();
+        if ctx == Ctx::TopLevel && !matches!(word.as_str(), "rule" | "opaque") {
+            // Statements emit nothing themselves but still precede a later
+            // `@charset`.
+            self.top_items += 1;
+        }
         match word.as_str() {
+            "rule" | "opaque" | "apply" if ctx == Ctx::Function => {
+                self.not_in_function(span, &format!("`{word}`"));
+            }
             "rule" => return self.rule(keyword, ctx),
             "bind" => {
                 self.bind(keyword, items);
-                if ctx == Ctx::TopLevel {
-                    // Statements emit nothing but still precede a later
-                    // `@charset`.
-                    self.top_items += 1;
-                }
                 return None;
             }
             "opaque" => {
                 self.opaque(keyword, ctx, items);
+                return None;
+            }
+            "when" => return self.when(keyword, ctx),
+            "each" => return self.each(keyword, ctx),
+            "apply" if ctx == Ctx::Keyframes => {
+                self.error(Code::E6005, span, "`apply` is not allowed in `@keyframes`");
+            }
+            "apply" => return self.apply(keyword, items),
+            "yield" if ctx == Ctx::Function => {
+                self.expr_statement(keyword, &word, items);
+                return None;
+            }
+            "yield" => self.error(
+                Code::E4013,
+                span,
+                "`yield` is allowed only in a function body",
+            ),
+            "fail" | "warn" => {
+                self.expr_statement(keyword, &word, items);
+                return None;
+            }
+            "slot" => {
+                self.slot(keyword, ctx, items);
                 return None;
             }
             "fn" | "recipe" | "load" | "export" if ctx != Ctx::TopLevel => {
@@ -842,32 +1192,168 @@ impl<'a> Parser<'a, '_> {
                     format!("`{word}` is allowed only at module top level"),
                 );
             }
-            "yield" => self.error(
-                Code::E4013,
-                span,
-                "`yield` is allowed only in a function body",
-            ),
-            "slot" if ctx.is_stylesheet() || ctx == Ctx::Rule => {
-                self.error(Code::E4012, span, "`slot` is allowed only in a recipe body");
-            }
-            "slot" => {
-                self.error(
-                    Code::E6005,
-                    span,
-                    format!("`slot` is not allowed {}", ctx.describe()),
-                );
-            }
-            "apply" if ctx == Ctx::Keyframes => {
-                self.error(Code::E6005, span, "`apply` is not allowed in `@keyframes`");
-            }
+            "fn" | "recipe" => return self.definition(keyword, &word),
             _ => self.not_implemented(span, &format!("`{word}` statements are")),
-        }
-        if ctx == Ctx::TopLevel {
-            // Statements emit nothing but still precede a later `@charset`.
-            self.top_items += 1;
         }
         self.skip_statement(&word);
         None
+    }
+
+    /// `yield`, `fail` or `warn` and its expression.
+    fn expr_statement(&mut self, keyword: Token, word: &str, items: &mut Vec<Item>) {
+        let span = self.span(keyword);
+        match expr::parse_expr_stmt(self.cx(), keyword.end as usize, word) {
+            Ok(stmt) => {
+                self.unread_to(text_offset(stmt.end));
+                items.push(if word == "yield" {
+                    Item::Yield {
+                        value: stmt.program,
+                        span,
+                    }
+                } else {
+                    Item::Report {
+                        warning: word == "warn",
+                        value: stmt.program,
+                        span,
+                    }
+                });
+            }
+            // Expression statements never resume at a block, so the context
+            // is unused.
+            Err(error) => {
+                let _ = self.head_failed(*error, keyword, word, Ctx::Stylesheet);
+            }
+        }
+    }
+
+    /// `slot;` (LANGUAGE.md §9).
+    fn slot(&mut self, keyword: Token, ctx: Ctx, items: &mut Vec<Item>) {
+        let span = self.span(keyword);
+        let next = self.next_significant(Mode::Weave);
+        if next.kind != K::Semicolon {
+            self.error(
+                Code::E0102,
+                Span::new(self.file, keyword.end, keyword.end),
+                "expected `;` after `slot`",
+            );
+            self.unread(next);
+        }
+        match ctx {
+            Ctx::Function => self.not_in_function(span, "`slot`"),
+            Ctx::Rule | Ctx::Dynamic if self.in_recipe => items.push(Item::Slot(span)),
+            Ctx::TopLevel | Ctx::Stylesheet | Ctx::Rule | Ctx::Dynamic => {
+                self.error(Code::E4012, span, "`slot` is allowed only in a recipe body");
+            }
+            _ => self.error(
+                Code::E6005,
+                span,
+                format!("`slot` is not allowed {}", ctx.describe()),
+            ),
+        }
+    }
+
+    /// `when condition {` (LANGUAGE.md §10).
+    fn when(&mut self, keyword: Token, ctx: Ctx) -> Option<Opened> {
+        let ctx = ctx.block();
+        match expr::parse_when_head(self.cx(), keyword.end as usize) {
+            Ok(head) => {
+                self.unread_to(text_offset(head.open + 1));
+                Some(Opened {
+                    open: brace(head.open),
+                    ctx,
+                    pending: Pending::When {
+                        branches: Vec::new(),
+                        condition: Some((head.condition, head.span)),
+                    },
+                    recipe: self.in_recipe,
+                })
+            }
+            Err(error) => self.head_failed(*error, keyword, "when", ctx),
+        }
+    }
+
+    /// `each [key,] value in expression {` (LANGUAGE.md §10).
+    fn each(&mut self, keyword: Token, ctx: Ctx) -> Option<Opened> {
+        let ctx = ctx.block();
+        match expr::parse_each_head(self.cx(), keyword.end as usize) {
+            Ok(head) => {
+                self.unread_to(text_offset(head.open + 1));
+                Some(Opened {
+                    open: brace(head.open),
+                    ctx,
+                    pending: Pending::Each(Box::new(head)),
+                    recipe: self.in_recipe,
+                })
+            }
+            Err(error) => self.head_failed(*error, keyword, "each", ctx),
+        }
+    }
+
+    /// `apply name(args);` or `apply name(args) { content }` (LANGUAGE.md §9).
+    fn apply(&mut self, keyword: Token, items: &mut Vec<Item>) -> Option<Opened> {
+        let span = self.span(keyword);
+        match expr::parse_apply_head(self.cx(), keyword.end as usize) {
+            Ok(head) => match head.open {
+                Some(open) => {
+                    self.unread_to(text_offset(open + 1));
+                    Some(Opened {
+                        open: brace(open),
+                        ctx: Ctx::Dynamic,
+                        pending: Pending::Apply {
+                            call: Box::new(head.call),
+                            args: head.args,
+                            span,
+                        },
+                        recipe: self.in_recipe,
+                    })
+                }
+                None => {
+                    self.unread_to(text_offset(head.end));
+                    items.push(Item::Apply(Box::new(Apply {
+                        call: head.call,
+                        args: head.args,
+                        content: None,
+                        span,
+                    })));
+                    None
+                }
+            },
+            Err(error) => self.head_failed(*error, keyword, "apply", Ctx::Dynamic),
+        }
+    }
+
+    /// `fn name(params) -> type {` or `recipe name(params) {` (LANGUAGE.md
+    /// §8, §9).
+    fn definition(&mut self, keyword: Token, word: &str) -> Option<Opened> {
+        let function = word == "fn";
+        let ctx = if function {
+            Ctx::Function
+        } else {
+            Ctx::Dynamic
+        };
+        match expr::parse_def_head(self.cx(), keyword.end as usize, function) {
+            Ok(head) => {
+                self.unread_to(text_offset(head.open + 1));
+                let open = brace(head.open);
+                let head = Box::new(head);
+                Some(Opened {
+                    open,
+                    ctx,
+                    pending: if function {
+                        Pending::Fn(head)
+                    } else {
+                        Pending::Recipe(head)
+                    },
+                    recipe: !function,
+                })
+            }
+            Err(error) => self
+                .head_failed(*error, keyword, word, ctx)
+                .map(|opened| Opened {
+                    recipe: !function,
+                    ..opened
+                }),
+        }
     }
 
     /// `bind name = expression;` (LANGUAGE.md §4.2).
@@ -897,7 +1383,7 @@ impl<'a> Parser<'a, '_> {
     /// Skips the extent of a statement this build does not implement.
     fn skip_statement(&mut self, word: &str) {
         match word {
-            "when" | "each" | "fn" | "recipe" => {
+            "when" | "each" | "fn" | "recipe" | "rule" | "opaque" => {
                 let first = self.next_skipped(true);
                 self.skip_through_block(first);
                 if word == "when" {
@@ -979,6 +1465,12 @@ impl<'a> Parser<'a, '_> {
         }
         let mut keep = true;
         match ctx {
+            // Checked where the recipe or content block is expanded.
+            Ctx::Dynamic => {}
+            Ctx::Function => {
+                self.not_in_function(span, "`rule`");
+                keep = false;
+            }
             Ctx::TopLevel | Ctx::Stylesheet => {
                 for &token in &tokens {
                     if token.kind == K::Delim('&') {
@@ -1016,6 +1508,8 @@ impl<'a> Parser<'a, '_> {
             let segs = normalize_selector(&tokens, self.text);
             Pending::Rule {
                 selector: self.template(&segs, expr::Ctx::Selector),
+                span,
+                dynamic: ctx == Ctx::Dynamic,
             }
         } else {
             Pending::Discard
@@ -1024,6 +1518,7 @@ impl<'a> Parser<'a, '_> {
             open,
             ctx: Ctx::Rule,
             pending,
+            recipe: self.in_recipe,
         })
     }
 
@@ -1035,8 +1530,12 @@ impl<'a> Parser<'a, '_> {
             self.skip(open, true);
             return;
         }
-        let allowed = ctx.is_stylesheet() || ctx == Ctx::Rule;
-        if !allowed {
+        // In recipe bodies and content blocks the placement is checked where
+        // they are expanded.
+        let allowed = ctx.is_stylesheet() || ctx == Ctx::Rule || ctx == Ctx::Dynamic;
+        if ctx == Ctx::Function {
+            self.not_in_function(span, "`opaque`");
+        } else if !allowed {
             self.error(
                 Code::E6005,
                 span,
@@ -1052,7 +1551,11 @@ impl<'a> Parser<'a, '_> {
             .unwrap_or("");
         let content = normalize_newlines(trim_css_whitespace(inner));
         if allowed && !content.is_empty() {
-            items.push(Item::Verbatim(content));
+            items.push(Item::Verbatim {
+                text: content,
+                kind: VerbatimKind::Opaque,
+                span,
+            });
         }
         self.top_item(ctx, TopClass::Other, keyword);
     }
@@ -1098,6 +1601,11 @@ impl<'a> Parser<'a, '_> {
         let kind = at_kind(&name);
         let span = self.span(at);
 
+        if ctx == Ctx::Function {
+            self.not_in_function(span, &format!("`{raw}`"));
+            self.verbatim_at_rule(at);
+            return None;
+        }
         if matches!(kind, AtKind::Unknown | AtKind::Preserved) {
             if kind == AtKind::Preserved && !ctx.is_stylesheet() {
                 self.error(
@@ -1108,8 +1616,17 @@ impl<'a> Parser<'a, '_> {
                 self.verbatim_at_rule(at);
                 return None;
             }
+            if kind == AtKind::Preserved && ctx == Ctx::Dynamic {
+                self.not_in_recipe(span, &raw);
+                self.verbatim_at_rule(at);
+                return None;
+            }
             if let Some(text) = self.verbatim_at_rule(at) {
-                items.push(Item::Verbatim(text));
+                items.push(Item::Verbatim {
+                    text,
+                    kind: VerbatimKind::AtRule,
+                    span,
+                });
             }
             self.top_item(ctx, TopClass::Other, at);
             return None;
@@ -1145,11 +1662,15 @@ impl<'a> Parser<'a, '_> {
                     return None;
                 }
             }
-            if self.statement_at_rule_allowed(kind, at, ctx, &prelude_tokens) {
+            if kind == AtKind::Layer && ctx == Ctx::Dynamic {
+                self.not_in_recipe(span, &raw);
+            } else if self.statement_at_rule_allowed(kind, at, ctx, &prelude_tokens) {
                 items.push(Item::AtRule {
                     name: raw,
                     prelude,
                     body: None,
+                    context: Context::Stylesheet,
+                    span,
                 });
             }
             return None;
@@ -1187,6 +1708,18 @@ impl<'a> Parser<'a, '_> {
             (AtKind::Keyframes, Ctx::TopLevel | Ctx::Stylesheet) => (Ctx::Keyframes, true),
             (AtKind::Page, Ctx::TopLevel | Ctx::Stylesheet) => (Ctx::Page, true),
             (AtKind::PageMargin, Ctx::Page) => (Ctx::Declarations, true),
+            (
+                AtKind::Group
+                | AtKind::Layer
+                | AtKind::Scope
+                | AtKind::Descriptors
+                | AtKind::Keyframes
+                | AtKind::Page,
+                Ctx::Dynamic,
+            ) => {
+                self.not_in_recipe(span, &raw);
+                (Ctx::Dynamic, false)
+            }
             (_, _) => {
                 self.error(
                     Code::E6005,
@@ -1198,7 +1731,11 @@ impl<'a> Parser<'a, '_> {
         };
         self.top_item(ctx, TopClass::Other, at);
         let pending = if keep {
-            Pending::AtRule { name: raw, prelude }
+            Pending::AtRule {
+                name: raw,
+                prelude,
+                span,
+            }
         } else {
             Pending::Discard
         };
@@ -1206,6 +1743,7 @@ impl<'a> Parser<'a, '_> {
             open,
             ctx: body_ctx,
             pending,
+            recipe: self.in_recipe,
         })
     }
 
@@ -1306,7 +1844,9 @@ impl<'a> Parser<'a, '_> {
         Some(Opened {
             open,
             ctx: Ctx::Declarations,
+            recipe: self.in_recipe,
             pending: Pending::Keyframe {
+                span: self.span(first),
                 selectors: {
                     let segs = normalize_prelude(&tokens, self.text);
                     self.template(&segs, expr::Ctx::Value)

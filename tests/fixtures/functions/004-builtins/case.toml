@@ -1,0 +1,4 @@
+description = "The deterministic built-ins of docs/BUILTINS.md: math rounding on six-decimal values, abs, min/max/clamp across convertible units, unit/value/convert; list len/append/concat/slice/contains; map len/has/get/set/remove/merge/keys/values in insertion order; string len/slice/contains/upper/lower/join over Unicode scalar values with ASCII-only case mapping; meta.type; range with steps and named arguments."
+spec = ["TYPES.md 9", "LANGUAGE.md 10"]
+expect = "css"
+validation = "independent"

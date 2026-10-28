@@ -1,0 +1,45 @@
+bind nums = [3, 1, 2];
+bind m = {b: 2, a: 1};
+
+rule .math {
+    /* Rounding uses the six-decimal value: 2.4999999 is 2.5. */
+    --round: #{math.round(2.5)} #{math.round(-2.5)} #{math.round(2.4999999)} #{math.floor(-1.5)} #{math.ceil(1.2em)};
+    --abs: #{math.abs(-3px)} #{math.abs(4)};
+    --min-max: #{math.min(1in, 90px)} #{math.max(1in, 90px)};
+    --clamp: #{math.clamp(10px, 0.5cm, 20px)} #{math.clamp(0, 15, 10)} #{math.clamp(low: 1rem, x: 0.5rem, high: 2rem)};
+    --unit: #{math.unit(12pt)} #{math.unit(5)} #{math.value(12pt)};
+    --convert: #{math.convert(1in, "cm")} #{math.convert(90deg, "turn")} #{math.convert(2s, "MS")};
+}
+
+rule .lists {
+    --len: #{list.len(nums)};
+    --append: #{css.space(list.append(nums, 4))};
+    --concat: #{css.comma(list.concat(nums, [9]))};
+    --slice: #{css.space(list.slice(nums, 1, 3))} #{list.len(list.slice(nums, 3, 3))};
+    --contains: #{list.contains(nums, 2)} #{list.contains([[1]], [1])} #{list.contains(nums, "2")};
+}
+
+rule .maps {
+    --len: #{map.len(m)} #{map.has(m, "a")} #{map.has(m, "z")};
+    --get: #{map.get(m, "a", 0)} #{map.get(m, "z", `none`)};
+    --set: #{string.join(map.keys(map.set(m, "c", 3)), " ")} #{css.space(map.values(map.set(m, "b", 5)))};
+    --remove: #{css.space(map.keys(map.remove(m, "b")))} #{map.len(map.remove(m, "zz"))};
+    --merge: #{css.space(map.values(map.merge(m, {a: 10, z: 26})))};
+}
+
+rule .strings {
+    --len: #{string.len("héllo")};
+    --slice: #{string.slice("héllo", 1, 4)};
+    --contains: #{string.contains("design", "sign")} #{string.contains("a", "")};
+    --case: #{string.upper("abc-é")} #{string.lower("ÀBC")};
+    --join: #{string.join(["a", "b", "c"], ", ")};
+    --types: #{string.join([meta.type(1px), meta.type(""), meta.type(#fff), meta.type(true), meta.type([]), meta.type({}), meta.type(`a`)], " ")};
+}
+
+rule .ranges {
+    --up: #{css.space(range(0, 3))};
+    --down: #{css.space(range(5, 0, -2))};
+    --empty: #{list.len(range(2, 2))} #{list.len(range(3, 0))};
+    --step: #{css.comma(range(0, 10, 3))};
+    --named: #{css.space(range(end: 3, start: 1))};
+}

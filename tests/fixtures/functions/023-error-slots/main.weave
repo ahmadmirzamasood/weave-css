@@ -1,0 +1,9 @@
+recipe once { slot; }
+recipe twice { slot; slot; }
+recipe none { color: red; }
+recipe looped { each i in [1, 2] { slot; } }
+rule .a { apply twice { color: red; } }
+rule .b { apply none { color: red; } }
+rule .c { apply looped { color: red; } }
+rule .d { apply twice; apply looped; }
+rule .e { apply once { color: blue; } }

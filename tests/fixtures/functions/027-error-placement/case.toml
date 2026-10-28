@@ -1,0 +1,3 @@
+description = "Recipe output is checked where it is expanded: declarations at stylesheet level (E6001), a rule in a declaration list (E6002), `&` with no parent rule (E6003) and `opaque` in a declaration list (E6005), each at the offending item of the recipe body."
+spec = ["LANGUAGE.md 9", "CSS-COMPATIBILITY.md 2"]
+expect = "error"

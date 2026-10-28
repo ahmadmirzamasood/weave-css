@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::rc::Rc;
 
-use crate::number::Number;
+use crate::number::{Category, Number};
 
 /// An 8-bit sRGB color.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -93,6 +93,11 @@ impl Map {
         self.entries.len()
     }
 
+    /// The entry at position `i` in insertion order.
+    pub fn entry_at(&self, i: usize) -> Option<(&Rc<str>, &Value)> {
+        self.entries.get(i).map(|(k, v)| (k, v))
+    }
+
     pub fn entries(&self) -> impl Iterator<Item = (&Rc<str>, &Value)> {
         self.entries.iter().map(|(k, v)| (k, v))
     }
@@ -151,29 +156,46 @@ impl Value {
 /// `==` (TYPES.md §1, §6): never an error; values of different types are
 /// unequal; maps ignore order. Iterative, so deeply nested lists cannot
 /// exhaust the stack.
+#[cfg(test)]
 pub(crate) fn equal(a: &Value, b: &Value) -> bool {
+    let mut budget = u64::MAX;
+    equal_within(a, b, &mut budget).unwrap_or(false)
+}
+
+/// [`equal`] that visits at most `budget` value pairs, decrementing it;
+/// `None` when the budget runs out. Shared collections compare equal
+/// without being visited, but distinct collections with shared children
+/// can make a comparison exponentially long, so callers bound it.
+pub(crate) fn equal_within(a: &Value, b: &Value, budget: &mut u64) -> Option<bool> {
     let mut pending = vec![(a, b)];
     while let Some(pair) = pending.pop() {
+        *budget = budget.checked_sub(1)?;
         let same = match pair {
             (Value::Number(x), Value::Number(y)) => x.equals(y),
             (Value::Str(x), Value::Str(y)) | (Value::Css(x), Value::Css(y)) => x == y,
             (Value::Color(x), Value::Color(y)) => x == y,
             (Value::Bool(x), Value::Bool(y)) => x == y,
             (Value::List(x), Value::List(y)) => {
+                if Rc::ptr_eq(x, y) {
+                    continue;
+                }
                 if x.len() != y.len() {
-                    return false;
+                    return Some(false);
                 }
                 pending.extend(x.iter().zip(y.iter()));
                 true
             }
             (Value::Map(x), Value::Map(y)) => {
+                if Rc::ptr_eq(x, y) {
+                    continue;
+                }
                 if x.len() != y.len() {
-                    return false;
+                    return Some(false);
                 }
                 for (key, value) in x.entries() {
                     match y.get(key) {
                         Some(other) => pending.push((value, other)),
-                        None => return false,
+                        None => return Some(false),
                     }
                 }
                 true
@@ -181,10 +203,102 @@ pub(crate) fn equal(a: &Value, b: &Value) -> bool {
             _ => false,
         };
         if !same {
-            return false;
+            return Some(false);
         }
     }
-    true
+    Some(true)
+}
+
+/// A parameter or return type annotation (TYPES.md §8).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Type {
+    Any,
+    Number,
+    Unitless,
+    Length,
+    Angle,
+    Time,
+    Percent,
+    String,
+    Color,
+    Bool,
+    List,
+    Map,
+    Css,
+}
+
+impl Type {
+    pub const ALL: [Type; 13] = [
+        Type::Any,
+        Type::Number,
+        Type::Unitless,
+        Type::Length,
+        Type::Angle,
+        Type::Time,
+        Type::Percent,
+        Type::String,
+        Type::Color,
+        Type::Bool,
+        Type::List,
+        Type::Map,
+        Type::Css,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Type::Any => "any",
+            Type::Number => "number",
+            Type::Unitless => "unitless",
+            Type::Length => "length",
+            Type::Angle => "angle",
+            Type::Time => "time",
+            Type::Percent => "percent",
+            Type::String => "string",
+            Type::Color => "color",
+            Type::Bool => "bool",
+            Type::List => "list",
+            Type::Map => "map",
+            Type::Css => "css",
+        }
+    }
+
+    pub fn parse(name: &str) -> Option<Type> {
+        Type::ALL.into_iter().find(|t| t.name() == name)
+    }
+
+    /// Whether `value` has this type. A unitless `0` is not a length.
+    pub fn accepts(self, value: &Value) -> bool {
+        let category = |n: &Number| n.unit.category();
+        match (self, value) {
+            (Type::Any, _) => true,
+            (Type::Number, Value::Number(_)) => true,
+            (Type::Unitless, Value::Number(n)) => n.unit.is_none(),
+            (Type::Length, Value::Number(n)) => matches!(
+                category(n),
+                Some(Category::AbsoluteLength | Category::RelativeLength)
+            ),
+            (Type::Angle, Value::Number(n)) => category(n) == Some(Category::Angle),
+            (Type::Time, Value::Number(n)) => category(n) == Some(Category::Time),
+            (Type::Percent, Value::Number(n)) => category(n) == Some(Category::Percentage),
+            (Type::String, Value::Str(_)) => true,
+            (Type::Color, Value::Color(_)) => true,
+            (Type::Bool, Value::Bool(_)) => true,
+            (Type::List, Value::List(_)) => true,
+            (Type::Map, Value::Map(_)) => true,
+            (Type::Css, Value::Css(_)) => true,
+            _ => false,
+        }
+    }
+}
+
+/// How a value is described in type errors: its type, and for numbers its
+/// unit ("a number in `px`").
+pub(crate) fn describe(value: &Value) -> String {
+    match value {
+        Value::Number(n) if n.unit.is_none() => "a unitless number".to_string(),
+        Value::Number(n) => format!("a number in `{}`", n.unit.name()),
+        other => format!("a {}", other.type_name()),
+    }
 }
 
 impl Drop for Value {

@@ -1,0 +1,17 @@
+fn wrong() -> length { yield 5; }
+fn sign(n: number) -> string {
+    when n > 0 { yield "positive"; }
+    when n < 0 { yield "negative"; }
+}
+fn checked(n: number) -> number {
+    when n < 0 { fail "n must not be negative, got #{n}"; }
+    yield n;
+}
+fn loud() -> bool { fail 42; }
+
+warn "deprecated: use `space` instead";
+bind a = wrong();
+bind b = sign(0);
+bind c = checked(-1);
+bind d = loud();
+bind e = checked(2) + sign(1);

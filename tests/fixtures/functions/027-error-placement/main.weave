@@ -1,0 +1,8 @@
+recipe decls { color: red; }
+recipe rules { rule .x { color: red; } }
+recipe parent-ref { rule &:hover { color: red; } }
+recipe raw { opaque { a: b } }
+apply decls;
+@font-face { apply rules; }
+apply parent-ref;
+@font-face { apply raw; }

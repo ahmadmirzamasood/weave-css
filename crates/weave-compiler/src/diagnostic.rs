@@ -73,6 +73,8 @@ impl Code {
     pub const E1004: Code = Code("E1004");
     /// Operand type mismatch.
     pub const E2001: Code = Code("E2001");
+    /// Non-boolean condition.
+    pub const E2002: Code = Code("E2002");
     /// Value not insertable in this context.
     pub const E2003: Code = Code("E2003");
     /// List or map interpolated directly.
@@ -87,6 +89,8 @@ impl Code {
     pub const E2008: Code = Code("E2008");
     /// Integer required.
     pub const E2009: Code = Code("E2009");
+    /// Not iterable, or the wrong number of loop variables.
+    pub const E2010: Code = Code("E2010");
     /// String expected.
     pub const E2011: Code = Code("E2011");
     /// Incompatible units.
@@ -97,6 +101,8 @@ impl Code {
     pub const E3003: Code = Code("E3003");
     /// Unsupported unit product or quotient.
     pub const E3004: Code = Code("E3004");
+    /// Unknown or incompatible conversion unit.
+    pub const E3005: Code = Code("E3005");
     /// Missing argument.
     pub const E4001: Code = Code("E4001");
     /// Unknown named argument.
@@ -107,10 +113,20 @@ impl Code {
     pub const E4004: Code = Code("E4004");
     /// Argument type mismatch.
     pub const E4005: Code = Code("E4005");
+    /// `yield` type mismatch.
+    pub const E4006: Code = Code("E4006");
+    /// Function ended without `yield`.
+    pub const E4007: Code = Code("E4007");
+    /// Content block not placed by `slot`.
+    pub const E4010: Code = Code("E4010");
+    /// `slot` executed more than once.
+    pub const E4011: Code = Code("E4011");
     /// `slot` outside a recipe.
     pub const E4012: Code = Code("E4012");
     /// `yield` outside a function.
     pub const E4013: Code = Code("E4013");
+    /// Statement not allowed in a function body.
+    pub const E4014: Code = Code("E4014");
     /// Feature not implemented by this compiler build.
     pub const E5001: Code = Code("E5001");
     /// Declaration at stylesheet level.
@@ -141,6 +157,8 @@ impl Code {
     pub const E8001: Code = Code("E8001");
     /// Nesting or parse depth limit.
     pub const E8002: Code = Code("E8002");
+    /// Call depth limit.
+    pub const E8003: Code = Code("E8003");
     /// Evaluation step limit.
     pub const E8004: Code = Code("E8004");
     /// Output size limit.
@@ -149,9 +167,13 @@ impl Code {
     pub const E8007: Code = Code("E8007");
     /// Module count limit.
     pub const E8008: Code = Code("E8008");
+    /// `fail`.
+    pub const E9001: Code = Code("E9001");
+    /// `warn`.
+    pub const W9001: Code = Code("W9001");
 
     /// Every code defined so far.
-    pub const ALL: [Code; 58] = [
+    pub const ALL: [Code; 69] = [
         Code::E0001,
         Code::E0002,
         Code::E0003,
@@ -172,6 +194,7 @@ impl Code {
         Code::E1003,
         Code::E1004,
         Code::E2001,
+        Code::E2002,
         Code::E2003,
         Code::E2004,
         Code::E2005,
@@ -179,18 +202,25 @@ impl Code {
         Code::E2007,
         Code::E2008,
         Code::E2009,
+        Code::E2010,
         Code::E2011,
         Code::E3001,
         Code::E3002,
         Code::E3003,
         Code::E3004,
+        Code::E3005,
         Code::E4001,
         Code::E4002,
         Code::E4003,
         Code::E4004,
         Code::E4005,
+        Code::E4006,
+        Code::E4007,
+        Code::E4010,
+        Code::E4011,
         Code::E4012,
         Code::E4013,
+        Code::E4014,
         Code::E5001,
         Code::E6001,
         Code::E6002,
@@ -206,10 +236,13 @@ impl Code {
         Code::E7010,
         Code::E8001,
         Code::E8002,
+        Code::E8003,
         Code::E8004,
         Code::E8006,
         Code::E8007,
         Code::E8008,
+        Code::E9001,
+        Code::W9001,
     ];
 
     pub fn as_str(self) -> &'static str {

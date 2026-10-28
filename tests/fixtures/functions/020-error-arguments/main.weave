@@ -1,0 +1,15 @@
+fn space(factor: number, unit: length = 4px) -> length { yield unit * factor; }
+recipe pad(size: length) { padding: #{size}; }
+fn bad-default(x: length = 3) -> length { yield x; }
+
+bind a = space();
+bind b = space(1, scale: 2);
+bind c = space(1, factor: 2);
+bind d = space(1, 2px, 3);
+bind e = space("2");
+bind f = bad-default();
+bind g = pad(1px);
+rule .r { apply space(1); }
+rule .s { apply missing; }
+rule .t { apply pad(1); }
+rule .u { apply pad; }

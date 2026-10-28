@@ -1,0 +1,5 @@
+# severity code file:line:column "message substring"
+error E6001 main.weave:1:16 "stylesheet level"
+error E6002 main.weave:2:16 "declaration list"
+error E6003 main.weave:3:21 "parent rule"
+error E6005 main.weave:4:14 "`opaque`"

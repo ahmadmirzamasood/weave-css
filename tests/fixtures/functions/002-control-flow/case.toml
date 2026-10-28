@@ -1,0 +1,4 @@
+description = "`when`/`otherwise when`/`otherwise` chains where short-circuiting skips invalid operands and only the selected branch runs; map iteration in insertion order; indexed list iteration; empty loops; nested loops over ranges with positive and negative steps; control flow inside a rule body keeps declaration order."
+spec = ["LANGUAGE.md 10", "LANGUAGE.md 5.2", "LANGUAGE.md 4.3"]
+expect = "css"
+validation = "independent"

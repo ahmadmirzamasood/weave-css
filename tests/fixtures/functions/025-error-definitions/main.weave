@@ -1,0 +1,11 @@
+fn dup(a, a) { yield a; }
+fn kw(in) { yield 1; }
+fn typed(x: pixel) { yield x; }
+fn rebind(x) { bind x = 1; yield x; }
+recipe shared { }
+bind shared = 1;
+each k, k in {} { }
+each i [1] { }
+rule .a { apply 1 + 2; }
+otherwise { }
+fn noparen { yield 1; }

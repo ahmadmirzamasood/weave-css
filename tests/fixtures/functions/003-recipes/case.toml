@@ -1,0 +1,4 @@
+description = "Recipes: defaults evaluated in the recipe scope, optional argument lists, named arguments, hygiene (the body sees its module, a content block sees its caller), `slot;` placement and output order, content passed through nested applications, `slot;` without content, rules emitted at stylesheet level, declaration-only expansion in `@font-face`, conditional slots."
+spec = ["LANGUAGE.md 9", "LANGUAGE.md 4.3"]
+expect = "css"
+validation = "independent"

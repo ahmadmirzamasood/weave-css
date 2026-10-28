@@ -1,0 +1,51 @@
+bind theme = "dim";
+bind breakpoints = {sm: 640px, md: 768px, lg: 1024px};
+bind flags = {compact: false};
+
+/* `&&` and `||` skip their right operand: the division by zero and the
+   out-of-range index are never evaluated. Only the selected branch runs. */
+when theme != "dim" && 1 / 0 == 1 {
+    rule .never { color: red; }
+} otherwise when theme == "dim" || [][0] == 1 {
+    rule .dim { color: gray; }
+} otherwise {
+    rule .light { color: black; }
+}
+
+/* Map iteration follows insertion order. */
+each name, width in breakpoints {
+    @media (width >= #{width}) {
+        rule .container { max-width: #{width - 32px}; }
+    }
+}
+
+/* List iteration gives zero-based indices. */
+each i, step in [10, 20, 30] {
+    rule .step-#{i} { width: #{step * 1%}; }
+}
+
+each unused in [] {
+    rule .none { color: red; }
+}
+
+/* Nested loops, each iteration in a fresh scope. */
+each row in range(1, 3) {
+    each col in range(0, 4, 2) {
+        rule .cell-#{row}-#{col} { order: #{row * 10 + col}; }
+    }
+}
+
+rule .card {
+    bind count = 3;
+    when count > 2 {
+        bind label = "many";
+        --label: #{label};
+    } otherwise {
+        --label: "few";
+    }
+    each i in range(count, 0, -1) {
+        --countdown-#{i}: #{i};
+    }
+    when flags.compact { padding: 0; }
+    color: red;
+}

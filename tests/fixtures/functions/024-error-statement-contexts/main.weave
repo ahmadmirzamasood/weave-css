@@ -1,0 +1,16 @@
+fn f(x) {
+    color: red;
+    rule .a { }
+    apply r;
+    slot;
+    @media print { }
+    opaque { x }
+    yield x;
+}
+slot;
+rule .b { slot; }
+yield 1;
+rule .c { fn g() { yield 1; } }
+@font-face { slot; }
+@keyframes k { apply r; }
+recipe r { slot; }

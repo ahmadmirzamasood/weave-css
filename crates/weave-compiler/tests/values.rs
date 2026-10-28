@@ -202,9 +202,9 @@ fn equality_never_errors_and_ordering_is_strict() {
 
 #[test]
 fn evaluation_step_limit_is_exact() {
-    // `1 + 1` is three steps.
+    // The `bind` statement is one step and `1 + 1` three more.
     let source = |terms: usize| format!("bind x = {};", vec!["1"; terms].join(" + "));
-    let options = limits(Limit::EvaluationSteps, 9);
+    let options = limits(Limit::EvaluationSteps, 10);
     assert_eq!(codes_with(&source(5), &options), []);
     assert_eq!(codes_with(&source(6), &options), [Code::E8004]);
 }

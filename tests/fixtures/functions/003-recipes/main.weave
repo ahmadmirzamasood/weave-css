@@ -1,0 +1,76 @@
+bind accent = #2563eb;
+bind gap = 8px;
+
+/* Defaults are evaluated in the recipe's own scope: the module plus the
+   parameters. */
+recipe surface(pad: length = gap * 2, tone: color = accent) {
+    padding: #{pad};
+    background: #{tone};
+}
+
+/* Statement order is output order; `slot;` places the content block. */
+recipe framed(width: length = 1px) {
+    border: #{width} solid #{accent};
+    slot;
+    border-radius: #{width * 4};
+}
+
+/* A content block keeps the caller's scope (`accent` is the rule's
+   binding), while the recipe body sees the module binding. */
+rule .card {
+    bind accent = #16a34a;
+    apply surface;
+    apply framed(2px) {
+        color: #{accent};
+    }
+    cursor: pointer;
+}
+
+/* A `slot;` inside a content block refers to the recipe that encloses
+   the block, so content passes through nested applications. */
+recipe outer {
+    margin: 0;
+    apply framed {
+        outline: none;
+        slot;
+    }
+}
+
+rule .nested {
+    apply outer { color: #{accent}; }
+}
+
+/* Without a content block, `slot;` emits nothing. */
+rule .plain {
+    apply framed(width: 3px);
+}
+
+/* Applied at stylesheet level, a recipe emits rules. */
+recipe sizes(prefix: string, steps: list) {
+    each i, size in steps {
+        rule .#{prefix}-#{i} { width: #{size}; }
+    }
+}
+
+apply sizes("w", [10px, 20px]);
+
+/* In a declaration list, a recipe contributes declarations. */
+recipe font-basics(family: string) {
+    font-family: #{family};
+    font-display: swap;
+}
+
+@font-face {
+    apply font-basics("Brand");
+    src: url("brand.woff2");
+}
+
+/* A conditional slot still executes exactly once per expansion. */
+recipe maybe(wrap: bool) {
+    when wrap { display: block; slot; } otherwise { slot; }
+}
+
+rule .m {
+    apply maybe(true) { --a: 1; }
+    apply maybe(wrap: false) { --b: 2; }
+}

@@ -34,10 +34,11 @@ Options:
   -h, --help       Show this help
   -V, --version    Show version information
 
-Status: this build compiles the plain-CSS subset of Weave: `rule` blocks,
-declarations, at-rules, `opaque` blocks and comments. Other Weave
-constructs (bindings, control flow, functions, recipes, modules,
-interpolation, nesting) fail with error E5001 (not implemented yet).
+Status: this build compiles the plain-CSS subset of Weave (`rule` blocks,
+declarations, at-rules, `opaque` blocks, comments) with bindings,
+expressions, interpolation, functions, `when`/`each`, recipes and the
+built-ins of docs/BUILTINS.md. Modules, nesting and the `color` built-ins
+fail with error E5001 (not implemented yet).
 
 Modules are resolved relative to the directory of the input file, which is
 also the module root.
@@ -49,7 +50,7 @@ Exit status: 0 success, 1 compilation failed, 2 invalid command line.
 
 fn version() -> String {
     format!(
-        "weave {VERSION}\nlanguage specification: v{LANGUAGE_VERSION}\ncompilation: plain-CSS subset (phase 03)\n"
+        "weave {VERSION}\nlanguage specification: v{LANGUAGE_VERSION}\ncompilation: plain-CSS subset, values, functions and recipes (phase 05)\n"
     )
 }
 

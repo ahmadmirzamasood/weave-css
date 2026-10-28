@@ -21,7 +21,8 @@ use crate::diagnostic::{Code, Diagnostic};
 use crate::lexer::{Lexer, Mode, Token, TokenKind as K};
 use crate::number::{Number, Unit};
 use crate::source::{FileId, Span};
-use crate::value::{Color, Value};
+use crate::syntax::Param;
+use crate::value::{Color, Type, Value};
 
 /// How deeply interpolations may nest inside strings and fragments inside
 /// interpolations. A reference-compiler bound (LANGUAGE.md §17) that keeps
@@ -365,6 +366,22 @@ enum Stop {
     Semicolon(usize),
     /// A `}` at depth 0 (not consumed); its position.
     CloseBrace(usize),
+    /// A `{` at depth 0 after a complete operand (statement heads only); its
+    /// position.
+    OpenBrace(usize),
+}
+
+/// What ends a scan.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ScanMode {
+    /// Only the end of the region (interpolations).
+    Region,
+    /// A `;`, or a `}` at depth 0 (`bind`, `yield`, `fail`, `warn`).
+    Statement,
+    /// Also a `{` at depth 0 that follows a complete operand: the block of
+    /// `when`, `each`, `apply`, `fn` and `recipe` (grammar.ebnf §8). A `{`
+    /// where an operand is expected starts a map literal instead.
+    Head,
 }
 
 fn is_ident_start(c: char) -> bool {
@@ -398,11 +415,13 @@ impl Scanner<'_> {
         }
     }
 
-    /// Tokenizes up to `end`, or (for statements) up to a `;` or a `}` at
-    /// bracket depth 0.
-    fn scan(&mut self, statement: bool) -> Result<(Vec<Tok>, Stop), Diagnostic> {
+    /// Tokenizes up to `end`, or (for statements and heads) up to the stop
+    /// that `mode` defines.
+    fn scan(&mut self, mode: ScanMode) -> Result<(Vec<Tok>, Stop), Diagnostic> {
         let mut toks = Vec::new();
         let mut depth = 0usize;
+        // Whether the last token completes an operand (heads only).
+        let mut operand_end = false;
         loop {
             self.skip_trivia()?;
             let start = self.pos;
@@ -433,8 +452,11 @@ impl Scanner<'_> {
                             .cx
                             .error(Code::E0101, start, start + c.len_utf8(), what));
                     };
-                    if statement {
+                    if mode != ScanMode::Region {
                         match p {
+                            P::LBrace if depth == 0 && operand_end && mode == ScanMode::Head => {
+                                return Ok((toks, Stop::OpenBrace(start)));
+                            }
                             P::LParen | P::LBracket | P::LBrace => depth += 1,
                             P::RParen | P::RBracket => depth = depth.saturating_sub(1),
                             P::RBrace if depth == 0 => return Ok((toks, Stop::CloseBrace(start))),
@@ -448,6 +470,14 @@ impl Scanner<'_> {
                     self.pos += text.len();
                     TK::P(p)
                 }
+            };
+            operand_end = match &kind {
+                TK::Ident => {
+                    let word = self.cx.text.get(start..self.pos).unwrap_or("");
+                    !KEYWORDS.contains(&word) || word == "true" || word == "false"
+                }
+                TK::P(p) => matches!(p, P::RParen | P::RBracket | P::RBrace),
+                _ => true,
             };
             toks.push(Tok {
                 kind,
@@ -1192,7 +1222,7 @@ pub(crate) fn parse_bind(cx: Cx<'_>, start: usize) -> Result<BindStmt, Box<BindE
         pos: start,
         end: cx.text.len(),
     };
-    let (toks, stop) = scanner.scan(true).map_err(|diagnostic| {
+    let (toks, stop) = scanner.scan(ScanMode::Statement).map_err(|diagnostic| {
         Box::new(BindError {
             diagnostic,
             resume: None,
@@ -1200,7 +1230,7 @@ pub(crate) fn parse_bind(cx: Cx<'_>, start: usize) -> Result<BindStmt, Box<BindE
     })?;
     let resume = match stop {
         Stop::Semicolon(after) => Some(after),
-        Stop::End(_) | Stop::CloseBrace(_) => None,
+        Stop::End(_) | Stop::CloseBrace(_) | Stop::OpenBrace(_) => None,
     };
     bind_statement(cx, &toks, stop).map_err(|diagnostic| Box::new(BindError { diagnostic, resume }))
 }
@@ -1210,7 +1240,7 @@ fn bind_statement(cx: Cx<'_>, toks: &[Tok], stop: Stop) -> Result<BindStmt, Diag
     // statement, or the end of its last token.
     let missing_at = match stop {
         Stop::Semicolon(after) => after - 1,
-        Stop::CloseBrace(at) => at,
+        Stop::CloseBrace(at) | Stop::OpenBrace(at) => at,
         Stop::End(at) => toks.last().map_or(at, |t| t.end),
     };
     let (name_tok, rest) = match toks.split_first() {
@@ -1264,13 +1294,498 @@ fn bind_statement(cx: Cx<'_>, toks: &[Tok], stop: Stop) -> Result<BindStmt, Diag
             program,
             end: after,
         }),
-        Stop::End(_) | Stop::CloseBrace(_) => Err(cx.error(
+        Stop::End(_) | Stop::CloseBrace(_) | Stop::OpenBrace(_) => Err(cx.error(
             Code::E0102,
             missing_at,
             missing_at,
             "expected `;` after the bound expression",
         )),
     }
+}
+
+/// How the parser resumes after a statement that failed to parse.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Resume {
+    /// Continue at this offset.
+    At(usize),
+    /// The statement's block starts with the `{` at this offset: parse the
+    /// block for its own diagnostics and discard it.
+    Block(usize),
+    /// The statement could not be tokenized; skip its extent.
+    Skip,
+}
+
+/// A statement that failed to parse.
+#[derive(Debug)]
+pub(crate) struct StmtError {
+    pub diagnostic: Diagnostic,
+    pub resume: Resume,
+}
+
+type Stmt<T> = Result<T, Box<StmtError>>;
+
+fn stmt_error(diagnostic: Diagnostic, resume: Resume) -> Box<StmtError> {
+    Box::new(StmtError { diagnostic, resume })
+}
+
+/// Where a statement that stopped at `stop` resumes.
+fn resume_at(stop: Stop) -> Resume {
+    match stop {
+        Stop::Semicolon(at) | Stop::CloseBrace(at) | Stop::End(at) => Resume::At(at),
+        Stop::OpenBrace(at) => Resume::Block(at),
+    }
+}
+
+/// The span from the first to the last token.
+fn toks_span(cx: Cx<'_>, toks: &[Tok]) -> Option<Span> {
+    Some(cx.span(toks.first()?.start, toks.last()?.end))
+}
+
+/// Where an item missing at the end of a statement is reported.
+fn missing_at(toks: &[Tok], stop: Stop) -> usize {
+    match stop {
+        Stop::Semicolon(after) => after - 1,
+        Stop::CloseBrace(at) | Stop::OpenBrace(at) => at,
+        Stop::End(at) => toks.last().map_or(at, |t| t.end),
+    }
+}
+
+/// The expression of `yield`, `fail` or `warn`.
+#[derive(Debug)]
+pub(crate) struct ExprStmt {
+    pub program: Program,
+    /// The offset after the terminating `;`.
+    pub end: usize,
+}
+
+/// Parses `expression ;` starting at `start` (after `keyword`).
+pub(crate) fn parse_expr_stmt(cx: Cx<'_>, start: usize, keyword: &str) -> Stmt<ExprStmt> {
+    let mut scanner = Scanner {
+        cx,
+        pos: start,
+        end: cx.text.len(),
+    };
+    let (toks, stop) = scanner
+        .scan(ScanMode::Statement)
+        .map_err(|d| stmt_error(d, Resume::Skip))?;
+    let resume = resume_at(stop);
+    let at = missing_at(&toks, stop);
+    if toks.is_empty() {
+        return Err(stmt_error(
+            cx.error(
+                Code::E0101,
+                at,
+                at,
+                format!("expected an expression after `{keyword}`"),
+            ),
+            resume,
+        ));
+    }
+    let program = compile(cx, &toks, at).map_err(|d| stmt_error(d, resume))?;
+    match stop {
+        Stop::Semicolon(end) => Ok(ExprStmt { program, end }),
+        _ => Err(stmt_error(
+            cx.error(
+                Code::E0102,
+                at,
+                at,
+                format!("expected `;` after the `{keyword}` expression"),
+            ),
+            resume,
+        )),
+    }
+}
+
+/// Scans a statement head up to its block (or `;` for `apply`).
+fn scan_head(cx: Cx<'_>, start: usize) -> Stmt<(Vec<Tok>, Stop)> {
+    let mut scanner = Scanner {
+        cx,
+        pos: start,
+        end: cx.text.len(),
+    };
+    scanner
+        .scan(ScanMode::Head)
+        .map_err(|d| stmt_error(d, Resume::Skip))
+}
+
+/// The offset of the head's `{`, or an error that the block is missing.
+fn head_block(cx: Cx<'_>, toks: &[Tok], stop: Stop, what: &str) -> Stmt<usize> {
+    match stop {
+        Stop::OpenBrace(at) => Ok(at),
+        _ => {
+            let at = missing_at(toks, stop);
+            Err(stmt_error(
+                cx.error(Code::E0101, at, at, format!("expected a `{{` block {what}")),
+                resume_at(stop),
+            ))
+        }
+    }
+}
+
+/// A `when` condition up to its block.
+#[derive(Debug)]
+pub(crate) struct WhenHead {
+    pub condition: Program,
+    pub span: Span,
+    /// The offset of the block's `{`.
+    pub open: usize,
+}
+
+/// Parses a condition and its `{` starting at `start` (after `when`).
+pub(crate) fn parse_when_head(cx: Cx<'_>, start: usize) -> Stmt<WhenHead> {
+    let (toks, stop) = scan_head(cx, start)?;
+    let open = head_block(cx, &toks, stop, "after the `when` condition")?;
+    let Some(span) = toks_span(cx, &toks) else {
+        return Err(stmt_error(
+            cx.error(
+                Code::E0101,
+                open,
+                open + 1,
+                "expected a condition after `when`",
+            ),
+            Resume::Block(open),
+        ));
+    };
+    let condition = compile(cx, &toks, open).map_err(|d| stmt_error(d, Resume::Block(open)))?;
+    Ok(WhenHead {
+        condition,
+        span,
+        open,
+    })
+}
+
+/// `each value in expression {` or `each key, value in expression {`.
+#[derive(Debug)]
+pub(crate) struct EachHead {
+    pub key: Option<(Rc<str>, Span)>,
+    pub value: (Rc<str>, Span),
+    pub iterable: Program,
+    pub span: Span,
+    pub open: usize,
+}
+
+/// A name that a statement binds: a loop variable or a parameter.
+fn bound_name(
+    cx: Cx<'_>,
+    tok: Option<&Tok>,
+    what: &str,
+    at: usize,
+) -> Result<(Rc<str>, Span), Diagnostic> {
+    match tok {
+        Some(tok) if matches!(tok.kind, TK::Ident) => {
+            let name = cx.text.get(tok.start..tok.end).unwrap_or("");
+            let span = cx.span(tok.start, tok.end);
+            if KEYWORDS.contains(&name) {
+                return Err(Diagnostic::error(
+                    Code::E0103,
+                    format!("`{name}` is a keyword and cannot be used as a name"),
+                )
+                .with_primary(span));
+            }
+            Ok((name.into(), span))
+        }
+        Some(tok) => Err(cx.error(Code::E0101, tok.start, tok.end, format!("expected {what}"))),
+        None => Err(cx.error(Code::E0101, at, at, format!("expected {what}"))),
+    }
+}
+
+pub(crate) fn duplicate_name(name: &str, span: Span, earlier: Span) -> Diagnostic {
+    Diagnostic::error(
+        Code::E1001,
+        format!("duplicate name: `{name}` is already bound in this scope"),
+    )
+    .with_primary(span)
+    .with_label(earlier, "first bound here")
+}
+
+/// Parses loop variables, `in`, the iterated expression and the `{`
+/// starting at `start` (after `each`).
+pub(crate) fn parse_each_head(cx: Cx<'_>, start: usize) -> Stmt<EachHead> {
+    let (toks, stop) = scan_head(cx, start)?;
+    let open = head_block(cx, &toks, stop, "after the `each` expression")?;
+    let fail = |d: Diagnostic| stmt_error(d, Resume::Block(open));
+    let first =
+        bound_name(cx, toks.first(), "a loop variable name after `each`", open).map_err(fail)?;
+    let mut next = 1;
+    let mut key = None;
+    let mut value = first;
+    if toks
+        .get(1)
+        .is_some_and(|t| matches!(t.kind, TK::P(P::Comma)))
+    {
+        let second =
+            bound_name(cx, toks.get(2), "a second loop variable name", open).map_err(fail)?;
+        if second.0 == value.0 {
+            return Err(fail(duplicate_name(&second.0, second.1, value.1)));
+        }
+        key = Some(value);
+        value = second;
+        next = 3;
+    }
+    let expected_in = |start: usize, end: usize| {
+        fail(cx.error(
+            Code::E0101,
+            start,
+            end,
+            "expected `in` after the loop variables",
+        ))
+    };
+    match toks.get(next) {
+        Some(tok)
+            if matches!(tok.kind, TK::Ident) && cx.text.get(tok.start..tok.end) == Some("in") => {}
+        Some(tok) => return Err(expected_in(tok.start, tok.end)),
+        None => return Err(expected_in(open, open + 1)),
+    }
+    let rest = toks.get(next + 1..).unwrap_or(&[]);
+    let Some(span) = toks_span(cx, rest) else {
+        return Err(fail(cx.error(
+            Code::E0101,
+            open,
+            open + 1,
+            "expected an expression after `in`",
+        )));
+    };
+    let iterable = compile(cx, rest, open).map_err(fail)?;
+    Ok(EachHead {
+        key,
+        value,
+        iterable,
+        span,
+        open,
+    })
+}
+
+/// `apply name(args)` followed by `;` or a content block.
+#[derive(Debug)]
+pub(crate) struct ApplyHead {
+    pub call: Call,
+    /// Computes one value per argument.
+    pub args: Program,
+    /// The offset of the content block's `{`, if there is one.
+    pub open: Option<usize>,
+    /// The offset after the `;` when there is no content block.
+    pub end: usize,
+}
+
+/// Parses the recipe, its arguments and the `;` or `{` that follows,
+/// starting at `start` (after `apply`).
+pub(crate) fn parse_apply_head(cx: Cx<'_>, start: usize) -> Stmt<ApplyHead> {
+    let (toks, stop) = scan_head(cx, start)?;
+    let (open, end, resume) = match stop {
+        Stop::OpenBrace(at) => (Some(at), at, Resume::Block(at)),
+        Stop::Semicolon(after) => (None, after, Resume::At(after)),
+        Stop::CloseBrace(_) | Stop::End(_) => {
+            let at = missing_at(&toks, stop);
+            return Err(stmt_error(
+                cx.error(
+                    Code::E0102,
+                    at,
+                    at,
+                    "expected `;` or a content block after `apply`",
+                ),
+                resume_at(stop),
+            ));
+        }
+    };
+    let fail = |d: Diagnostic| stmt_error(d, resume);
+    let at = missing_at(&toks, stop);
+    let (Some(first), Some(last)) = (toks.first(), toks.last()) else {
+        return Err(fail(cx.error(
+            Code::E0101,
+            at,
+            at,
+            "expected a recipe name after `apply`",
+        )));
+    };
+    let not_recipe = || {
+        cx.error(
+            Code::E0101,
+            first.start,
+            last.end,
+            "expected a recipe name, optionally followed by arguments",
+        )
+        .with_note("write `apply name;`, `apply name(args);` or `apply namespace.name(args);`")
+    };
+    let mut program = compile(cx, &toks, at).map_err(fail)?;
+    let call = match program.ops.pop() {
+        Some(Op::Call(call)) => *call,
+        Some(Op::Load(name, span)) if program.ops.is_empty() => Call {
+            callee: Callee {
+                namespace: None,
+                name,
+                span,
+            },
+            args: Vec::new(),
+        },
+        Some(Op::Member(name, name_span)) => match program.ops.pop() {
+            Some(Op::Load(namespace, ns_span)) if program.ops.is_empty() => Call {
+                callee: Callee {
+                    namespace: Some((namespace, ns_span)),
+                    name,
+                    span: Span::new(cx.file, ns_span.start, name_span.end),
+                },
+                args: Vec::new(),
+            },
+            _ => return Err(fail(not_recipe())),
+        },
+        _ => return Err(fail(not_recipe())),
+    };
+    Ok(ApplyHead {
+        call,
+        args: program,
+        open,
+        end,
+    })
+}
+
+/// The head of a `fn` or `recipe` definition up to its block.
+#[derive(Debug)]
+pub(crate) struct DefHead {
+    pub name: Rc<str>,
+    pub span: Span,
+    pub params: Vec<Param>,
+    pub returns: Option<(Type, Span)>,
+    pub open: usize,
+}
+
+fn type_name(cx: Cx<'_>, tok: Option<&Tok>, at: usize) -> Result<(Type, Span), Diagnostic> {
+    let Some(tok) = tok else {
+        return Err(cx.error(Code::E0101, at, at, "expected a type name"));
+    };
+    let text = cx.text.get(tok.start..tok.end).unwrap_or("");
+    let span = cx.span(tok.start, tok.end);
+    match (&tok.kind, Type::parse(text)) {
+        (TK::Ident, Some(ty)) => Ok((ty, span)),
+        _ => Err(Diagnostic::error(
+            Code::E0101,
+            format!(
+                "unknown type `{}`",
+                text.chars().take(32).collect::<String>()
+            ),
+        )
+        .with_primary(span)
+        .with_note(
+            "the types are any, number, unitless, length, angle, time, percent, string, color, bool, list, map and css",
+        )),
+    }
+}
+
+/// Parses `fn name(params) -> type {` (`function`) or `recipe name(params)
+/// {` (parameter list optional) starting after the keyword.
+pub(crate) fn parse_def_head(cx: Cx<'_>, start: usize, function: bool) -> Stmt<DefHead> {
+    let (toks, stop) = scan_head(cx, start)?;
+    let what = if function { "function" } else { "recipe" };
+    let open = head_block(cx, &toks, stop, &format!("for the {what} body"))?;
+    let fail = |d: Diagnostic| stmt_error(d, Resume::Block(open));
+    let unexpected = |tok: Option<&Tok>, message: &str| {
+        let (start, end) = tok.map_or((open, open + 1), |t| (t.start, t.end));
+        fail(cx.error(Code::E0101, start, end, message))
+    };
+    let (name, span) =
+        bound_name(cx, toks.first(), &format!("a {what} name"), open).map_err(fail)?;
+    let mut params: Vec<Param> = Vec::new();
+    let mut i = 1;
+    if toks
+        .get(i)
+        .is_some_and(|t| matches!(t.kind, TK::P(P::LParen)))
+    {
+        i += 1;
+        loop {
+            if toks
+                .get(i)
+                .is_some_and(|t| matches!(t.kind, TK::P(P::RParen)))
+            {
+                i += 1;
+                break;
+            }
+            let (pname, pspan) =
+                bound_name(cx, toks.get(i), "a parameter name or `)`", open).map_err(fail)?;
+            if let Some(earlier) = params.iter().find(|p| p.name == pname) {
+                return Err(fail(duplicate_name(&pname, pspan, earlier.span)));
+            }
+            i += 1;
+            let mut ty = None;
+            if toks
+                .get(i)
+                .is_some_and(|t| matches!(t.kind, TK::P(P::Colon)))
+            {
+                ty = Some(type_name(cx, toks.get(i + 1), open).map_err(fail)?.0);
+                i += 2;
+            }
+            let mut default = None;
+            if toks
+                .get(i)
+                .is_some_and(|t| matches!(t.kind, TK::P(P::Assign)))
+            {
+                // The default runs to a `,` or `)` at depth 0.
+                i += 1;
+                let from = i;
+                let mut depth = 0usize;
+                while let Some(t) = toks.get(i) {
+                    match t.kind {
+                        TK::P(P::LParen | P::LBracket | P::LBrace) => depth += 1,
+                        TK::P(P::RParen | P::Comma) if depth == 0 => break,
+                        TK::P(P::RParen | P::RBracket | P::RBrace) => {
+                            depth = depth.saturating_sub(1);
+                        }
+                        _ => {}
+                    }
+                    i += 1;
+                }
+                let slice = toks.get(from..i).unwrap_or(&[]);
+                let at = toks.get(i).map_or(open, |t| t.start);
+                default = Some(compile(cx, slice, at).map_err(fail)?);
+            }
+            params.push(Param {
+                name: pname,
+                span: pspan,
+                ty,
+                default,
+            });
+            match toks.get(i).map(|t| &t.kind) {
+                Some(TK::P(P::Comma)) => i += 1,
+                Some(TK::P(P::RParen)) => {
+                    i += 1;
+                    break;
+                }
+                _ => {
+                    return Err(unexpected(
+                        toks.get(i),
+                        "expected `,` or `)` after the parameter",
+                    ));
+                }
+            }
+        }
+    } else if function {
+        return Err(unexpected(
+            toks.get(i),
+            "expected `(` after the function name",
+        ));
+    }
+    let mut returns = None;
+    if function
+        && toks
+            .get(i)
+            .is_some_and(|t| matches!(t.kind, TK::P(P::Arrow)))
+    {
+        returns = Some(type_name(cx, toks.get(i + 1), open).map_err(fail)?);
+        i += 2;
+    }
+    if let Some(t) = toks.get(i) {
+        let expected = if function {
+            "expected `->` or the function body"
+        } else {
+            "expected the recipe body"
+        };
+        return Err(unexpected(Some(t), expected));
+    }
+    Ok(DefHead {
+        name,
+        span,
+        params,
+        returns,
+        open,
+    })
 }
 
 /// Parses a terminated `#{…}` token.
@@ -1290,7 +1805,7 @@ pub(crate) fn interpolation(cx: Cx<'_>, token: Token, ctx: Ctx) -> Result<Interp
         pos: start + 2,
         end,
     };
-    let (toks, _) = scanner.scan(false)?;
+    let (toks, _) = scanner.scan(ScanMode::Region)?;
     if toks.is_empty() {
         return Err(
             Diagnostic::error(Code::E0101, "empty interpolation: expected an expression")

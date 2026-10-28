@@ -1,0 +1,41 @@
+.math {
+  --round: 3 -2 3 -2 2em;
+  --abs: 3px 4;
+  --min-max: 0.9375in 1in;
+  --clamp: 0.5cm 10 1rem;
+  --unit: "pt" "" 12;
+  --convert: 2.54cm 0.25turn 2000ms;
+}
+
+.lists {
+  --len: 3;
+  --append: 3 1 2 4;
+  --concat: 3, 1, 2, 9;
+  --slice: 1 2 0;
+  --contains: true true false;
+}
+
+.maps {
+  --len: 2 true false;
+  --get: 1 none;
+  --set: "b a c" 5 1;
+  --remove: "a" 2;
+  --merge: 2 10 26;
+}
+
+.strings {
+  --len: 5;
+  --slice: "éll";
+  --contains: true true;
+  --case: "ABC-é" "Àbc";
+  --join: "a, b, c";
+  --types: "number string color bool list map css";
+}
+
+.ranges {
+  --up: 0 1 2;
+  --down: 5 3 1;
+  --empty: 0 0;
+  --step: 0, 3, 6, 9;
+  --named: 1 2;
+}

@@ -1,0 +1,4 @@
+description = "Map access by name and by string key (including keys that are not identifiers), nested list and map access, computed indices, empty-list equality, and map values serialized in insertion order through css.comma."
+spec = ["LANGUAGE.md 5.3", "TYPES.md 6"]
+expect = "css"
+validation = "independent"

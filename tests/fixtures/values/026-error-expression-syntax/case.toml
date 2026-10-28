@@ -1,0 +1,3 @@
+description = "Expression syntax errors are reported at parse time, one per statement, and parsing resumes after the statement: invalid fragments, unit followed by digits, chained comparisons, positional after named arguments, duplicate map keys, keywords as names, a literal beyond 1e12, duplicate bindings in a nested block and a missing `;`."
+spec = ["LANGUAGE.md 5", "TYPES.md 7", "grammar.ebnf 8"]
+expect = "error"

@@ -1,0 +1,20 @@
+.a {
+  width: 20px;
+}
+
+@media print {
+  .b {
+    width: 30px;
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.c {
+  width: 10px;
+  content: "shadowed prelude name";
+}

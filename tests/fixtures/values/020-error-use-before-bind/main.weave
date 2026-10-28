@@ -1,0 +1,5 @@
+bind size = 1px;
+rule .a {
+    width: #{size};
+    bind size = 2px;
+}

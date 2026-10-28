@@ -1,0 +1,20 @@
+bind sizes = [4px, 8px, 16px];
+bind fonts = ["Inter", `system-ui`, `sans-serif`];
+
+rule .c {
+    padding: #{css.space(sizes)};
+    font-family: #{css.comma(fonts)};
+    grid-area: #{css.slash(1, 3)};
+    font: #{css.slash(`12px`, 1.5)} #{css.comma(fonts)};
+    animation-name: #{css.ident("fade-in")};
+    --digit: #{css.ident("1st")};
+    --frag: #{css.fragment("rgb(0 0 0 / 50%)")};
+    --named: #{css.space(items: [1, 2])};
+    --empty: #{css.space([])};
+    border: #{`1px solid #{#F00}`};
+    --var: var(--x, #{2px});
+}
+
+@container #{css.ident("sidebar")} (width > 400px) {
+    rule .p { color: red; }
+}

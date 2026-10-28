@@ -6,11 +6,11 @@
 //! Output is bounded by the `output-bytes` limit (E8006).
 
 use crate::diagnostic::{Code, Diagnostic};
-use crate::syntax::{Item, Stylesheet};
+use crate::ir::Node;
 
 /// Emits a stylesheet, failing with E8006 when the output would exceed
 /// `limit` bytes.
-pub(crate) fn emit(sheet: &Stylesheet, limit: u64) -> Result<String, Diagnostic> {
+pub(crate) fn emit(nodes: &[Node], limit: u64) -> Result<String, Diagnostic> {
     let mut writer = Writer {
         out: String::new(),
         limit: usize::try_from(limit).unwrap_or(usize::MAX),
@@ -18,7 +18,7 @@ pub(crate) fn emit(sheet: &Stylesheet, limit: u64) -> Result<String, Diagnostic>
     };
     // An explicit stack of open blocks (not recursion), so the deepest
     // allowed nesting cannot exhaust the thread stack.
-    let mut stack: Vec<std::slice::Iter<'_, Item>> = vec![sheet.items.iter()];
+    let mut stack: Vec<std::slice::Iter<'_, Node>> = vec![nodes.iter()];
     let mut first = true;
     while !writer.overflow {
         let depth = stack.len().saturating_sub(1);
@@ -84,10 +84,10 @@ impl Writer {
     }
 
     /// Writes an item, or the header of a block item and returns its body.
-    fn item<'a>(&mut self, item: &'a Item, depth: usize) -> Option<&'a [Item]> {
+    fn item<'a>(&mut self, item: &'a Node, depth: usize) -> Option<&'a [Node]> {
         self.indent(depth);
         match item {
-            Item::Declaration {
+            Node::Declaration {
                 name,
                 value,
                 important,
@@ -107,7 +107,7 @@ impl Writer {
                 );
                 None
             }
-            Item::Verbatim(text) => {
+            Node::Verbatim(text) => {
                 self.push(text);
                 self.push(
                     "
@@ -115,11 +115,11 @@ impl Writer {
                 );
                 None
             }
-            Item::Rule {
+            Node::Rule {
                 selector: header,
                 body,
             }
-            | Item::Keyframe {
+            | Node::Keyframe {
                 selectors: header,
                 body,
             } => {
@@ -130,7 +130,7 @@ impl Writer {
                 );
                 Some(body)
             }
-            Item::AtRule {
+            Node::AtRule {
                 name,
                 prelude,
                 body,
@@ -165,8 +165,8 @@ impl Writer {
 mod tests {
     use super::*;
 
-    fn decl(name: &str, value: &str, important: bool) -> Item {
-        Item::Declaration {
+    fn decl(name: &str, value: &str, important: bool) -> Node {
+        Node::Declaration {
             name: name.into(),
             value: value.into(),
             important,
@@ -175,43 +175,41 @@ mod tests {
 
     #[test]
     fn layout_and_separation() {
-        let sheet = Stylesheet {
-            items: vec![
-                Item::Verbatim("/*! banner */".into()),
-                Item::Rule {
-                    selector: ".empty".into(),
-                    body: vec![],
-                },
-                Item::Rule {
-                    selector: ".a".into(),
-                    body: vec![decl("color", "red", false), decl("--x", "", true)],
-                },
-                Item::AtRule {
-                    name: "@media".into(),
-                    prelude: "print".into(),
-                    body: Some(vec![
-                        Item::Rule {
-                            selector: ".b".into(),
-                            body: vec![Item::Verbatim("x {\n  y }".into())],
-                        },
-                        Item::Rule {
-                            selector: ".c".into(),
-                            body: vec![decl("--e", "", false)],
-                        },
-                    ]),
-                },
-                Item::AtRule {
-                    name: "@layer".into(),
-                    prelude: "a, b".into(),
-                    body: None,
-                },
-                Item::AtRule {
-                    name: "@font-face".into(),
-                    prelude: String::new(),
-                    body: Some(vec![]),
-                },
-            ],
-        };
+        let sheet: Vec<Node> = vec![
+            Node::Verbatim("/*! banner */".into()),
+            Node::Rule {
+                selector: ".empty".into(),
+                body: vec![],
+            },
+            Node::Rule {
+                selector: ".a".into(),
+                body: vec![decl("color", "red", false), decl("--x", "", true)],
+            },
+            Node::AtRule {
+                name: "@media".into(),
+                prelude: "print".into(),
+                body: Some(vec![
+                    Node::Rule {
+                        selector: ".b".into(),
+                        body: vec![Node::Verbatim("x {\n  y }".into())],
+                    },
+                    Node::Rule {
+                        selector: ".c".into(),
+                        body: vec![decl("--e", "", false)],
+                    },
+                ]),
+            },
+            Node::AtRule {
+                name: "@layer".into(),
+                prelude: "a, b".into(),
+                body: None,
+            },
+            Node::AtRule {
+                name: "@font-face".into(),
+                prelude: String::new(),
+                body: Some(vec![]),
+            },
+        ];
         assert_eq!(
             emit(&sheet, 1 << 20).unwrap(),
             "/*! banner */\n\n.a {\n  color: red;\n  --x: !important;\n}\n\n\
@@ -222,20 +220,16 @@ mod tests {
 
     #[test]
     fn empty_output_is_zero_bytes() {
-        let sheet = Stylesheet {
-            items: vec![Item::Rule {
-                selector: ".a".into(),
-                body: vec![],
-            }],
-        };
+        let sheet: Vec<Node> = vec![Node::Rule {
+            selector: ".a".into(),
+            body: vec![],
+        }];
         assert_eq!(emit(&sheet, 1).unwrap(), "");
     }
 
     #[test]
     fn output_limit_is_inclusive() {
-        let sheet = Stylesheet {
-            items: vec![Item::Verbatim("abc".into())],
-        };
+        let sheet: Vec<Node> = vec![Node::Verbatim("abc".into())];
         assert_eq!(emit(&sheet, 4).unwrap(), "abc\n");
         assert_eq!(emit(&sheet, 3).unwrap_err().code(), Code::E8006);
     }

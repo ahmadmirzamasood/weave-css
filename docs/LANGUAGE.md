@@ -1,6 +1,6 @@
 # Weave language specification v0.1
 
-Status: **normative v0.1 specification**. The reference compiler implements the plain-CSS subset so far (`rule` blocks at stylesheet level, declarations, at-rules, `opaque` blocks, comments, literal markers); every other construct is reported as E5001 by current builds. Companion documents are normative for their subjects:
+Status: **normative v0.1 specification**. The reference compiler implements the plain-CSS subset (`rule` blocks at stylesheet level, declarations, at-rules, `opaque` blocks, comments, literal markers) plus `bind`, expressions, interpolation and the `css.*` constructors so far; every other construct (control flow, functions, recipes, modules, nesting, the other built-ins) is reported as E5001 by current builds. Companion documents are normative for their subjects:
 
 - [grammar.ebnf](grammar.ebnf): syntax.
 - [TYPES.md](TYPES.md): values, numeric model, units, coercions, serialization, core built-ins.
@@ -101,7 +101,7 @@ Keywords (cannot be bound, loaded or used as parameter or function/recipe names,
 
 - `bind name = expr;` evaluates `expr` once, when the statement executes, and binds an immutable value. There is no assignment or mutation.
 - A second binding of the same name in the same scope is E1001. Shadowing a name from an enclosing scope is allowed.
-- A name used before its `bind` statement has executed is E1003 (bindings are not hoisted).
+- A name used before its `bind` statement has executed is E1003 (bindings are not hoisted). Within a block, a name bound by that block refers to that binding throughout the block: a use before the `bind` is E1003 even when an enclosing scope binds the same name, so `bind size = size + 1px;` in an inner block is E1003 (use a new name).
 - An unresolved name is E1002.
 
 ### 4.3 Scopes
@@ -154,6 +154,7 @@ Operands are evaluated left to right. Call arguments are evaluated left to right
 ### 5.3 Member and index access
 
 - `ns.name` where `ns` is a loaded module namespace or prelude namespace selects an exported member (E7003 if not exported).
+- `.key` and `[…]` on a value of the wrong type are E2001; a map index that is not a string is E2011.
 - Otherwise `value.key` is map access with an identifier key; `value[expr]` is map access with a string key or list access with an integer index.
 - List indices are zero-based, unitless integers (E2009 otherwise). Out of range, including negative, is E2005. A missing map key is E2007. Use `map.get(m, k, default)` for optional lookup.
 - Resolution of `a.b.c` is left to right: the first segment is resolved as a name; a namespace member is resolved next; remaining segments are map keys.
@@ -182,6 +183,8 @@ Types: `number` (with optional unit), `string`, `color`, `bool`, `list`, `map`, 
 
 Weave never re-scans interpolated output for further interpolation.
 
+In the string context, the delimiter of the enclosing CSS string is the quote that is escaped: `"` inside `"…"`, `'` inside `'…'`.
+
 ### 7.2 Identifier escaping
 
 Text inserted in identifier positions is escaped with the CSSOM *serialize an identifier* rules, adjusted for position:
@@ -199,6 +202,8 @@ Interpolation MUST NOT be able to change the structure of the surrounding CSS. S
 2. Numbers, colors and booleans serialize to fixed token shapes.
 3. CSS fragments are validated when created (TYPES §7): balanced brackets, no `{`/`}`, no top-level `;`, no bad-string/bad-url tokens, no unterminated comments. `css.fragment(string)` applies the same validation to runtime text (E2006).
 4. Collections never serialize implicitly.
+5. Text inserted in the value, selector or declaration-name context that would form a comment opener `/*` with the text before or after it is E2003.
+6. After interpolation, every region is checked again: a declaration value or known prelude whose result has a depth-0 `;`, a `{` outside custom properties, an unbalanced bracket or an unterminated string, URL or comment is E2003; a selector with such a token, an empty result, or a `.`/`#` not followed by a name is E6007 (`&` at stylesheet level is E6003); a declaration name that is not exactly one identifier is E6007. Rules 1–5 make these checks unreachable for well-formed input; they are a second line of defence.
 
 A fragment MAY add commas or combinators to a selector or tokens to a value; that is intended composition, not injection. Weave output is CSS, not HTML: embedding it in an HTML `<style>` element requires HTML-context escaping by the caller.
 
@@ -334,7 +339,7 @@ Each diagnostic has a stable code, severity, primary span (file, line, column), 
 
 ## 17. Resource limits
 
-Initial defaults (configurable; overrides never disable all limits implicitly): 16 MiB per file, 128 MiB total input, 4096 modules, nesting/parse depth 128 (blocks, expressions and brackets combined), call depth 128 (functions and recipe applications), 1,000,000 evaluation steps, 100,000 emitted selectors, 64 MiB output, 65,536 elements per list or map, 1 MiB per string or fragment, 100 diagnostics. Exceeding a limit is the matching E8xxx error, never a crash. Overrides are validated when set: zero is rejected rather than meaning "unlimited", and the reference compiler caps byte limits at 4,294,967,295 (spans use 32-bit offsets) and depth limits at 4096.
+Initial defaults (configurable; overrides never disable all limits implicitly): 16 MiB per file, 128 MiB total input, 4096 modules, nesting/parse depth 128 (blocks, expressions and brackets combined), call depth 128 (functions and recipe applications), 1,000,000 evaluation steps, 100,000 emitted selectors, 64 MiB output, 65,536 elements per list or map, 1 MiB per string or fragment, 100 diagnostics. Exceeding a limit is the matching E8xxx error, never a crash. Overrides are validated when set: zero is rejected rather than meaning "unlimited", and the reference compiler caps byte limits at 4,294,967,295 (spans use 32-bit offsets) and depth limits at 4096. Interpolations nested inside strings or fragments inside interpolations are additionally limited to 64 levels by the reference compiler (E8002). The string limit applies to strings and fragments, including literals; declaration values are bounded by the output limit.
 
 ## 18. Core built-ins
 

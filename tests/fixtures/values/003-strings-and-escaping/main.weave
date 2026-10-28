@@ -1,0 +1,19 @@
+bind quote = "a'b\"c";
+bind ctrl = "line\a next";
+bind nul = "x\0 y";
+
+rule .s {
+    content: #{quote};
+    content: '#{quote}';
+    content: "#{quote}";
+    --ctrl: #{ctrl};
+    --nul: #{nul};
+    --concat: #{"a" + "b" + 'c'};
+    --nested: #{"outer #{"inner #{1 + 1}"}"};
+    --number: "#{1px * 3}";
+    --color: "#{#ABC}";
+    --bool: "#{1 < 2}";
+    --fragment: "#{`x y`}";
+    background: url(#{"a b"});
+    background: url("#{"a\"b"}");
+}

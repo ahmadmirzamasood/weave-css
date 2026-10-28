@@ -1,0 +1,13 @@
+bind list = [1];
+bind map = {a: 1};
+bind frag = `a b`;
+rule .a {
+    width: #{list};
+    height: #{map};
+    #{frag}: 1;
+    --x: #{""}y;
+}
+rule .#{""} { color: red; }
+rule #{`&`} { color: red; }
+rule .b { --n: #{1 / 0}; }
+rule .c { margin: a/#{`*b`}; }

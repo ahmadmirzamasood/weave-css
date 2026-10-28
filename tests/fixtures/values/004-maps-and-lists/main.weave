@@ -1,0 +1,15 @@
+bind palette = {primary: #2563eb, "on-primary": #fff, "with space": 1px};
+bind sizes = [4px, [8px, 16px], {k: "v"}];
+bind empty = [];
+
+rule .m {
+    color: #{palette.primary};
+    background: #{palette["on-primary"]};
+    --space: #{palette["with space"]};
+    --nested: #{sizes[1][0]};
+    --deep: #{sizes[2].k};
+    --computed: #{sizes[2 / 2][1]};
+    --first: #{sizes[3 - 2 - 1]};
+    --empty: #{empty == []};
+    --ordered: #{css.comma([palette.primary, palette["on-primary"]])};
+}

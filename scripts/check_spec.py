@@ -2,8 +2,9 @@
 
 Checks fixture structure and metadata, diagnostic expectation syntax and
 positions, line endings, the fixture indexes, and relative Markdown links in
-git-tracked files, for the specification fixtures (tests/fixtures/spec) and the
-CSS-subset fixtures (tests/fixtures/css). It does not compile anything: the
+git-tracked files, for the specification fixtures (tests/fixtures/spec), the
+CSS-subset fixtures (tests/fixtures/css) and the value fixtures
+(tests/fixtures/values). It does not compile anything: the
 fixture runner in crates/weave-compiler/tests/fixtures.rs executes them.
 
 Usage: python scripts/check_spec.py [repo-root]
@@ -19,6 +20,7 @@ FIXTURE_SETS = {
     # directory: required case.toml keys
     Path("tests/fixtures/spec"): {"description", "spec", "status", "entry", "expect"},
     Path("tests/fixtures/css"): {"description", "spec", "expect", "validation"},
+    Path("tests/fixtures/values"): {"description", "spec", "expect", "validation"},
 }
 CRLF_FIXTURES = {"tests/fixtures/spec/035-unicode-and-crlf/main.weave"}
 VALIDATION = {"independent", "preserve-only"}
@@ -126,7 +128,9 @@ class Checker:
                 self.fail(f"{diag.relative_to(self.root).as_posix()}:{number}", f"{file} is not a file of this fixture")
                 continue
             row, col = int(row), int(col)
-            if not 1 <= row <= len(lines) or not 1 <= col <= len(lines[row - 1]):
+            # The column may be one past the last character: the position of
+            # a missing token at the end of a line (for example E0102).
+            if not 1 <= row <= len(lines) or not 1 <= col <= len(lines[row - 1]) + 1:
                 self.fail(f"{diag.relative_to(self.root).as_posix()}:{number}", f"position {row}:{col} is outside {file}")
         if entries == 0:
             self.fail(diag, "no diagnostics listed")

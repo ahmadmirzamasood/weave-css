@@ -45,6 +45,8 @@ impl Code {
     pub const E0005: Code = Code("E0005");
     /// U+0000 in source.
     pub const E0006: Code = Code("E0006");
+    /// Unterminated CSS fragment.
+    pub const E0007: Code = Code("E0007");
     /// Unexpected token.
     pub const E0101: Code = Code("E0101");
     /// Expected `;`.
@@ -57,6 +59,54 @@ impl Code {
     pub const E0110: Code = Code("E0110");
     /// `{` in a non-custom declaration value.
     pub const E0111: Code = Code("E0111");
+    /// Chained comparison.
+    pub const E0112: Code = Code("E0112");
+    /// Positional argument after a named argument.
+    pub const E0113: Code = Code("E0113");
+    /// Duplicate name in a scope.
+    pub const E1001: Code = Code("E1001");
+    /// Unresolved name.
+    pub const E1002: Code = Code("E1002");
+    /// Name used before initialization.
+    pub const E1003: Code = Code("E1003");
+    /// Wrong kind of name (value, function or namespace).
+    pub const E1004: Code = Code("E1004");
+    /// Operand type mismatch.
+    pub const E2001: Code = Code("E2001");
+    /// Value not insertable in this context.
+    pub const E2003: Code = Code("E2003");
+    /// List or map interpolated directly.
+    pub const E2004: Code = Code("E2004");
+    /// Index out of range.
+    pub const E2005: Code = Code("E2005");
+    /// Invalid CSS fragment.
+    pub const E2006: Code = Code("E2006");
+    /// Missing map key.
+    pub const E2007: Code = Code("E2007");
+    /// Duplicate map key.
+    pub const E2008: Code = Code("E2008");
+    /// Integer required.
+    pub const E2009: Code = Code("E2009");
+    /// String expected.
+    pub const E2011: Code = Code("E2011");
+    /// Incompatible units.
+    pub const E3001: Code = Code("E3001");
+    /// Numeric overflow or non-finite result.
+    pub const E3002: Code = Code("E3002");
+    /// Division or remainder by zero.
+    pub const E3003: Code = Code("E3003");
+    /// Unsupported unit product or quotient.
+    pub const E3004: Code = Code("E3004");
+    /// Missing argument.
+    pub const E4001: Code = Code("E4001");
+    /// Unknown named argument.
+    pub const E4002: Code = Code("E4002");
+    /// Duplicate argument.
+    pub const E4003: Code = Code("E4003");
+    /// Too many positional arguments.
+    pub const E4004: Code = Code("E4004");
+    /// Argument type mismatch.
+    pub const E4005: Code = Code("E4005");
     /// `slot` outside a recipe.
     pub const E4012: Code = Code("E4012");
     /// `yield` outside a function.
@@ -73,10 +123,14 @@ impl Code {
     pub const E6005: Code = Code("E6005");
     /// `@scope` nested in a rule.
     pub const E6006: Code = Code("E6006");
+    /// Invalid selector or identifier after interpolation.
+    pub const E6007: Code = Code("E6007");
     /// Invalid `@charset`.
     pub const E6008: Code = Code("E6008");
     /// Module not found.
     pub const E7001: Code = Code("E7001");
+    /// Member not exported.
+    pub const E7003: Code = Code("E7003");
     /// Invalid load path.
     pub const E7004: Code = Code("E7004");
     /// Path outside the module root.
@@ -87,25 +141,54 @@ impl Code {
     pub const E8001: Code = Code("E8001");
     /// Nesting or parse depth limit.
     pub const E8002: Code = Code("E8002");
+    /// Evaluation step limit.
+    pub const E8004: Code = Code("E8004");
     /// Output size limit.
     pub const E8006: Code = Code("E8006");
+    /// Collection or string size limit.
+    pub const E8007: Code = Code("E8007");
     /// Module count limit.
     pub const E8008: Code = Code("E8008");
 
     /// Every code defined so far.
-    pub const ALL: [Code; 29] = [
+    pub const ALL: [Code; 58] = [
         Code::E0001,
         Code::E0002,
         Code::E0003,
         Code::E0004,
         Code::E0005,
         Code::E0006,
+        Code::E0007,
         Code::E0101,
         Code::E0102,
         Code::E0103,
         Code::E0104,
         Code::E0110,
         Code::E0111,
+        Code::E0112,
+        Code::E0113,
+        Code::E1001,
+        Code::E1002,
+        Code::E1003,
+        Code::E1004,
+        Code::E2001,
+        Code::E2003,
+        Code::E2004,
+        Code::E2005,
+        Code::E2006,
+        Code::E2007,
+        Code::E2008,
+        Code::E2009,
+        Code::E2011,
+        Code::E3001,
+        Code::E3002,
+        Code::E3003,
+        Code::E3004,
+        Code::E4001,
+        Code::E4002,
+        Code::E4003,
+        Code::E4004,
+        Code::E4005,
         Code::E4012,
         Code::E4013,
         Code::E5001,
@@ -114,14 +197,18 @@ impl Code {
         Code::E6003,
         Code::E6005,
         Code::E6006,
+        Code::E6007,
         Code::E6008,
         Code::E7001,
+        Code::E7003,
         Code::E7004,
         Code::E7006,
         Code::E7010,
         Code::E8001,
         Code::E8002,
+        Code::E8004,
         Code::E8006,
+        Code::E8007,
         Code::E8008,
     ];
 

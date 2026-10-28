@@ -1,0 +1,11 @@
+.m {
+  color: #2563eb;
+  background: #ffffff;
+  --space: 1px;
+  --nested: 8px;
+  --deep: "v";
+  --computed: 16px;
+  --first: 4px;
+  --empty: true;
+  --ordered: #2563eb, #ffffff;
+}

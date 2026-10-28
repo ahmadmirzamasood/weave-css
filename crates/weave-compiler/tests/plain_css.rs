@@ -293,10 +293,7 @@ fn diagnostic_limit_stops_parsing() {
 fn skipped_statements_report_once_but_keep_end_of_input_errors() {
     let options = CompileOptions::default();
     // One E5001 for the statement, none for interpolation inside it.
-    assert_eq!(
-        codes(br##"bind x = "#{y}" + #{z};"##, &options),
-        [Code::E5001]
-    );
+    assert_eq!(codes(br##"warn "#{y}" + #{z};"##, &options), [Code::E5001]);
     assert_eq!(
         codes(
             b"when #{a} { rule .x { b: #{c}; } } otherwise { }",
@@ -311,7 +308,7 @@ fn skipped_statements_report_once_but_keep_end_of_input_errors() {
     );
     // An unterminated comment inside a skipped statement is still reported.
     assert_eq!(
-        codes(b"bind x = 1 /* never closed", &options),
+        codes(b"fail 1 /* never closed", &options),
         [Code::E5001, Code::E0003]
     );
 }
@@ -320,16 +317,12 @@ fn skipped_statements_report_once_but_keep_end_of_input_errors() {
 fn nothing_unsupported_is_silently_dropped() {
     // Every compile-time construct either compiles or is reported.
     for source in [
-        "bind a = 1;",
         "rule a { apply r; }",
-        "rule a { b: #{1}; }",
         "rule a { rule b { c: d; } }",
         "rule a { @media print { b: c; } }",
-        "@media (min-width: #{1px}) { }",
-        "rule .a-#{x} { b: c; }",
-        "@keyframes k { #{x} { a: b; } }",
-        "rule a { b: url(#{x}); }",
-        "rule a { #{n}: 1; }",
+        "rule a { b: #{math.round(1)}; }",
+        "bind r = range(0, 2);",
+        "each i in [1] { }",
     ] {
         assert!(
             codes(source.as_bytes(), &CompileOptions::default()).contains(&Code::E5001),

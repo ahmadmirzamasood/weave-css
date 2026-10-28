@@ -1,0 +1,5 @@
+bind a = 10px * 2px;
+bind b = 1 / 2px;
+bind c = 1px % 0px;
+bind d = 1000000 * 1000001;
+bind e = 1px < 1;

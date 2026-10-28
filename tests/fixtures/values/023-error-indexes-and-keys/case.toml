@@ -1,0 +1,3 @@
+description = "List indices must be unitless integers in range (negative is out of range); missing map keys by name or string are E2007; maps need string keys; only lists and maps can be indexed and only maps have members."
+spec = ["LANGUAGE.md 5.3"]
+expect = "error"

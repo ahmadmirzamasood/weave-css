@@ -1,0 +1,4 @@
+description = "Explicit CSS sequence constructors: css.space, css.comma and css.slash with positional and named arguments, css.ident at an identifier start, css.fragment, fragment literals with interpolation, fragments inside CSS functions and an identifier fragment in an at-rule prelude."
+spec = ["TYPES.md 6", "TYPES.md 7", "TYPES.md 9"]
+expect = "css"
+validation = "independent"

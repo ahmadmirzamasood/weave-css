@@ -1,0 +1,4 @@
+description = "Browser-evaluated functions (var, calc, env, max, anchor, unknown functions) and bare identifiers stay CSS text; only explicit interpolations inside them are evaluated."
+spec = ["LANGUAGE.md 1", "CSS-COMPATIBILITY.md 6"]
+expect = "css"
+validation = "independent"

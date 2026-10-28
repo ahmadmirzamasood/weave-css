@@ -1,0 +1,20 @@
+.n {
+  --max: 1000000000000;
+  --min: -1000000000000;
+  --tiny: 0;
+  --round: 0.000002;
+  --rad: 180deg;
+  --pt: true;
+  --q: 40Q;
+  --mm: 20mm;
+  --pct: 100%;
+  --div: 2.5px;
+  --ratio: 1.5;
+  --cmp: true;
+  --str-cmp: true;
+  --unknown: 5foo;
+  --neg: 3px;
+  --mixed-eq: false;
+  --list-eq: true;
+  --map-eq: true;
+}

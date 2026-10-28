@@ -1,0 +1,6 @@
+bind a = "x" + 1;
+bind b = -"x";
+bind c = !1;
+bind d = 1 && true;
+bind e = #fff < #000;
+bind f = [1] + [2];

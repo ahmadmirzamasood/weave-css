@@ -155,7 +155,7 @@ Other contexts (string, url, selector, declaration name) are defined in [LANGUAG
 A fragment is text that is guaranteed to be a well-formed sequence of CSS component values.
 
 - **Literal:** `` `…` ``. The scanner respects CSS strings, comments, escapes and `url(` tokens, so a backtick inside a CSS string does not end the fragment; a backtick elsewhere ends it (write `\60 ` for a literal one). Unterminated: E0007. Interpolation uses the value context. Line breaks become LF; leading and trailing whitespace is trimmed; all other text is kept verbatim.
-- **Validation** (literal after interpolation, and `css.fragment`): brackets `()` `[]` balanced; no `{` or `}`; no `;` outside strings; no bad-string or bad-url token; no unterminated comment; size ≤ 1 MiB. Violation: E2006 (or E0005 for a literal with unbalanced brackets).
+- **Validation** (literal after interpolation, and `css.fragment`): brackets `()` `[]` balanced; no `{` or `}`; no `;` outside strings; no bad-string or bad-url token; no unterminated comment; no `\` that is not a valid escape (it would escape the character after the fragment, such as a terminating `;`); size ≤ 1 MiB. Violation: E2006 (or E0005 for a literal with unbalanced brackets).
 - Equality compares text exactly.
 
 ## 8. Type annotations

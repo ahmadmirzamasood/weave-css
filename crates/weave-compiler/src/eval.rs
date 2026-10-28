@@ -2,8 +2,13 @@
 //! interpolation, functions, control flow and recipes, producing the CSS
 //! tree ([`crate::ir`]).
 //!
+//! - Each module has its own top-level environment, holding its bindings,
+//!   functions, recipes and the namespaces of the modules it loads. Modules
+//!   are evaluated once, dependencies first; a namespace refers to the
+//!   finished environment of its module and exposes only exported names.
 //! - Scopes are environments linked to their parent. Function and recipe
-//!   bodies start from the module environment (they never see the caller);
+//!   bodies start from the environment of the module that defines them
+//!   (they never see the caller);
 //!   a content block keeps the environment of its `apply` statement. A
 //!   scope knows the names it binds before they are bound, so a use before
 //!   the `bind` is E1003 rather than a silent reference to an outer name.
@@ -60,13 +65,16 @@ const TRACE_LABELS: usize = 3;
 
 // ----- environments ------------------------------------------------------------
 
+/// Functions and recipes carry the index of their defining module.
 #[derive(Debug)]
 enum Slot<'s> {
     Value(Value),
     /// The binding's expression failed.
     Poisoned,
-    Function(&'s FnDef),
-    Recipe(&'s RecipeDef),
+    Function(&'s FnDef, usize),
+    Recipe(&'s RecipeDef, usize),
+    /// A loaded module, by index.
+    Namespace(usize),
 }
 
 /// One lexical scope.
@@ -119,8 +127,9 @@ impl Drop for Env<'_> {
 enum Found<'s> {
     Value(Value),
     Poisoned,
-    Function(&'s FnDef),
-    Recipe(&'s RecipeDef),
+    Function(&'s FnDef, usize),
+    Recipe(&'s RecipeDef, usize),
+    Namespace(usize),
     /// Declared in a scope but not bound yet.
     Unbound,
     Missing,
@@ -133,8 +142,9 @@ fn find<'s>(env: &Rc<Env<'s>>, name: &str) -> Found<'s> {
             return match slot {
                 Slot::Value(value) => Found::Value(value.clone()),
                 Slot::Poisoned => Found::Poisoned,
-                Slot::Function(def) => Found::Function(def),
-                Slot::Recipe(def) => Found::Recipe(def),
+                Slot::Function(def, module) => Found::Function(def, *module),
+                Slot::Recipe(def, module) => Found::Recipe(def, *module),
+                Slot::Namespace(module) => Found::Namespace(*module),
             };
         }
         if scope.declared.contains(name) {
@@ -299,7 +309,8 @@ enum Action<'s> {
 
 /// What a callee name denotes.
 enum Callee<'s> {
-    User(&'s FnDef),
+    /// A user function and its defining module.
+    User(&'s FnDef, usize),
     Builtin(Builtin),
 }
 
@@ -403,28 +414,40 @@ enum Region {
     Name,
 }
 
-/// Evaluates a module's items into CSS nodes. The result is meaningful only
-/// if no error was reported.
+/// One module to evaluate.
+pub(crate) struct Unit<'s> {
+    pub items: &'s [Item],
+    pub file: FileId,
+    /// The module identity, for diagnostics.
+    pub name: String,
+    pub exports: &'s [(Rc<str>, Span)],
+    /// Namespace names and the index of the unit each refers to, which is
+    /// always an earlier unit.
+    pub imports: Vec<(Rc<str>, usize)>,
+}
+
+/// A module whose top level has been evaluated (or is being evaluated).
+struct Module<'s> {
+    env: Rc<Env<'s>>,
+    exports: HashSet<Rc<str>>,
+    name: String,
+}
+
+/// Evaluates modules in order, dependencies first, into one list of CSS
+/// nodes per module. Evaluation steps, call depth and the output limit are
+/// shared by the whole build. The result is meaningful only if no error was
+/// reported.
 pub(crate) fn evaluate(
-    items: &[Item],
-    file: FileId,
+    units: &[Unit<'_>],
     limits: &ResourceLimits,
     diags: &mut Diagnostics,
-) -> Vec<Node> {
+) -> Vec<Vec<Node>> {
     let size = |limit| usize::try_from(limits.get(limit)).unwrap_or(usize::MAX);
-    let module = Env::block(None, items, &[]);
-    for item in items {
-        match item {
-            Item::Fn(def) => module.set(&def.name, Slot::Function(def)),
-            Item::Recipe(def) => module.set(&def.name, Slot::Recipe(def)),
-            _ => {}
-        }
-    }
     let mut evaluator = Evaluator {
         diags,
         reported: HashSet::new(),
         errors: 0,
-        module: Rc::clone(&module),
+        modules: Vec::new(),
         steps: 0,
         max_steps: limits.get(Limit::EvaluationSteps),
         depth: 0,
@@ -442,7 +465,32 @@ pub(crate) fn evaluate(
         },
         aborted: false,
     };
-    evaluator.run_items(items, module, Span::empty(file, 0))
+    let mut out = Vec::with_capacity(units.len());
+    for (index, unit) in units.iter().enumerate() {
+        let module = Env::block(None, unit.items, &[]);
+        for (name, target) in &unit.imports {
+            module.set(name, Slot::Namespace(*target));
+        }
+        for item in unit.items {
+            match item {
+                Item::Fn(def) => module.set(&def.name, Slot::Function(def, index)),
+                Item::Recipe(def) => module.set(&def.name, Slot::Recipe(def, index)),
+                _ => {}
+            }
+        }
+        evaluator.modules.push(Module {
+            env: Rc::clone(&module),
+            exports: unit.exports.iter().map(|(n, _)| Rc::clone(n)).collect(),
+            name: unit.name.clone(),
+        });
+        // `@import` ordering across modules is checked after concatenation.
+        evaluator.top_blocked = false;
+        out.push(evaluator.run_items(unit.items, module, Span::empty(unit.file, 0)));
+        if evaluator.aborted {
+            break;
+        }
+    }
+    out
 }
 
 struct Evaluator<'s, 'd> {
@@ -451,7 +499,8 @@ struct Evaluator<'s, 'd> {
     reported: HashSet<(Code, Option<Span>, String)>,
     /// Errors reported, including repeated ones.
     errors: usize,
-    module: Rc<Env<'s>>,
+    /// Every module evaluated so far, by unit index.
+    modules: Vec<Module<'s>>,
     steps: u64,
     max_steps: u64,
     /// Active function calls and recipe expansions.
@@ -468,8 +517,8 @@ struct Evaluator<'s, 'd> {
     /// every inserted copy of a parent list (E8005).
     selectors: u64,
     max_selectors: u64,
-    /// Whether a rule or block was emitted at the top level, which
-    /// `@import` and `@namespace` may not follow.
+    /// Whether a rule or block was emitted at the top level of the current
+    /// module, which `@import` and `@namespace` may not follow.
     top_blocked: bool,
     bounds: Bounds,
     /// Set after a limit stops evaluation.
@@ -634,16 +683,21 @@ impl<'s> Evaluator<'s, '_> {
                 format!("`{name}` is used before its `bind` statement"),
             )
             .with_note("bindings are not hoisted: within a block, a name refers to that block's binding from its `bind` statement on"),
-            Found::Function(_) => Diagnostic::error(
+            Found::Function(..) => Diagnostic::error(
                 Code::E1004,
                 format!("`{name}` is a function, not a value"),
             )
             .with_note("functions are not values; call it: `name(…)`"),
-            Found::Recipe(_) => Diagnostic::error(
+            Found::Recipe(..) => Diagnostic::error(
                 Code::E1004,
                 format!("`{name}` is a recipe, not a value"),
             )
             .with_note("recipes are expanded with `apply`"),
+            Found::Namespace(_) => Diagnostic::error(
+                Code::E1004,
+                format!("`{name}` is a module namespace, not a value"),
+            )
+            .with_note(format!("use one of its exported members, for example `{name}.member`")),
             Found::Missing => match builtins::prelude(name) {
                 Some(Prelude::Namespace) => Diagnostic::error(
                     Code::E1004,
@@ -667,15 +721,20 @@ impl<'s> Evaluator<'s, '_> {
         let Some((namespace, ns_span)) = &callee.namespace else {
             let name = &callee.name;
             let diagnostic = match find(env, name) {
-                Found::Function(def) => return Ok(Callee::User(def)),
+                Found::Function(def, module) => return Ok(Callee::User(def, module)),
                 Found::Value(_) | Found::Poisoned | Found::Unbound => {
                     Diagnostic::error(Code::E1004, format!("`{name}` is a value, not a function"))
                 }
-                Found::Recipe(_) => Diagnostic::error(
+                Found::Recipe(..) => Diagnostic::error(
                     Code::E1004,
                     format!("`{name}` is a recipe, not a function"),
                 )
                 .with_note("recipes emit CSS and are expanded with `apply`"),
+                Found::Namespace(_) => Diagnostic::error(
+                    Code::E1004,
+                    format!("`{name}` is a module namespace, not a function"),
+                )
+                .with_note(format!("call one of its exported functions: `{name}.member(…)`")),
                 Found::Missing => match builtins::function(name) {
                     Some(builtin) => return Ok(Callee::Builtin(builtin)),
                     None if builtins::prelude(name) == Some(Prelude::Namespace) => {
@@ -691,12 +750,30 @@ impl<'s> Evaluator<'s, '_> {
             return Err(self.report(diagnostic.with_primary(callee.span)));
         };
         let full = format!("{namespace}.{}", callee.name);
-        if !matches!(find(env, namespace), Found::Missing) {
-            return Err(self.error(
-                Code::E1004,
-                callee.span,
-                format!("`{full}` is not a function: `{namespace}` is not a namespace"),
-            ));
+        match find(env, namespace) {
+            Found::Missing => {}
+            Found::Namespace(module) => {
+                let diagnostic = match self.member_of(module, &callee.name, callee.span)? {
+                    Found::Function(def, module) => return Ok(Callee::User(def, module)),
+                    Found::Recipe(..) => Diagnostic::error(
+                        Code::E1004,
+                        format!("`{full}` is a recipe, not a function"),
+                    )
+                    .with_note("recipes emit CSS and are expanded with `apply`"),
+                    _ => Diagnostic::error(
+                        Code::E1004,
+                        format!("`{full}` is a value, not a function"),
+                    ),
+                };
+                return Err(self.report(diagnostic.with_primary(callee.span)));
+            }
+            _ => {
+                return Err(self.error(
+                    Code::E1004,
+                    callee.span,
+                    format!("`{full}` is not a function: `{namespace}` is not a namespace"),
+                ));
+            }
         }
         match builtins::prelude(namespace) {
             Some(Prelude::Namespace) => {}
@@ -733,6 +810,72 @@ impl<'s> Evaluator<'s, '_> {
                     callee.name
                 ),
             )),
+        }
+    }
+
+    /// An exported member of module `module` (LANGUAGE.md §14): private and
+    /// missing names are E7003, reported at `span`.
+    fn member_of(&mut self, module: usize, name: &str, span: Span) -> Eval<Found<'s>> {
+        let Some(state) = self.modules.get(module) else {
+            return Err(self.internal(span));
+        };
+        let env = Rc::clone(&state.env);
+        if state.exports.contains(name) {
+            return Ok(find(&env, name));
+        }
+        let id = state.name.clone();
+        let private = env.declared.contains(name) || env.slots.borrow().contains_key(name);
+        let diagnostic = if private {
+            Diagnostic::error(
+                Code::E7003,
+                format!("`{name}` is not exported by module `{id}`"),
+            )
+            .with_note(format!(
+                "module members are private unless marked `export` in `{id}`"
+            ))
+        } else {
+            Diagnostic::error(
+                Code::E7003,
+                format!("`{name}` is not exported by module `{id}`: it has no such member"),
+            )
+        };
+        Err(self.report(diagnostic.with_primary(span)))
+    }
+
+    /// The value of `namespace.member`, for `Op::Load` followed by
+    /// `Op::Member`.
+    fn member_value(
+        &mut self,
+        namespace: &str,
+        module: usize,
+        key: &str,
+        span: Span,
+    ) -> Eval<Value> {
+        let shown = format!("{namespace}.{key}");
+        let diagnostic = match self.member_of(module, key, span)? {
+            Found::Value(value) => return Ok(value),
+            Found::Poisoned => return Err(Fail),
+            Found::Function(..) => {
+                Diagnostic::error(Code::E1004, format!("`{shown}` is a function, not a value"))
+                    .with_note(format!("call it: `{shown}(…)`"))
+            }
+            Found::Recipe(..) => {
+                Diagnostic::error(Code::E1004, format!("`{shown}` is a recipe, not a value"))
+                    .with_note("recipes are expanded with `apply`")
+            }
+            Found::Namespace(_) | Found::Unbound | Found::Missing => Diagnostic::error(
+                Code::E1003,
+                format!("`{shown}` is used before its module finished evaluating"),
+            ),
+        };
+        Err(self.report(diagnostic.with_primary(span)))
+    }
+
+    /// The top-level environment of module `module`.
+    fn module_env(&mut self, module: usize, site: Span) -> Eval<Rc<Env<'s>>> {
+        match self.modules.get(module) {
+            Some(state) => Ok(Rc::clone(&state.env)),
+            None => Err(self.internal(site)),
         }
     }
 
@@ -880,8 +1023,16 @@ impl<'s> Evaluator<'s, '_> {
                     })));
                 }
                 Op::Load(name, span) => {
-                    let value = self.lookup(&t.env, name, *span)?;
-                    stack.push(value);
+                    // `ns.member`: a namespace is not a value, so it is
+                    // resolved together with the member that follows it.
+                    let value = match (find(&t.env, name), t.program.ops.get(t.pc)) {
+                        (Found::Namespace(module), Some(Op::Member(key, key_span))) => {
+                            t.pc += 1;
+                            self.member_value(name, module, key, *key_span)?
+                        }
+                        _ => self.lookup(&t.env, name, *span)?,
+                    };
+                    t.stack.push(value);
                 }
                 Op::Neg(span) => match self.pop(stack, site)? {
                     Value::Number(ref n) => stack.push(Value::Number(n.neg())),
@@ -964,8 +1115,8 @@ impl<'s> Evaluator<'s, '_> {
                             self.charge_value(&value, call.callee.span)?;
                             t.stack.push(value);
                         }
-                        Callee::User(def) => {
-                            return self.start_call(def, call, args).map(Action::Push);
+                        Callee::User(def, module) => {
+                            return self.start_call(def, module, call, args).map(Action::Push);
                         }
                     }
                 }
@@ -980,7 +1131,13 @@ impl<'s> Evaluator<'s, '_> {
 
     /// Matches a call's arguments to a user function's parameters and
     /// starts binding them.
-    fn start_call(&mut self, def: &'s FnDef, call: &Call, args: Vec<Value>) -> Eval<Task<'s>> {
+    fn start_call(
+        &mut self,
+        def: &'s FnDef,
+        module: usize,
+        call: &Call,
+        args: Vec<Value>,
+    ) -> Eval<Task<'s>> {
         let names: Vec<&str> = def.params.iter().map(|p| &*p.name).collect();
         let slots = builtins::match_args(&def.name, &names, call)
             .map_err(|d| self.report(d.with_label(def.span, "function defined here")))?;
@@ -995,7 +1152,8 @@ impl<'s> Evaluator<'s, '_> {
             })
             .collect();
         let params: Vec<&Rc<str>> = def.params.iter().map(|p| &p.name).collect();
-        let env = Env::block(Some(Rc::clone(&self.module)), &def.body, &params);
+        let parent = self.module_env(module, call.callee.span)?;
+        let env = Env::block(Some(parent), &def.body, &params);
         self.enter(format!("in a call to `{}`", def.name), call.callee.span)?;
         Ok(Task::Call(CallTask {
             def,
@@ -2045,12 +2203,13 @@ impl<'s> Evaluator<'s, '_> {
         self.step(apply.span)?;
         let call = &apply.call;
         let args = self.values(&apply.args, &env, apply.span)?;
-        let def = self.recipe(call, &env)?;
+        let (def, module) = self.recipe(call, &env)?;
         let names: Vec<&str> = def.params.iter().map(|p| &*p.name).collect();
         let slots = builtins::match_args(&def.name, &names, call)
             .map_err(|d| self.report(d.with_label(def.span, "recipe defined here")))?;
         let params: Vec<&Rc<str>> = def.params.iter().map(|p| &p.name).collect();
-        let scope = Env::block(Some(Rc::clone(&self.module)), &def.body, &params);
+        let parent = self.module_env(module, apply.span)?;
+        let scope = Env::block(Some(parent), &def.body, &params);
         let mut args: Vec<Option<Value>> = args.into_iter().map(Some).collect();
         for (param, slot_index) in def.params.iter().zip(slots) {
             let given = slot_index.and_then(|i| {
@@ -2102,8 +2261,8 @@ impl<'s> Evaluator<'s, '_> {
         Ok(())
     }
 
-    /// Resolves the recipe of an `apply` statement.
-    fn recipe(&mut self, call: &Call, env: &Rc<Env<'s>>) -> Eval<&'s RecipeDef> {
+    /// Resolves the recipe of an `apply` statement and its defining module.
+    fn recipe(&mut self, call: &Call, env: &Rc<Env<'s>>) -> Eval<(&'s RecipeDef, usize)> {
         let callee = &call.callee;
         let shown = match &callee.namespace {
             Some((ns, _)) => format!("{ns}.{}", callee.name),
@@ -2111,8 +2270,24 @@ impl<'s> Evaluator<'s, '_> {
         };
         let diagnostic = match &callee.namespace {
             Some((namespace, ns_span)) => {
-                if matches!(find(env, namespace), Found::Missing)
-                    && builtins::prelude(namespace).is_none()
+                let found = find(env, namespace);
+                if let Found::Namespace(module) = found {
+                    match self.member_of(module, &callee.name, callee.span)? {
+                        Found::Recipe(def, module) => return Ok((def, module)),
+                        Found::Function(..) => Diagnostic::error(
+                            Code::E1004,
+                            format!("`{shown}` is a function, not a recipe"),
+                        )
+                        .with_note(
+                            "functions return values; call it inside an expression or `#{…}`",
+                        ),
+                        _ => Diagnostic::error(
+                            Code::E1004,
+                            format!("`{shown}` is a value, not a recipe"),
+                        ),
+                    }
+                    .with_primary(callee.span)
+                } else if matches!(found, Found::Missing) && builtins::prelude(namespace).is_none()
                 {
                     Diagnostic::error(Code::E1002, format!("unresolved name `{namespace}`"))
                         .with_primary(*ns_span)
@@ -2123,8 +2298,15 @@ impl<'s> Evaluator<'s, '_> {
                 }
             }
             None => match find(env, &callee.name) {
-                Found::Recipe(def) => return Ok(def),
-                Found::Function(_) => Diagnostic::error(
+                Found::Recipe(def, module) => return Ok((def, module)),
+                Found::Namespace(_) => Diagnostic::error(
+                    Code::E1004,
+                    format!("`{shown}` is a module namespace, not a recipe"),
+                )
+                .with_note(format!(
+                    "apply one of its exported recipes: `apply {shown}.member;`"
+                )),
+                Found::Function(..) => Diagnostic::error(
                     Code::E1004,
                     format!("`{shown}` is a function, not a recipe"),
                 )
@@ -2553,10 +2735,17 @@ mod tests {
         let mut sources = crate::source::SourceManager::new();
         let file = sources.add("t.weave", text.as_bytes().to_vec()).unwrap();
         let mut diags = Diagnostics::new(100);
-        let sheet = crate::parser::parse(text, 0, file, 128, &mut diags);
-        let out = evaluate(&sheet.items, file, &ResourceLimits::default(), &mut diags);
+        let sheet = crate::parser::parse(text, 0, file, true, 128, &mut diags);
+        let unit = Unit {
+            items: &sheet.items,
+            file,
+            name: "t.weave".to_string(),
+            exports: &sheet.exports,
+            imports: Vec::new(),
+        };
+        let out = evaluate(&[unit], &ResourceLimits::default(), &mut diags);
         assert!(!diags.has_errors(), "{:?}", diags.into_vec());
-        out
+        out.into_iter().flatten().collect()
     }
 
     fn origin_of(node: &Node) -> (u32, Vec<u32>) {

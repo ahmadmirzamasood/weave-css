@@ -9,7 +9,8 @@
 //!   second run) or exactly the expected diagnostics. Successful output is
 //!   also parsed by an independent CSS parser unless the case declares
 //!   `validation = "preserve-only"` (syntax that parser may not understand).
-//! - `tests/fixtures/spec`: the phase 01 specification fixtures. A case
+//! - `tests/fixtures/spec`: the phase 01 specification fixtures (all pass
+//!   since phase 07; multi-module cases load sibling `*.weave` files). A case
 //!   passes, is pending (the build reports E5001 for a construct it does not
 //!   implement yet) or fails. No case may fail, and the set of passing cases
 //!   is pinned so that progress and regressions are both visible.
@@ -34,7 +35,7 @@ use weave_compiler::{
 };
 
 /// Specification fixtures that this build compiles as specified.
-const SPEC_PASSING: [&str; 31] = [
+const SPEC_PASSING: [&str; 35] = [
     "001-plain-css-preservation",
     "002-bindings-value-interpolation",
     "003-lexical-scope-shadowing",
@@ -59,6 +60,10 @@ const SPEC_PASSING: [&str; 31] = [
     "022-nested-group-at-rules",
     "023-at-rule-body-contexts",
     "024-opaque-and-unknown-syntax",
+    "025-modules-diamond-namespaces",
+    "026-error-module-cycle",
+    "027-error-member-not-exported",
+    "028-error-native-import-order",
     "029-error-selector-without-rule",
     "030-interpolation-injection-safety",
     "031-error-invalid-fragment",

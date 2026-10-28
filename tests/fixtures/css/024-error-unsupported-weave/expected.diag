@@ -1,3 +1,3 @@
 # severity code file:line:column "message substring"
-error E5001 main.weave:1:1 "`load` statements are not implemented"
-error E5001 main.weave:2:1 "`export`"
+error E5001 main.weave:1:15 "not implemented"
+error E5001 main.weave:2:10 "not implemented"

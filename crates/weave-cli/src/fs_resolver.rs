@@ -165,6 +165,88 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
+    #[test]
+    fn identity_is_canonical_across_spellings() {
+        let dir = temp_dir("identity");
+        fs::create_dir_all(dir.join("a/b")).unwrap();
+        fs::write(dir.join("main.weave"), "m").unwrap();
+        fs::write(dir.join("a/x.weave"), "x").unwrap();
+        let (mut resolver, entry) = FsResolver::for_entry(&dir.join("main.weave")).unwrap();
+        let direct = resolver.resolve(&entry, "./a/x.weave").unwrap();
+        let roundabout = resolver.resolve(&entry, "./a/b/../x.weave").unwrap();
+        assert_eq!(direct, roundabout);
+        assert_eq!(direct.as_str(), "a/x.weave");
+        // From a subdirectory, `..` may return to the root but not leave it.
+        let from_sub = ModuleId::new("a/x.weave").unwrap();
+        assert_eq!(resolver.resolve(&from_sub, "../main.weave").unwrap(), entry);
+        assert!(matches!(
+            resolver.resolve(&from_sub, "../../main.weave"),
+            Err(ResolveError::OutsideRoot(_))
+        ));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinks_inside_the_root_share_the_target_identity() {
+        let dir = temp_dir("inner-link");
+        fs::create_dir_all(dir.join("real")).unwrap();
+        fs::write(dir.join("main.weave"), "m").unwrap();
+        fs::write(dir.join("real/t.weave"), "t").unwrap();
+        std::os::unix::fs::symlink(dir.join("real/t.weave"), dir.join("alias.weave")).unwrap();
+        std::os::unix::fs::symlink(dir.join("real"), dir.join("linkdir")).unwrap();
+        let (mut resolver, entry) = FsResolver::for_entry(&dir.join("main.weave")).unwrap();
+        let target = ModuleId::new("real/t.weave").unwrap();
+        assert_eq!(resolver.resolve(&entry, "./alias.weave").unwrap(), target);
+        assert_eq!(
+            resolver.resolve(&entry, "./linkdir/t.weave").unwrap(),
+            target
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn directory_symlink_escaping_the_root_is_outside_root() {
+        let dir = temp_dir("dir-link");
+        fs::create_dir_all(dir.join("root")).unwrap();
+        fs::create_dir_all(dir.join("outside")).unwrap();
+        fs::write(dir.join("root/main.weave"), "m").unwrap();
+        fs::write(dir.join("outside/s.weave"), "s").unwrap();
+        std::os::unix::fs::symlink(dir.join("outside"), dir.join("root/out")).unwrap();
+        let (mut resolver, entry) = FsResolver::for_entry(&dir.join("root/main.weave")).unwrap();
+        assert!(matches!(
+            resolver.resolve(&entry, "./out/s.weave"),
+            Err(ResolveError::OutsideRoot(_))
+        ));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Creating symbolic links on Windows needs a privilege (or developer
+    /// mode); the test checks the escape when the link can be created and
+    /// is skipped otherwise.
+    #[cfg(windows)]
+    #[test]
+    fn symlink_escaping_the_root_is_outside_root_on_windows() {
+        let dir = temp_dir("win-symlink");
+        fs::create_dir_all(dir.join("root")).unwrap();
+        fs::write(dir.join("root/main.weave"), "m").unwrap();
+        fs::write(dir.join("secret.weave"), "s").unwrap();
+        if std::os::windows::fs::symlink_file(dir.join("secret.weave"), dir.join("root/link.weave"))
+            .is_err()
+        {
+            eprintln!("skipped: cannot create symbolic links here");
+            let _ = fs::remove_dir_all(&dir);
+            return;
+        }
+        let (mut resolver, entry) = FsResolver::for_entry(&dir.join("root/main.weave")).unwrap();
+        assert!(matches!(
+            resolver.resolve(&entry, "./link.weave"),
+            Err(ResolveError::OutsideRoot(_))
+        ));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
     #[cfg(unix)]
     #[test]
     fn symlink_escaping_the_root_is_outside_root() {

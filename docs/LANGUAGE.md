@@ -1,6 +1,6 @@
 # Weave language specification v0.1
 
-Status: **normative v0.1 specification**. The reference compiler implements the plain-CSS subset (`rule` blocks at stylesheet level, declarations, at-rules, `opaque` blocks, comments, literal markers) plus `bind`, expressions, interpolation, functions, `when`/`each`, recipes with content blocks, `fail`/`warn`, nesting with nested group at-rules, and the built-ins of [BUILTINS.md](BUILTINS.md) so far; modules and the `color` built-ins are reported as E5001 by current builds. Companion documents are normative for their subjects:
+Status: **normative v0.1 specification**. The reference compiler implements the plain-CSS subset (`rule` blocks at stylesheet level, declarations, at-rules, `opaque` blocks, comments, literal markers) plus `bind`, expressions, interpolation, functions, `when`/`each`, recipes with content blocks, `fail`/`warn`, nesting with nested group at-rules, modules, and the built-ins of [BUILTINS.md](BUILTINS.md) so far; the `color` built-ins are reported as E5001 by current builds. Companion documents are normative for their subjects:
 
 - [grammar.ebnf](grammar.ebnf): syntax.
 - [TYPES.md](TYPES.md): values, numeric model, units, coercions, serialization, core built-ins.
@@ -307,6 +307,8 @@ load "../base/reset.weave" as reset;
 - Each module is evaluated once per build, the first time it is reached. A cycle is E7002, reported at the `load` that closes it, with the full chain.
 - **Emission order:** the build traverses `load` statements depth first in source order. A module's CSS is emitted after the CSS of all modules it loads and only the first time the module is reached (post-order, first encounter). The entry module's own CSS is last. Diamond example in [CSS-COMPATIBILITY.md §5](CSS-COMPATIBILITY.md#5-module-emission-and-css-ordering).
 - Native `@import`, `@namespace`, `@charset` and `@layer` statements are CSS, not module loading; they are emitted in place. If the combined output would put `@import` or `@namespace` after a rule or block at-rule that CSS forbids before them, the build fails with E7010 instead of reordering.
+- Diagnostic positions: path problems (E7001, E7004, E7006) and the module and input limits reached while loading (E8001, E8008) are reported at the path string of the importing `load`; E7002 and E7005 at the `load` keyword; E7003 at the member name (at the callee for calls and `apply`). Two `load` statements binding the same name are E1001. A namespace is not a value (E1004); `ns.member` is resolved as one step, and further `.key` segments are map keys.
+- Loading stops before evaluation if any module cannot be read, resolved or parsed; all such problems are reported, across modules, up to the diagnostic limit. Evaluation steps, call depth and the output limit are shared by the whole build.
 
 ## 15. Output format
 

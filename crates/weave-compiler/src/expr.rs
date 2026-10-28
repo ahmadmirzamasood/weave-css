@@ -392,6 +392,12 @@ fn is_ident_cont(c: char) -> bool {
     is_ident_start(c) || c.is_ascii_digit() || c == '-'
 }
 
+/// Whether `text` is one Weave identifier (LANGUAGE.md §4.1).
+pub(crate) fn is_identifier(text: &str) -> bool {
+    let mut chars = text.chars();
+    chars.next().is_some_and(is_ident_start) && chars.all(is_ident_cont)
+}
+
 struct Scanner<'a> {
     cx: Cx<'a>,
     pos: usize,

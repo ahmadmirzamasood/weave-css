@@ -170,7 +170,8 @@ the output order is `c`, `a`, `b`, `main`. Every module's top-level output is em
 
 CSS requires `@charset` first, then `@import` (optionally interleaved with `@layer` statements), then `@namespace`, then everything else. Weave never reorders cascade-relevant content to satisfy this. After module concatenation:
 
-- `@charset` may appear only as the first item of the entry module (E6008 otherwise) and is then emitted first.
+- `@charset` may appear only as the first item of the entry module (E6008 otherwise) and is then emitted first. It is the only item that ever moves.
+- Neutral items are classified on the emitted CSS: a `/*!` comment, or an `opaque` block or other verbatim text that is exactly one comment, is a comment; every other `opaque` block or unknown at-rule counts as a rule.
 - If an `@import` or `@namespace` follows any item other than `@charset`, `@layer` statements, `@import`, `@namespace` (for `@namespace`) or `/*!` comments, the build fails with E7010 at the late at-rule, with a note naming the earlier item and its module.
 
 Typical fix: move native `@import` statements into the first module loaded, or into the entry module before any rules when no dependency emits CSS.

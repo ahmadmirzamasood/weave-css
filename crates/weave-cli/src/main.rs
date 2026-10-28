@@ -36,12 +36,13 @@ Options:
 
 Status: this build compiles the plain-CSS subset of Weave (`rule` blocks,
 declarations, at-rules, `opaque` blocks, comments) with bindings,
-expressions, interpolation, functions, `when`/`each`, recipes, nesting and
-the built-ins of docs/BUILTINS.md. Modules and the `color` built-ins fail
-with error E5001 (not implemented yet).
+expressions, interpolation, functions, `when`/`each`, recipes, nesting,
+modules (`load`, `export`) and the built-ins of docs/BUILTINS.md. The
+`color` built-ins fail with error E5001 (not implemented yet).
 
-Modules are resolved relative to the directory of the input file, which is
-also the module root.
+Modules are resolved relative to the file that loads them. The directory of
+the input file is the module root: no module, including through symbolic
+links, may be loaded from outside it.
 
 Exit status: 0 success, 1 compilation failed, 2 invalid command line.
 "
@@ -50,7 +51,7 @@ Exit status: 0 success, 1 compilation failed, 2 invalid command line.
 
 fn version() -> String {
     format!(
-        "weave {VERSION}\nlanguage specification: v{LANGUAGE_VERSION}\ncompilation: plain-CSS subset, values, functions and recipes (phase 05)\n"
+        "weave {VERSION}\nlanguage specification: v{LANGUAGE_VERSION}\ncompilation: plain-CSS subset, values, functions, recipes, nesting and modules (phase 07)\n"
     )
 }
 

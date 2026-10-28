@@ -1,0 +1,64 @@
+bind base = 4px;
+bind scale = 2;
+
+/* Defaults may use module bindings and earlier parameters. */
+fn space(steps: number, unit: length = base * scale) -> length {
+    yield unit * steps;
+}
+
+fn clamp-steps(n: unitless, low: unitless = 0, high: unitless = low + 10) -> unitless {
+    when n < low { yield low; }
+    otherwise when n > high { yield high; }
+    yield n;
+}
+
+/* `yield` returns from inside loops and conditions. */
+fn first-over(items: list, limit: number) -> any {
+    each item in items {
+        when item > limit { yield item; }
+    }
+    yield "none";
+}
+
+/* Hoisting: `is-even` calls `is-odd` before its definition. */
+fn is-even(n: unitless) -> bool {
+    when n == 0 { yield true; }
+    yield is-odd(n - 1);
+}
+
+fn is-odd(n: unitless) -> bool {
+    when n == 0 { yield false; }
+    yield is-even(n - 1);
+}
+
+fn label(name: string, count: unitless = 1) -> string {
+    when count == 1 { yield "#{count} #{name}"; }
+    yield "#{count} #{name}s";
+}
+
+fn shadowed() -> number {
+    bind base = 100px;
+    yield base;
+}
+
+fn uses-module() -> length {
+    yield base;
+}
+
+fn pair(a, b) -> list {
+    yield [b, a];
+}
+
+rule .f {
+    /* The caller's scope is never visible inside a function. */
+    bind base = 1em;
+    margin: #{space(2)};
+    padding: #{space(1, unit: 1rem)};
+    gap: #{space(unit: 3px, steps: 3)};
+    --clamped: #{clamp-steps(-5)} #{clamp-steps(50)} #{clamp-steps(7, high: 5, low: 6)};
+    --first: #{first-over([1, 5, 9], 4)} #{first-over([1, 2], 4)};
+    --even: #{is-even(10)} #{is-odd(7)};
+    --label: #{label("item")} #{label("item", count: 3)};
+    --scope: #{shadowed()} #{uses-module()} #{base};
+    --pair: #{css.space(pair(1px, 2px))};
+}

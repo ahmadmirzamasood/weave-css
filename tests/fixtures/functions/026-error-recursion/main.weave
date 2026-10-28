@@ -1,0 +1,8 @@
+fn forever(n: number) -> number {
+    yield forever(n + 1);
+}
+bind x = forever(0);
+recipe nest(n: number) {
+    apply nest(n + 1);
+}
+rule .a { apply nest(0); }

@@ -1,0 +1,41 @@
+.card {
+  padding: 16px;
+  background: #2563eb;
+  border: 2px solid #2563eb;
+  color: #16a34a;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.nested {
+  margin: 0;
+  border: 1px solid #2563eb;
+  outline: none;
+  color: #2563eb;
+  border-radius: 4px;
+}
+
+.plain {
+  border: 3px solid #2563eb;
+  border-radius: 12px;
+}
+
+.w-0 {
+  width: 10px;
+}
+
+.w-1 {
+  width: 20px;
+}
+
+@font-face {
+  font-family: "Brand";
+  font-display: swap;
+  src: url("brand.woff2");
+}
+
+.m {
+  display: block;
+  --a: 1;
+  --b: 2;
+}

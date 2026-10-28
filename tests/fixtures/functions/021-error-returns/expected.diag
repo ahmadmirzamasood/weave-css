@@ -1,0 +1,7 @@
+# severity code file:line:column "message substring"
+warning W9001 main.weave:12:1 "deprecated: use `space` instead"
+error E4006 main.weave:1:24 "must yield a length"
+error E4007 main.weave:14:10 "ended without `yield`"
+error E9001 main.weave:7:18 "got -1"
+error E2011 main.weave:10:21 "needs a string message"
+error E2001 main.weave:17:21 "`+`"

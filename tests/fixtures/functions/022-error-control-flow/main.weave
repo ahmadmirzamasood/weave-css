@@ -1,0 +1,8 @@
+bind n = 3;
+when n { rule .a { color: red; } }
+when false { } otherwise when "yes" { }
+each x in 5 { }
+each v in {a: 1} { }
+fn g(x) { when x { yield 1; } yield 2; }
+bind q = g(1);
+rule .b { --x: #{true || 1 / 0}; --y: #{false && [][0]}; color: #{1 / 0}; }

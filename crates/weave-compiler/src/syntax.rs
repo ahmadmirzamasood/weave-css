@@ -9,8 +9,9 @@
 
 use std::rc::Rc;
 
-use crate::expr::{Program, Template};
+use crate::expr::{Call, Program, Template};
 use crate::source::Span;
+use crate::value::Type;
 
 /// One parsed module.
 #[derive(Debug, Default)]
@@ -18,16 +19,45 @@ pub(crate) struct Stylesheet {
     pub items: Vec<Item>,
 }
 
+/// The kind of block an at-rule body is (CSS-COMPATIBILITY.md §2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Context {
+    Stylesheet,
+    Declarations,
+    Keyframes,
+    Page,
+}
+
+/// What produced a verbatim item; decides where it may be placed when it
+/// comes from a recipe body or a content block.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum VerbatimKind {
+    /// A `/*!` comment.
+    Comment,
+    /// The contents of an `opaque { }` block.
+    Opaque,
+    /// An unknown at-rule.
+    AtRule,
+}
+
 #[derive(Debug)]
 pub(crate) enum Item {
-    /// `rule <selector list> { … }`.
-    Rule { selector: Template, body: Vec<Item> },
+    /// `rule <selector list> { … }`. `dynamic` marks a rule written
+    /// directly in a recipe body or content block: whether it is a
+    /// top-level or a nested rule is known only where it is expanded.
+    Rule {
+        selector: Template,
+        body: Vec<Item>,
+        span: Span,
+        dynamic: bool,
+    },
     Declaration {
         name: Template,
         value: Template,
         important: bool,
         /// Whether the name, as written, is a custom property (`--*`).
         custom: bool,
+        span: Span,
     },
     /// A known at-rule. `body` is `None` for statement at-rules such as
     /// `@import`. `name` includes the `@` and is written as in the source.
@@ -35,19 +65,108 @@ pub(crate) enum Item {
         name: String,
         prelude: Template,
         body: Option<Vec<Item>>,
+        context: Context,
+        span: Span,
     },
     /// A keyframe block inside `@keyframes`.
     Keyframe {
         selectors: Template,
         body: Vec<Item>,
+        span: Span,
     },
     /// Text emitted exactly as given: `opaque` contents, unknown at-rules and
     /// `/*!` comments.
-    Verbatim(String),
+    Verbatim {
+        text: String,
+        kind: VerbatimKind,
+        span: Span,
+    },
     /// `bind name = expression;`.
     Bind {
         name: Rc<str>,
         span: Span,
         value: Program,
     },
+    /// `when … { } otherwise when … { } otherwise { }`.
+    When {
+        branches: Vec<Branch>,
+        otherwise: Option<Vec<Item>>,
+    },
+    Each(Box<Each>),
+    Apply(Box<Apply>),
+    /// `slot;`.
+    Slot(Span),
+    /// `yield expression;` (function bodies only).
+    Yield {
+        value: Program,
+        span: Span,
+    },
+    /// `fail expression;` or `warn expression;`.
+    Report {
+        warning: bool,
+        value: Program,
+        span: Span,
+    },
+    /// `fn` (module top level only).
+    Fn(Box<FnDef>),
+    /// `recipe` (module top level only).
+    Recipe(Box<RecipeDef>),
+}
+
+/// One `when` or `otherwise when` branch.
+#[derive(Debug)]
+pub(crate) struct Branch {
+    pub condition: Program,
+    /// The condition expression.
+    pub span: Span,
+    pub body: Vec<Item>,
+}
+
+/// `each value in …` or `each key, value in …`.
+#[derive(Debug)]
+pub(crate) struct Each {
+    pub key: Option<(Rc<str>, Span)>,
+    pub value: (Rc<str>, Span),
+    pub iterable: Program,
+    /// The iterated expression.
+    pub span: Span,
+    pub body: Vec<Item>,
+}
+
+/// `apply name(args);` or `apply name(args) { content }`.
+#[derive(Debug)]
+pub(crate) struct Apply {
+    /// The recipe and its arguments; `args` computes one value per
+    /// argument.
+    pub call: Call,
+    pub args: Program,
+    pub content: Option<Vec<Item>>,
+    /// The `apply` keyword.
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub(crate) struct Param {
+    pub name: Rc<str>,
+    pub span: Span,
+    pub ty: Option<Type>,
+    pub default: Option<Program>,
+}
+
+#[derive(Debug)]
+pub(crate) struct FnDef {
+    pub name: Rc<str>,
+    pub span: Span,
+    pub params: Vec<Param>,
+    /// The return type and its span.
+    pub returns: Option<(Type, Span)>,
+    pub body: Vec<Item>,
+}
+
+#[derive(Debug)]
+pub(crate) struct RecipeDef {
+    pub name: Rc<str>,
+    pub span: Span,
+    pub params: Vec<Param>,
+    pub body: Vec<Item>,
 }

@@ -1,0 +1,4 @@
+description = "Typed functions: defaults that use module bindings and earlier parameters, positional, named and reordered arguments, early `yield` from conditions and loops, recursion and mutual recursion across hoisted definitions, local shadowing, and lexical scope (a function sees its module, never its caller)."
+spec = ["LANGUAGE.md 8", "LANGUAGE.md 4.3", "LANGUAGE.md 5.4", "TYPES.md 8"]
+expect = "css"
+validation = "independent"

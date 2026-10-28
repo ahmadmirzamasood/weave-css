@@ -1,12 +1,8 @@
 load "./x.weave" as x;
-fn f(a) { yield a; }
-recipe r { color: red; }
 export bind e = 1;
-when true { rule .w { } } otherwise { rule .o { } }
-each i in [1, 2] { rule .e { } }
-apply r;
-fail "no";
-warn "careful";
+recipe r {
+    @media print { color: blue; }
+}
 rule .a {
     rule &:hover { color: red; }
     @media print { color: blue; }

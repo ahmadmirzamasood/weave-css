@@ -164,7 +164,7 @@ Parameter and return annotations: `any`, `number`, `unitless`, `length` (absolut
 
 ## 9. Core built-ins
 
-All built-ins are deterministic and follow the call rules of LANGUAGE §5.4. Parameter names below are the names usable as named arguments. The full reference will be published as `docs/BUILTINS.md`; additions or changes are specification changes.
+All built-ins are deterministic and follow the call rules of LANGUAGE §5.4. Parameter names below are the names usable as named arguments. The complete reference, including error codes and limits, is [BUILTINS.md](BUILTINS.md); additions or changes are specification changes.
 
 | Built-in | Result | Notes |
 |---|---|---|
@@ -173,13 +173,13 @@ All built-ins are deterministic and follow the call rules of LANGUAGE §5.4. Par
 | `css.slash(left, right)` | css | `left / right` |
 | `css.ident(text)` | css | text escaped as an identifier start (LANGUAGE §7.2); empty string E2006 |
 | `css.fragment(text)` | css | validated (§7) |
-| `math.round(x)`, `math.floor(x)`, `math.ceil(x)` | number | keep unit; `round` ties toward +∞ (as CSS `round()`) |
+| `math.round(x)`, `math.floor(x)`, `math.ceil(x)` | number | keep unit; applied to the quantized value `q(x)`; `round` ties toward +∞ (as CSS `round()`) |
 | `math.abs(x)` | number | keeps unit |
 | `math.min(a, b)`, `math.max(a, b)` | number | compatible units; result in `a`'s unit |
 | `math.clamp(low, x, high)` | number | compatible units; result in `x`'s unit; `low > high` is E2003 |
 | `math.unit(x)` | string | canonical unit spelling, `""` if unitless |
 | `math.value(x)` | number | unitless |
-| `math.convert(x, unit)` | number | E3005 if `unit` is unknown or incompatible |
+| `math.convert(x, unit)` | number | E3005 if `unit` is unknown or incompatible (including any conversion of a unitless `x`) |
 | `list.len(l)` | number | |
 | `list.append(l, value)`, `list.concat(a, b)` | list | |
 | `list.slice(l, start, end)` | list | half-open, zero-based, bounds checked (E2005) |

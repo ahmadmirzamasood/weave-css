@@ -1,0 +1,3 @@
+description = "Function results: a `yield` that violates the return type (E4006, at `yield`), a body that ends without `yield` (E4007, at the call), `fail` with an interpolated message (E9001) and with a non-string (E2011), and `warn` (W9001) alongside them."
+spec = ["LANGUAGE.md 8", "LANGUAGE.md 3.3"]
+expect = "error"

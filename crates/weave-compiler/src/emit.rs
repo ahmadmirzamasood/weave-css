@@ -91,6 +91,7 @@ impl Writer {
                 name,
                 value,
                 important,
+                ..
             } => {
                 self.push(name);
                 self.push(":");
@@ -107,7 +108,7 @@ impl Writer {
                 );
                 None
             }
-            Node::Verbatim(text) => {
+            Node::Verbatim { text, .. } => {
                 self.push(text);
                 self.push(
                     "
@@ -118,10 +119,12 @@ impl Writer {
             Node::Rule {
                 selector: header,
                 body,
+                ..
             }
             | Node::Keyframe {
                 selectors: header,
                 body,
+                ..
             } => {
                 self.push(header);
                 self.push(
@@ -134,6 +137,7 @@ impl Writer {
                 name,
                 prelude,
                 body,
+                ..
             } => {
                 self.push(name);
                 if !prelude.is_empty() {
@@ -170,45 +174,59 @@ mod tests {
             name: name.into(),
             value: value.into(),
             important,
+            origin: None,
+        }
+    }
+
+    fn verbatim(text: &str) -> Node {
+        Node::Verbatim {
+            text: text.into(),
+            origin: None,
+        }
+    }
+
+    fn rule(selector: &str, body: Vec<Node>) -> Node {
+        Node::Rule {
+            selector: selector.into(),
+            body,
+            origin: None,
+        }
+    }
+
+    fn at_rule(name: &str, prelude: &str, body: Option<Vec<Node>>) -> Node {
+        Node::AtRule {
+            name: name.into(),
+            prelude: prelude.into(),
+            body,
+            origin: None,
         }
     }
 
     #[test]
     fn layout_and_separation() {
         let sheet: Vec<Node> = vec![
-            Node::Verbatim("/*! banner */".into()),
-            Node::Rule {
-                selector: ".empty".into(),
-                body: vec![],
-            },
-            Node::Rule {
-                selector: ".a".into(),
-                body: vec![decl("color", "red", false), decl("--x", "", true)],
-            },
-            Node::AtRule {
-                name: "@media".into(),
-                prelude: "print".into(),
-                body: Some(vec![
-                    Node::Rule {
-                        selector: ".b".into(),
-                        body: vec![Node::Verbatim("x {\n  y }".into())],
-                    },
-                    Node::Rule {
-                        selector: ".c".into(),
-                        body: vec![decl("--e", "", false)],
-                    },
+            verbatim("/*! banner */"),
+            rule(".empty", vec![]),
+            rule(
+                ".a",
+                vec![decl("color", "red", false), decl("--x", "", true)],
+            ),
+            at_rule(
+                "@media",
+                "print",
+                Some(vec![
+                    rule(
+                        ".b",
+                        vec![verbatim(
+                            "x {
+  y }",
+                        )],
+                    ),
+                    rule(".c", vec![decl("--e", "", false)]),
                 ]),
-            },
-            Node::AtRule {
-                name: "@layer".into(),
-                prelude: "a, b".into(),
-                body: None,
-            },
-            Node::AtRule {
-                name: "@font-face".into(),
-                prelude: String::new(),
-                body: Some(vec![]),
-            },
+            ),
+            at_rule("@layer", "a, b", None),
+            at_rule("@font-face", "", Some(vec![])),
         ];
         assert_eq!(
             emit(&sheet, 1 << 20).unwrap(),
@@ -220,16 +238,13 @@ mod tests {
 
     #[test]
     fn empty_output_is_zero_bytes() {
-        let sheet: Vec<Node> = vec![Node::Rule {
-            selector: ".a".into(),
-            body: vec![],
-        }];
+        let sheet: Vec<Node> = vec![rule(".a", vec![])];
         assert_eq!(emit(&sheet, 1).unwrap(), "");
     }
 
     #[test]
     fn output_limit_is_inclusive() {
-        let sheet: Vec<Node> = vec![Node::Verbatim("abc".into())];
+        let sheet: Vec<Node> = vec![verbatim("abc")];
         assert_eq!(emit(&sheet, 4).unwrap(), "abc\n");
         assert_eq!(emit(&sheet, 3).unwrap_err().code(), Code::E8006);
     }

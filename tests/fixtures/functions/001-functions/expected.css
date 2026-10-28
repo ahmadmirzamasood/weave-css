@@ -1,0 +1,11 @@
+.f {
+  margin: 16px;
+  padding: 1rem;
+  gap: 9px;
+  --clamped: 0 10 5;
+  --first: 5 "none";
+  --even: true true;
+  --label: "1 item" "3 items";
+  --scope: 100px 4px 1em;
+  --pair: 2px 1px;
+}

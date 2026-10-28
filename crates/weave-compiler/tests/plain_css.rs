@@ -293,23 +293,31 @@ fn diagnostic_limit_stops_parsing() {
 fn skipped_statements_report_once_but_keep_end_of_input_errors() {
     let options = CompileOptions::default();
     // One E5001 for the statement, none for interpolation inside it.
-    assert_eq!(codes(br##"warn "#{y}" + #{z};"##, &options), [Code::E5001]);
+    assert_eq!(codes(br##"load "#{y}" as #{z};"##, &options), [Code::E5001]);
     assert_eq!(
         codes(
-            b"when #{a} { rule .x { b: #{c}; } } otherwise { }",
+            b"export fn f() { yield #{a}; } export recipe r { b: #{c}; }",
             &options
         ),
-        [Code::E5001]
-    );
-    // A keyword lexed as a function token still starts its statement.
-    assert_eq!(
-        codes(b"when(a) { } rule a { b: c; }", &options),
-        [Code::E5001]
+        [Code::E5001, Code::E5001]
     );
     // An unterminated comment inside a skipped statement is still reported.
     assert_eq!(
-        codes(b"fail 1 /* never closed", &options),
+        codes(b"load \"./a.weave\" /* never closed", &options),
         [Code::E5001, Code::E0003]
+    );
+}
+
+#[test]
+fn keyword_function_tokens_start_statements() {
+    // `when(` lexes as a function token; the keyword still starts its
+    // statement.
+    assert_eq!(
+        css("when(true) { rule a { b: c; } } otherwise when(false) { }"),
+        "a {
+  b: c;
+}
+"
     );
 }
 
@@ -317,12 +325,13 @@ fn skipped_statements_report_once_but_keep_end_of_input_errors() {
 fn nothing_unsupported_is_silently_dropped() {
     // Every compile-time construct either compiles or is reported.
     for source in [
-        "rule a { apply r; }",
+        "load \"./a.weave\" as a;",
+        "export bind x = 1;",
         "rule a { rule b { c: d; } }",
         "rule a { @media print { b: c; } }",
-        "rule a { b: #{math.round(1)}; }",
-        "bind r = range(0, 2);",
-        "each i in [1] { }",
+        "recipe r { @media print { b: c; } }",
+        "recipe r { rule .x { b: c; } } rule a { apply r; }",
+        "rule a { b: #{color.rgb(1, 2, 3)}; }",
     ] {
         assert!(
             codes(source.as_bytes(), &CompileOptions::default()).contains(&Code::E5001),

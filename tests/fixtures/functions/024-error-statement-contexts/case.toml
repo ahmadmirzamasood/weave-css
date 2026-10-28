@@ -1,0 +1,3 @@
+description = "Statements in the wrong context, found while parsing: CSS-emitting statements in a function body (E4014), `slot` outside a recipe (E4012) or in a declaration list (E6005), `yield` outside a function (E4013), `fn` below the top level (E0104), `apply` in `@keyframes` (E6005)."
+spec = ["LANGUAGE.md 3", "LANGUAGE.md 8", "LANGUAGE.md 9"]
+expect = "error"

@@ -1,0 +1,3 @@
+description = "No implicit truthiness in `when` or `otherwise when`, at top level and in function bodies (E2002 at the condition); `each` over a non-collection or over a map with one variable (E2010); short-circuiting skips invalid operands, but an unguarded one still fails."
+spec = ["LANGUAGE.md 10", "LANGUAGE.md 5.2"]
+expect = "error"

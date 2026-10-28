@@ -182,6 +182,16 @@ impl Unit {
     pub fn is_none(&self) -> bool {
         matches!(self, Unit::None)
     }
+
+    /// The category of a known unit; `None` for unitless and unknown units.
+    pub fn category(&self) -> Option<Category> {
+        self.info().map(|u| u.category)
+    }
+
+    /// Whether `text` names a known unit.
+    pub fn is_known(&self) -> bool {
+        matches!(self, Unit::Known(_))
+    }
 }
 
 /// A failed numeric operation: the code and message of its diagnostic.
@@ -370,6 +380,17 @@ impl Number {
     pub fn equals(&self, right: &Number) -> bool {
         self.converted(right)
             .is_some_and(|r| quantized(self.value) == quantized(r))
+    }
+
+    /// This number converted to `unit`, if the units are compatible.
+    pub fn convert_to(&self, unit: &Unit) -> Option<Number> {
+        compatible(&self.unit, unit)
+            .then(|| Number::new(convert(self.value, &self.unit, unit), unit.clone()))
+    }
+
+    /// `q(x)` (TYPES.md §2.1).
+    pub fn quantized(&self) -> i64 {
+        quantized(self.value)
     }
 
     /// The value as an integer, if it is one (`q mod 10^6 = 0`).

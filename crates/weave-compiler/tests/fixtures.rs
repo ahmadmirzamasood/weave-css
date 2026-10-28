@@ -1,7 +1,9 @@
 //! Executable fixture runner.
 //!
-//! - `tests/fixtures/css` (phase 03, plain-CSS subset) and
-//!   `tests/fixtures/values` (phase 04, values, scopes and interpolation).
+//! - `tests/fixtures/css` (phase 03, plain-CSS subset),
+//!   `tests/fixtures/values` (phase 04, values, scopes and interpolation)
+//!   and `tests/fixtures/functions` (phase 05, functions, control flow,
+//!   recipes and built-ins).
 //!   Every case must pass: exact expected bytes (and identical output on a
 //!   second run) or exactly the expected diagnostics. Successful output is
 //!   also parsed by an independent CSS parser unless the case declares
@@ -31,7 +33,7 @@ use weave_compiler::{
 };
 
 /// Specification fixtures that this build compiles as specified.
-const SPEC_PASSING: [&str; 17] = [
+const SPEC_PASSING: [&str; 25] = [
     "001-plain-css-preservation",
     "002-bindings-value-interpolation",
     "004-error-duplicate-binding",
@@ -41,12 +43,20 @@ const SPEC_PASSING: [&str; 17] = [
     "008-precedence-short-circuit",
     "009-error-division-by-zero",
     "010-strings-contexts-escaping",
+    "011-maps-lists-sequences",
     "012-error-list-interpolation",
     "013-error-index-out-of-range",
+    "014-functions-defaults-named-recursion",
+    "015-error-unknown-named-argument",
+    "017-error-content-block-not-placed",
+    "018-conditions-ranges-selector-escaping",
+    "019-error-non-boolean-condition",
+    "023-at-rule-body-contexts",
     "024-opaque-and-unknown-syntax",
     "029-error-selector-without-rule",
     "030-interpolation-injection-safety",
     "031-error-invalid-fragment",
+    "032-error-argument-type",
     "033-error-top-level-declaration",
     "035-unicode-and-crlf",
 ];
@@ -191,6 +201,11 @@ fn css_fixtures() {
 #[test]
 fn values_fixtures() {
     exact_fixtures("values", 14);
+}
+
+#[test]
+fn functions_fixtures() {
+    exact_fixtures("functions", 12);
 }
 
 /// Runs a fixture set in which every case must pass exactly.

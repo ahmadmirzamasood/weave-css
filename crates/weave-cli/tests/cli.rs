@@ -103,7 +103,7 @@ fn build_writes_css_and_check_writes_nothing() {
 fn errors_exit_1_with_positions_and_no_css() {
     let dir = scratch("errors");
     let input = dir.join("main.weave");
-    fs::write(&input, ".card {\n  color: red;\n}\nwhen true { }\n").expect("write input");
+    fs::write(&input, ".card {\n  color: red;\n}\nexport bind x = 1;\n").expect("write input");
     for command in ["build", "check"] {
         let out = weave(&[command, input.to_str().expect("UTF-8 path")]);
         assert_eq!(out.status.code(), Some(1), "{command}");
@@ -187,6 +187,7 @@ fn specification_fixtures_run_through_the_cli() {
         }
     }
     assert_eq!(count, 35, "expected the 35 phase 01 fixtures");
-    // 001, 002, 006, 008, 010, 024, 030 and 035 build since phase 04.
-    assert_eq!(built, 8, "specification fixtures that build");
+    // 001, 002, 006, 008, 010, 024, 030 and 035 build since phase 04;
+    // 011, 014, 018 and 023 since phase 05.
+    assert_eq!(built, 12, "specification fixtures that build");
 }

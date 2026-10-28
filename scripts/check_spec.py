@@ -3,9 +3,10 @@
 Checks fixture structure and metadata, diagnostic expectation syntax and
 positions, line endings, the fixture indexes, and relative Markdown links in
 git-tracked files, for the specification fixtures (tests/fixtures/spec), the
-CSS-subset fixtures (tests/fixtures/css) and the value fixtures
-(tests/fixtures/values). It does not compile anything: the
-fixture runner in crates/weave-compiler/tests/fixtures.rs executes them.
+CSS-subset fixtures (tests/fixtures/css), the value fixtures
+(tests/fixtures/values) and the function fixtures (tests/fixtures/functions).
+It does not compile anything: the fixture runner in
+crates/weave-compiler/tests/fixtures.rs executes them.
 
 Usage: python scripts/check_spec.py [repo-root]
 """
@@ -21,6 +22,7 @@ FIXTURE_SETS = {
     Path("tests/fixtures/spec"): {"description", "spec", "status", "entry", "expect"},
     Path("tests/fixtures/css"): {"description", "spec", "expect", "validation"},
     Path("tests/fixtures/values"): {"description", "spec", "expect", "validation"},
+    Path("tests/fixtures/functions"): {"description", "spec", "expect", "validation"},
 }
 CRLF_FIXTURES = {"tests/fixtures/spec/035-unicode-and-crlf/main.weave"}
 VALIDATION = {"independent", "preserve-only"}

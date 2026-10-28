@@ -65,7 +65,7 @@ pub fn compile(
     if diagnostics.has_errors() {
         return failed(sources, diagnostics);
     }
-    let nodes = eval::evaluate(&sheet.items, &options.limits, &mut diagnostics);
+    let nodes = eval::evaluate(&sheet.items, file, &options.limits, &mut diagnostics);
     if diagnostics.has_errors() {
         return failed(sources, diagnostics);
     }
@@ -209,7 +209,7 @@ mod tests {
     #[test]
     fn unimplemented_statements_are_reported() {
         let result = run(
-            b"when true { }
+            b"load \"./a.weave\" as a;
 rule a { color: red; }
 ",
             &CompileOptions::default(),

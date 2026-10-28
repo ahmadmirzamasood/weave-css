@@ -1,10 +1,11 @@
 # Weave language specification v0.1
 
-Status: **normative v0.1 specification**. The reference compiler implements the plain-CSS subset (`rule` blocks at stylesheet level, declarations, at-rules, `opaque` blocks, comments, literal markers) plus `bind`, expressions, interpolation and the `css.*` constructors so far; every other construct (control flow, functions, recipes, modules, nesting, the other built-ins) is reported as E5001 by current builds. Companion documents are normative for their subjects:
+Status: **normative v0.1 specification**. The reference compiler implements the plain-CSS subset (`rule` blocks at stylesheet level, declarations, at-rules, `opaque` blocks, comments, literal markers) plus `bind`, expressions, interpolation, functions, `when`/`each`, recipes with content blocks, `fail`/`warn` and the built-ins of [BUILTINS.md](BUILTINS.md) so far; modules, nesting (including recipe output that would be nested), known at-rules in recipe bodies and content blocks, and the `color` built-ins are reported as E5001 by current builds. Companion documents are normative for their subjects:
 
 - [grammar.ebnf](grammar.ebnf): syntax.
 - [TYPES.md](TYPES.md): values, numeric model, units, coercions, serialization, core built-ins.
 - [CSS-COMPATIBILITY.md](CSS-COMPATIBILITY.md): CSS contexts, at-rule matrix, nesting lowering, output ordering.
+- [BUILTINS.md](BUILTINS.md): the built-in reference.
 - [tests/fixtures/spec/](../tests/fixtures/spec/): specification fixtures, executed by the fixture runner (see its README for which cases pass).
 
 The words MUST, MUST NOT, SHOULD and MAY are normative. Where this document and a companion disagree, the companion owning the subject wins and the conflict is a specification bug.
@@ -108,7 +109,7 @@ Keywords (cannot be bound, loaded or used as parameter or function/recipe names,
 
 Lexical scopes, innermost first:
 
-1. Each block (`rule`, `when`/`otherwise` branch, `each` iteration, at-rule block, content block) opens a scope. Each `each` iteration has a fresh scope holding the loop variables.
+1. Each block (`rule`, `when`/`otherwise` branch, `each` iteration, at-rule block, content block) opens a scope. Each `each` iteration has a fresh scope holding the loop variables; the loop body shares that scope, so rebinding a loop variable in the body's top block is E1001, as is `each k, k in …`.
 2. A function or recipe body shares one scope with its parameters (rebinding a parameter name in the body's top block is E1001).
 3. The module scope: top-level `bind`, `fn`, `recipe` and `load` names. Bindings, functions, recipes and module namespaces share one namespace per scope.
 4. The prelude: built-in namespaces `css`, `math`, `list`, `map`, `string`, `color`, `meta` and the function `range`. User names MAY shadow prelude names in any scope; the built-in is then unreachable in that scope.
@@ -220,11 +221,12 @@ fn space(factor: number, base: length = 4px) -> length {
 }
 ```
 
-- Parameters: `name`, optional `: type`, optional `= default`. Parameters with defaults MAY be followed by parameters without defaults only if those are passed by name. Default expressions are evaluated at call time, left to right, in a scope containing the definition module scope and the parameters already bound.
-- Type annotations (TYPES §8) are checked when arguments are bound (E4005) and when `yield` executes (E4006). Annotations are optional; omitted means `any`.
-- `yield expr;` returns immediately. Reaching the end of the body without `yield` is E4007.
-- Function bodies cannot emit CSS: declarations, `rule`, at-rules, `apply`, `slot` and `opaque` inside a function are E4014. Functions are pure: they perform no I/O and their result depends only on arguments and module bindings.
+- Parameters: `name`, optional `: type`, optional `= default`. Parameters with defaults MAY be followed by parameters without defaults only if those are passed by name. Default expressions are evaluated at call time, left to right, in a scope containing the definition module scope and the parameters already bound. A parameter to the right of the default is not yet bound, even when the call passes it, so referring to it is E1003. Duplicate parameter names are E1001; keywords are E0103.
+- Type annotations (TYPES §8) are checked when arguments are bound (E4005, at the argument; for a default value, at the callee) and when `yield` executes (E4006, at `yield`). Annotations are optional; omitted means `any`.
+- `yield expr;` returns immediately, also from inside `when` and `each` blocks. Reaching the end of the body without `yield` is E4007, reported at the call.
+- Function bodies cannot emit CSS: declarations, `rule`, at-rules, `apply`, `slot`, `opaque` and `/*!` comments inside a function are E4014. Functions are pure: they perform no I/O and their result depends only on arguments and module bindings.
 - Recursion is allowed and bounded by the call-depth limit (E8003). Functions are not first-class values.
+- `fail expr;` stops the build with E9001 and `warn expr;` reports W9001 and continues; the message MUST be a string (E2011). Both are allowed in every context that accepts statements.
 
 ## 9. Recipes and content blocks
 
@@ -241,9 +243,10 @@ rule .tile {
 
 - A recipe body is a rule-body context. `apply` expands it at the application point: declarations go into the current rule segment, nested rules use the enclosing rule as their parent, and the expansion's output order is the body's statement order.
 - The recipe body sees its definition module scope and its parameters, never the caller's scope (hygiene). A content block is evaluated in the **caller's** lexical scope and its output is inserted where `slot;` executes.
-- `slot;` outside a recipe body is E4012. If a content block is supplied, the expansion MUST execute `slot` exactly once: zero times is E4010, more than once is E4011. If no content block is supplied, `slot;` emits nothing.
+- `slot;` outside a recipe body is E4012. If a content block is supplied, the expansion MUST execute `slot` exactly once: zero times is E4010 (at `apply`), more than once is E4011 (at the second `slot` executed). If no content block is supplied, `slot;` emits nothing. E4010 is not reported for an expansion in which another error occurred.
 - A `slot;` written inside a content block refers to the slot of the recipe that lexically encloses that content block.
-- Applying a recipe whose expansion produces declarations at stylesheet level is E6001; producing rules inside a declaration-list context is E6002.
+- Recipe bodies and content blocks are rule-body contexts whose placement is known only when they are expanded, so their items are checked there: a declaration expanded at stylesheet level is E6001; a `rule` expanded in a declaration-list context is E6002 (in `@keyframes` or `@page`, E6005); a `rule` expanded at stylesheet level becomes a top-level rule, where `&` is E6003; `opaque` expanded in a declaration-list context is E6005. Each is reported at the item in the recipe body or content block.
+- `apply` resolves only recipes: a function, value or built-in is E1004, an unknown name E1002.
 - Recipe arguments follow the call rules of §5.4.
 
 ## 10. Conditions and iteration
@@ -256,7 +259,7 @@ each key, value in {sm: 640px, md: 768px} { … }
 each i in range(0, 3) { … }            /* 0, 1, 2 */
 ```
 
-- Conditions MUST be booleans (E2002). Only the selected branch is evaluated.
+- Conditions MUST be booleans (E2002, at the condition). Conditions are evaluated in order until one is `true`; only the selected branch is evaluated. `otherwise` MUST directly follow the closing `}` of a `when` or `otherwise when` block (comments and whitespace may intervene); anywhere else it is E0101.
 - `each v in list` and `each i, v in list` iterate in list order; `i` is a zero-based unitless integer. `each k, v in map` iterates in insertion order with `k` a string. `each v in map` is E2010; iterating any other type is E2010.
 - `range(start, end)` and `range(start, end, step)` return a list of unitless integers, half-open, `step` defaults to 1 and MUST be non-zero; `range(3, 0, -1)` is `[3, 2, 1]`. Non-integer arguments E2009. Lists are bounded by the collection limit (E8007).
 - `each` iterates over a value computed once before the first iteration.
@@ -339,11 +342,13 @@ Each diagnostic has a stable code, severity, primary span (file, line, column), 
 
 ## 17. Resource limits
 
-Initial defaults (configurable; overrides never disable all limits implicitly): 16 MiB per file, 128 MiB total input, 4096 modules, nesting/parse depth 128 (blocks, expressions and brackets combined), call depth 128 (functions and recipe applications), 1,000,000 evaluation steps, 100,000 emitted selectors, 64 MiB output, 65,536 elements per list or map, 1 MiB per string or fragment, 100 diagnostics. Exceeding a limit is the matching E8xxx error, never a crash. Overrides are validated when set: zero is rejected rather than meaning "unlimited", and the reference compiler caps byte limits at 4,294,967,295 (spans use 32-bit offsets) and depth limits at 4096. Interpolations nested inside strings or fragments inside interpolations are additionally limited to 64 levels by the reference compiler (E8002). The string limit applies to strings and fragments, including literals; declaration values are bounded by the output limit.
+Initial defaults (configurable; overrides never disable all limits implicitly): 16 MiB per file, 128 MiB total input, 4096 modules, nesting/parse depth 128 (blocks, expressions and brackets combined), call depth 128 (functions and recipe applications), 1,000,000 evaluation steps, 100,000 emitted selectors, 64 MiB output, 65,536 elements per list or map, 1 MiB per string or fragment, 100 diagnostics. Exceeding a limit is the matching E8xxx error, never a crash.
+
+An **evaluation step** is one expression operation, one executed statement (`bind`, each `when` condition, `each`, `yield`, `fail`, `warn`, `apply`, `slot`, `rule` and at-rule blocks), one loop iteration or one emitted CSS item. Producing text or collections costs extra steps: one per full KiB of a string, fragment or CSS region, and one per 64 elements of a list or map; comparing values with `==`, `!=` or `list.contains` costs one step per 64 value pairs compared. The output limit is enforced while expanding, against a lower bound of the bytes each emitted item will occupy, so expansion stops early and output that fits is never rejected. Function calls and recipe applications share the call-depth limit (E8003, reported at the innermost call or `apply`). Overrides are validated when set: zero is rejected rather than meaning "unlimited", and the reference compiler caps byte limits at 4,294,967,295 (spans use 32-bit offsets) and depth limits at 4096. Interpolations nested inside strings or fragments inside interpolations are additionally limited to 64 levels by the reference compiler (E8002). The string limit applies to strings and fragments, including literals; declaration values are bounded by the output limit.
 
 ## 18. Core built-ins
 
-The prelude provides `range` and the namespaces `css`, `math`, `list`, `map`, `string`, `color`, `meta`. The v0.1 core set and its semantics are listed in [TYPES.md §9](TYPES.md#9-core-built-ins). A complete built-in reference will be published as `docs/BUILTINS.md`; adding or changing built-ins is a specification change. Built-ins are deterministic and perform no I/O.
+The prelude provides `range` and the namespaces `css`, `math`, `list`, `map`, `string`, `color`, `meta`. The v0.1 core set is listed in [TYPES.md §9](TYPES.md#9-core-built-ins) and specified completely in [BUILTINS.md](BUILTINS.md); adding or changing built-ins is a specification change. Built-ins are deterministic and perform no I/O.
 
 ## 19. Not in v0.1
 

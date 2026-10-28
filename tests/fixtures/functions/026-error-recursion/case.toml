@@ -1,0 +1,3 @@
+description = "Unbounded recursion of a function and of a recipe stops at the call-depth limit (E8003), reported once at the innermost call or `apply`, without exhausting the stack."
+spec = ["LANGUAGE.md 8", "LANGUAGE.md 17"]
+expect = "error"

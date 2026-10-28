@@ -1,0 +1,207 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Weave",
+  "scopeName": "source.weave",
+  "fileTypes": ["weave"],
+  "patterns": [{ "include": "#statement" }],
+  "repository": {
+    "statement": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#rule" },
+        { "include": "#callable" },
+        { "include": "#load" },
+        { "include": "#bind" },
+        { "include": "#keyword" },
+        { "include": "#at-rule" },
+        { "include": "#declaration" },
+        { "include": "#expression" },
+        { "include": "#block" }
+      ]
+    },
+    "block": {
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": { "0": { "name": "punctuation.section.block.begin.weave" } },
+      "endCaptures": { "0": { "name": "punctuation.section.block.end.weave" } },
+      "patterns": [{ "include": "#statement" }]
+    },
+    "comment": {
+      "patterns": [
+        {
+          "name": "comment.block.preserved.weave",
+          "begin": "/\\*!",
+          "end": "\\*/"
+        },
+        {
+          "name": "comment.block.weave",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "rule": {
+      "comment": "`rule <raw CSS selector> {`: the selector runs to the block.",
+      "begin": "\\b(rule)\\b",
+      "end": "(?=\\{)",
+      "beginCaptures": { "1": { "name": "keyword.other.rule.weave" } },
+      "contentName": "entity.name.selector.weave",
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#interpolation" },
+        { "include": "#string" },
+        { "name": "entity.name.tag.parent-selector.weave", "match": "&" }
+      ]
+    },
+    "callable": {
+      "match": "\\b(export\\s+)?(fn|recipe)\\s+([A-Za-z_\\x{80}-\\x{10FFFF}][-\\w\\x{80}-\\x{10FFFF}]*)",
+      "captures": {
+        "1": { "name": "storage.modifier.export.weave" },
+        "2": { "name": "storage.type.function.weave" },
+        "3": { "name": "entity.name.function.weave" }
+      }
+    },
+    "load": {
+      "match": "\\b(load)\\s+(\"[^\"]*\")\\s+(as)\\s+([A-Za-z_\\x{80}-\\x{10FFFF}][-\\w\\x{80}-\\x{10FFFF}]*)",
+      "captures": {
+        "1": { "name": "keyword.control.import.weave" },
+        "2": { "name": "string.quoted.double.path.weave" },
+        "3": { "name": "keyword.control.import.weave" },
+        "4": { "name": "entity.name.namespace.weave" }
+      }
+    },
+    "bind": {
+      "match": "\\b(export\\s+)?(bind)\\s+([A-Za-z_\\x{80}-\\x{10FFFF}][-\\w\\x{80}-\\x{10FFFF}]*)",
+      "captures": {
+        "1": { "name": "storage.modifier.export.weave" },
+        "2": { "name": "storage.type.bind.weave" },
+        "3": { "name": "variable.other.constant.weave" }
+      }
+    },
+    "keyword": {
+      "patterns": [
+        {
+          "name": "keyword.control.weave",
+          "match": "\\b(when|otherwise|each|in|apply|slot|yield|fail|warn)\\b"
+        },
+        { "name": "storage.modifier.export.weave", "match": "\\bexport\\b" },
+        { "name": "keyword.other.opaque.weave", "match": "\\bopaque\\b" }
+      ]
+    },
+    "at-rule": {
+      "begin": "(@[-\\w]+)",
+      "end": "(?=[;{}])",
+      "beginCaptures": { "1": { "name": "keyword.control.at-rule.weave" } },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#interpolation" },
+        { "include": "#string" },
+        { "include": "#number" }
+      ]
+    },
+    "declaration": {
+      "comment": "A property name at the start of a line, followed by `:` and a value up to `;` or `}`.",
+      "begin": "^\\s*(--[-\\w\\x{80}-\\x{10FFFF}]*|-?[A-Za-z_\\x{80}-\\x{10FFFF}][-\\w\\x{80}-\\x{10FFFF}]*|(?=#\\{))(?=(?:[^:;{}\"']|#\\{[^}]*\\})*:(?!:))",
+      "end": "(;)|(?=\\})",
+      "beginCaptures": { "1": { "name": "support.type.property-name.weave" } },
+      "endCaptures": { "1": { "name": "punctuation.terminator.declaration.weave" } },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#interpolation" },
+        { "name": "punctuation.separator.key-value.weave", "match": ":" },
+        { "name": "keyword.other.important.weave", "match": "!\\s*important\\b" },
+        { "include": "#string" },
+        { "include": "#color" },
+        { "include": "#number" },
+        { "name": "support.function.css.weave", "match": "[-\\w]+(?=\\()" }
+      ]
+    },
+    "expression": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#interpolation" },
+        { "include": "#string" },
+        { "include": "#fragment" },
+        { "include": "#color" },
+        { "include": "#number" },
+        { "name": "constant.language.boolean.weave", "match": "\\b(true|false)\\b" },
+        {
+          "comment": "Parameter and return annotations (TYPES.md §8).",
+          "match": "(:|->)\\s*(any|number|unitless|length|angle|time|percent|string|color|bool|list|map|css)\\b(?!\\.)",
+          "captures": {
+            "1": { "name": "punctuation.separator.type.weave" },
+            "2": { "name": "support.type.weave" }
+          }
+        },
+        {
+          "match": "\\b(css|math|list|map|string|color|meta)(\\.)([-\\w]+)",
+          "captures": {
+            "1": { "name": "support.class.builtin.weave" },
+            "2": { "name": "punctuation.accessor.weave" },
+            "3": { "name": "support.function.builtin.weave" }
+          }
+        },
+        { "name": "support.function.builtin.weave", "match": "\\brange\\b(?=\\()" },
+        { "name": "entity.name.function.call.weave", "match": "[A-Za-z_][-\\w]*(?=\\()" },
+        { "name": "keyword.operator.weave", "match": "->|==|!=|<=|>=|&&|\\|\\||[-+*/%<>!=]" },
+        { "name": "punctuation.accessor.weave", "match": "\\." },
+        { "name": "punctuation.terminator.statement.weave", "match": ";" }
+      ]
+    },
+    "interpolation": {
+      "patterns": [
+        { "name": "constant.character.escape.interpolation.weave", "match": "\\\\#\\{" },
+        {
+          "name": "meta.interpolation.weave",
+          "begin": "#\\{",
+          "end": "\\}",
+          "beginCaptures": { "0": { "name": "punctuation.section.interpolation.begin.weave" } },
+          "endCaptures": { "0": { "name": "punctuation.section.interpolation.end.weave" } },
+          "patterns": [{ "include": "#expression" }]
+        }
+      ]
+    },
+    "string": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.weave",
+          "begin": "\"",
+          "end": "\"|$",
+          "patterns": [
+            { "include": "#interpolation" },
+            { "name": "constant.character.escape.weave", "match": "\\\\." }
+          ]
+        },
+        {
+          "name": "string.quoted.single.weave",
+          "begin": "'",
+          "end": "'|$",
+          "patterns": [
+            { "include": "#interpolation" },
+            { "name": "constant.character.escape.weave", "match": "\\\\." }
+          ]
+        }
+      ]
+    },
+    "fragment": {
+      "name": "string.quoted.other.fragment.weave",
+      "begin": "`",
+      "end": "`",
+      "patterns": [
+        { "include": "#interpolation" },
+        { "name": "constant.character.escape.weave", "match": "\\\\." }
+      ]
+    },
+    "color": {
+      "name": "constant.other.color.rgb-value.weave",
+      "match": "#(?:[0-9A-Fa-f]{8}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{3})\\b"
+    },
+    "number": {
+      "match": "(?<![-\\w])([-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?)(%|[A-Za-z]+)?",
+      "captures": {
+        "1": { "name": "constant.numeric.weave" },
+        "2": { "name": "keyword.other.unit.weave" }
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+bind unit = 4px;
+
+/* One spacing step is four pixels. */
+export fn step(n: number) -> length {
+    yield unit * n;
+}

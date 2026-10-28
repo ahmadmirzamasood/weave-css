@@ -1,0 +1,30 @@
+load "./tokens.weave" as tokens;
+
+bind gap = 8px;
+bind palette = {primary: #2563eb, surface: #ffffff};
+bind steps = [4px, 8px, 16px];
+
+fn space(factor: number) -> length {
+    yield gap * factor;
+}
+
+recipe panel(pad: length = 16px) {
+    padding: #{pad};
+    background: #{palette.surface};
+}
+
+rule .card {
+    apply panel(space(2));
+    color: #{palette.primary};
+    display: grid;
+    rule &:hover { opacity: 0.8; }
+    when tokens.compact { padding: #{gap}; }
+}
+
+each i, value in steps {
+    rule .gap-#{i} { gap: #{value}; }
+}
+
+@media (width >= 768px) {
+    rule .card { grid-template-columns: 1fr 2fr; }
+}

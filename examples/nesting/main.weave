@@ -1,0 +1,20 @@
+/* Nested rules and nested group at-rules are lowered to flat CSS with the
+   specificity of native CSS Nesting. */
+rule .nav, .menu {
+    display: flex;
+
+    rule a {
+        color: inherit;
+        rule &:hover { text-decoration: underline; }
+    }
+
+    rule > .item + .item {
+        margin-inline-start: 1rem;
+    }
+
+    @media (width < 40rem) {
+        flex-direction: column;
+    }
+
+    gap: 0.5rem;
+}

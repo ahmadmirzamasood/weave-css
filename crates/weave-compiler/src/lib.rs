@@ -1,6 +1,6 @@
 //! Compiler library for the Weave stylesheet language.
 //!
-//! Status: modules (phase 07). [`compile`] tokenizes, parses, evaluates and
+//! Status: developer tools (phase 08). [`compile`] tokenizes, parses, evaluates and
 //! emits the plain-CSS subset (`rule` blocks, declarations, known and
 //! unknown at-rules, `opaque` blocks, comments) together with `bind`
 //! statements, expressions, `#{…}` interpolation in every CSS context,
@@ -8,7 +8,9 @@
 //! nested rules and group at-rules lowered to flat CSS, and modules
 //! (`load`, `export`, namespaces) read through an injected
 //! [`ModuleResolver`]. The `color` built-ins are reported as E5001 (not
-//! implemented by this build); they are never silently ignored.
+//! implemented by this build); they are never silently ignored. With
+//! [`CompileOptions::source_map`], [`CompileOutput::source_map`] holds an
+//! ECMA-426 [`SourceMap`] (see `source_map` for the provenance policy).
 
 #![forbid(unsafe_code)]
 
@@ -28,6 +30,7 @@ mod parser;
 pub mod resolve;
 mod selector;
 pub mod source;
+pub mod source_map;
 mod syntax;
 mod value;
 
@@ -37,6 +40,7 @@ pub use modules::{CacheStats, DependencyGraph, ModuleCache};
 pub use options::{CompileOptions, Limit, LimitError, OutputStyle, ResourceLimits};
 pub use resolve::{LoadedModule, MemoryResolver, ModuleId, ModuleResolver, ResolveError};
 pub use source::{FileId, LineCol, SourceFile, SourceManager, Span};
+pub use source_map::{JsonOptions, Mapping, OriginalPosition, Position, SourceMap};
 
 /// The version of this crate.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

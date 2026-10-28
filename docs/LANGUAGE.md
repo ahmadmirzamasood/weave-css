@@ -354,7 +354,7 @@ The prelude provides `range` and the namespaces `css`, `math`, `list`, `map`, `s
 
 ## 19. Not in v0.1
 
-Selector inheritance/extend, placeholder selectors, mutation, `null`, first-class functions, variadic parameters, overloading, local `fn`/`recipe` definitions, re-exports, wildcard or unqualified imports, network or package imports, transcendental math, colors other than 8-bit sRGB hex, `@scope` nested inside rules, plugins, minified output. Source maps, when implemented, follow ECMA-426 (1st edition, December 2024), with columns in UTF-16 code units.
+Selector inheritance/extend, placeholder selectors, mutation, `null`, first-class functions, variadic parameters, overloading, local `fn`/`recipe` definitions, re-exports, wildcard or unqualified imports, network or package imports, transcendental math, colors other than 8-bit sRGB hex, `@scope` nested inside rules, plugins, minified output. Source maps follow ECMA-426 (1st edition, December 2024), with columns in UTF-16 code units; their provenance policy (each emitted item maps to its definition location) is in [CLI.md](CLI.md#source-maps).
 
 ## 20. Complete example
 

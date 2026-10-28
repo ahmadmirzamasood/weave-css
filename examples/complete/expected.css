@@ -1,0 +1,28 @@
+.card {
+  padding: 16px;
+  background: #ffffff;
+  color: #2563eb;
+  display: grid;
+}
+
+.card:hover {
+  opacity: 0.8;
+}
+
+.gap-0 {
+  gap: 4px;
+}
+
+.gap-1 {
+  gap: 8px;
+}
+
+.gap-2 {
+  gap: 16px;
+}
+
+@media (width >= 768px) {
+  .card {
+    grid-template-columns: 1fr 2fr;
+  }
+}

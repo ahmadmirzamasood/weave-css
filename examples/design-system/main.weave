@@ -1,0 +1,30 @@
+/* A small design system: tokens and recipes live in modules, the entry
+   module composes them. Compile with:
+
+       weave build examples/design-system/main.weave -o site.css --source-map
+*/
+load "./tokens/colors.weave" as colors;
+load "./tokens/spacing.weave" as space;
+load "./recipes.weave" as ui;
+
+rule .button {
+    apply ui.control(space.step(2));
+    color: #{colors.on-primary};
+    background: #{colors.primary};
+
+    rule &:focus-visible {
+        outline: 2px solid #{colors.focus};
+    }
+}
+
+each name, value in colors.surfaces {
+    rule .surface-#{name} {
+        background: #{value};
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    rule .button {
+        transition: background-color 120ms ease-out;
+    }
+}

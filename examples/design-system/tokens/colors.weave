@@ -1,0 +1,4 @@
+export bind primary = #2563eb;
+export bind on-primary = #ffffff;
+export bind focus = #f59e0b;
+export bind surfaces = {base: #ffffff, raised: #f8fafc, sunken: #e2e8f0};

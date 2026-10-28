@@ -2,3 +2,5 @@
 tests/fixtures/** text eol=lf
 # This fixture deliberately contains CRLF line endings.
 tests/fixtures/spec/035-unicode-and-crlf/main.weave -text
+# Example outputs are compared byte-for-byte by the CLI tests; keep LF.
+examples/** text eol=lf

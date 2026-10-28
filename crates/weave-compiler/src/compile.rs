@@ -8,6 +8,7 @@ use crate::modules::{self, DependencyGraph, ModuleCache};
 use crate::options::{CompileOptions, Limit};
 use crate::resolve::{ModuleId, ModuleResolver, ResolveError};
 use crate::source::{SourceManager, Span};
+use crate::source_map::SourceMap;
 use crate::{emit, eval};
 
 /// A successful build.
@@ -15,8 +16,8 @@ use crate::{emit, eval};
 pub struct CompileOutput {
     /// UTF-8 CSS with LF line breaks (LANGUAGE.md §15).
     pub css: String,
-    /// An ECMA-426 source map, when requested. Not produced yet (phase 08).
-    pub source_map: Option<String>,
+    /// The source map, when [`CompileOptions::source_map`] is set.
+    pub source_map: Option<SourceMap>,
     /// Every module that contributed to the build, entry first, then in
     /// discovery order.
     pub dependencies: Vec<ModuleId>,
@@ -115,15 +116,21 @@ pub fn compile_with_cache(
     if diagnostics.has_errors() {
         return failed(sources, graph, diagnostics);
     }
-    match emit::emit(&nodes, options.limits.get(Limit::OutputBytes)) {
-        Ok(css) => Compilation {
-            sources,
+    match emit::emit(
+        &nodes,
+        options.limits.get(Limit::OutputBytes),
+        options.source_map,
+    ) {
+        Ok((css, mappings)) => Compilation {
             outcome: Ok(CompileOutput {
                 css,
-                source_map: None,
+                source_map: options
+                    .source_map
+                    .then(|| SourceMap::build(mappings, &sources)),
                 dependencies: graph.modules().to_vec(),
                 warnings: diagnostics.into_vec(),
             }),
+            sources,
             graph,
         },
         Err(diagnostic) => {

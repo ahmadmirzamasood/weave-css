@@ -1,0 +1,8 @@
+load "./tokens/spacing.weave" as space;
+
+export recipe control(pad: length = 8px) {
+    display: inline-flex;
+    padding: #{pad} #{pad * 2};
+    border-radius: #{space.step(1)};
+    border: 0;
+}

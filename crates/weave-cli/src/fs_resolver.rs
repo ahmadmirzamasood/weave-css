@@ -5,41 +5,101 @@
 //! ordinary paths: a concurrent filesystem change between the check and the
 //! read is not defended against.
 
+use std::collections::BTreeSet;
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::{Component, Path, PathBuf};
 
 use weave_compiler::{LoadedModule, ModuleId, ModuleResolver, ResolveError, resolve};
 
+/// The module identity of standard input. `<` cannot appear in a Windows
+/// file name; elsewhere a file with this exact name is shadowed by stdin.
+pub const STDIN_MODULE: &str = "<stdin>.weave";
+
 #[derive(Debug)]
 pub struct FsResolver {
     /// Canonical root directory.
     root: PathBuf,
+    /// The entry read from standard input, if any.
+    stdin: Option<(ModuleId, Vec<u8>)>,
+    /// Every filesystem path a build looked at: lexical paths of `load`
+    /// specifiers (even when missing) and canonical paths of loaded modules.
+    touched: BTreeSet<PathBuf>,
 }
 
 impl FsResolver {
     /// Creates a resolver rooted at the entry file's directory and returns
     /// it with the entry's module identity.
     pub fn for_entry(entry: &Path) -> io::Result<(FsResolver, ModuleId)> {
-        if entry.extension().is_none_or(|ext| ext != "weave") {
+        check_extension(entry)?;
+        let canonical = entry.canonicalize()?;
+        let parent = canonical
+            .parent()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "no parent directory"))?;
+        let resolver = FsResolver::with_root(parent)?;
+        let id = resolver.entry_id(entry)?;
+        Ok((resolver, id))
+    }
+
+    /// Creates a resolver rooted at the directory `root`.
+    pub fn with_root(root: &Path) -> io::Result<FsResolver> {
+        let root = root.canonicalize()?;
+        if !root.is_dir() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                "input files must have the .weave extension",
+                "the module root is not a directory",
             ));
         }
+        Ok(FsResolver {
+            root,
+            stdin: None,
+            touched: BTreeSet::new(),
+        })
+    }
+
+    /// The module identity of the entry file `entry`, which must be a
+    /// `.weave` file inside the root.
+    pub fn entry_id(&self, entry: &Path) -> io::Result<ModuleId> {
+        check_extension(entry)?;
         let canonical = entry.canonicalize()?;
         if !canonical.is_file() {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, "not a file"));
         }
-        let root = canonical
-            .parent()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "no parent directory"))?
-            .to_path_buf();
-        let resolver = FsResolver { root };
-        let id = resolver
-            .module_id(&canonical)
-            .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err.to_string()))?;
-        Ok((resolver, id))
+        self.module_id(&canonical).map_err(|err| {
+            let message = match err {
+                ResolveError::OutsideRoot(_) => {
+                    "the input file is outside the module root".to_string()
+                }
+                other => other.to_string(),
+            };
+            io::Error::new(io::ErrorKind::InvalidInput, message)
+        })
+    }
+
+    /// Makes standard input the entry module and returns its identity.
+    pub fn set_stdin(&mut self, bytes: Vec<u8>) -> ModuleId {
+        // `STDIN_MODULE` is a valid module path.
+        let id = ModuleId::new(STDIN_MODULE).unwrap_or_else(|_| unreachable!());
+        self.stdin = Some((id.clone(), bytes));
+        id
+    }
+
+    /// The filesystem path of a module (not canonicalized), or `None` for
+    /// standard input.
+    pub fn path(&self, id: &ModuleId) -> Option<PathBuf> {
+        if self.is_stdin(id) {
+            return None;
+        }
+        Some(self.path_of(id))
+    }
+
+    /// Returns and forgets the paths looked at since the last call.
+    pub fn take_touched(&mut self) -> BTreeSet<PathBuf> {
+        std::mem::take(&mut self.touched)
+    }
+
+    fn is_stdin(&self, id: &ModuleId) -> bool {
+        self.stdin.as_ref().is_some_and(|(stdin, _)| stdin == id)
     }
 
     fn path_of(&self, id: &ModuleId) -> PathBuf {
@@ -77,6 +137,16 @@ impl FsResolver {
     }
 }
 
+fn check_extension(entry: &Path) -> io::Result<()> {
+    if entry.extension().is_none_or(|ext| ext != "weave") {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "input files must have the .weave extension",
+        ));
+    }
+    Ok(())
+}
+
 fn io_error(id: &ModuleId, err: &io::Error) -> ResolveError {
     if err.kind() == io::ErrorKind::NotFound {
         ResolveError::NotFound(format!("module `{id}` not found"))
@@ -88,12 +158,22 @@ fn io_error(id: &ModuleId, err: &io::Error) -> ResolveError {
 impl ModuleResolver for FsResolver {
     fn resolve(&mut self, importer: &ModuleId, specifier: &str) -> Result<ModuleId, ResolveError> {
         let lexical = resolve::join_load_path(importer, specifier)?;
+        self.touched.insert(self.path_of(&lexical));
         let canonical = self.canonical(&lexical)?;
         self.module_id(&canonical)
     }
 
     fn load(&mut self, id: &ModuleId, max_bytes: u64) -> Result<LoadedModule, ResolveError> {
+        if let Some((_, bytes)) = self.stdin.as_ref().filter(|(stdin, _)| stdin == id) {
+            let keep = usize::try_from(max_bytes.saturating_add(1)).unwrap_or(usize::MAX);
+            return Ok(LoadedModule {
+                display_name: id.to_string(),
+                bytes: bytes.iter().take(keep).copied().collect(),
+            });
+        }
+        self.touched.insert(self.path_of(id));
         let canonical = self.canonical(id)?;
+        self.touched.insert(canonical.clone());
         let canonical_id = self.module_id(&canonical)?;
         let file = File::open(&canonical).map_err(|err| io_error(id, &err))?;
         let mut bytes = Vec::new();

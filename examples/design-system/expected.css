@@ -1,0 +1,30 @@
+.button {
+  display: inline-flex;
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: 0;
+  color: #ffffff;
+  background: #2563eb;
+}
+
+.button:focus-visible {
+  outline: 2px solid #f59e0b;
+}
+
+.surface-base {
+  background: #ffffff;
+}
+
+.surface-raised {
+  background: #f8fafc;
+}
+
+.surface-sunken {
+  background: #e2e8f0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .button {
+    transition: background-color 120ms ease-out;
+  }
+}

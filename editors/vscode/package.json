@@ -1,0 +1,28 @@
+{
+  "name": "weave-syntax",
+  "displayName": "Weave syntax (local)",
+  "description": "Basic syntax highlighting for .weave stylesheets. Not a language server.",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "weave-local",
+  "license": "MIT",
+  "engines": { "vscode": "^1.75.0" },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "weave",
+        "aliases": ["Weave", "weave"],
+        "extensions": [".weave"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "weave",
+        "scopeName": "source.weave",
+        "path": "./syntaxes/weave.tmLanguage.json"
+      }
+    ]
+  }
+}

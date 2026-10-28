@@ -23,6 +23,8 @@ jobs:
           persist-credentials: false
       - name: Check fixtures and documentation links
         run: python3 scripts/check_spec.py
+      - name: Check editor support files
+        run: python3 scripts/check_editor.py
 
   rust:
     name: Rust (${{ matrix.os }})

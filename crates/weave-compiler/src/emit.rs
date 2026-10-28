@@ -4,17 +4,38 @@
 //! top-level items and none inside blocks, a single trailing LF when the
 //! output is non-empty. Verbatim text is indented on its first line only.
 //! Output is bounded by the `output-bytes` limit (E8006).
+//!
+//! When source maps are requested, the emitter records one mapping at the
+//! first byte of every written node (after its indentation), pointing at the
+//! node's origin; see `source_map.rs` for the provenance policy.
 
 use crate::diagnostic::{Code, Diagnostic};
-use crate::ir::Node;
+use crate::ir::{Node, Origin};
+
+/// A generated position (0-based line, 0-based UTF-16 column) and the origin
+/// of the node written there.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct RawMapping {
+    pub line: u32,
+    pub column: u32,
+    pub origin: Origin,
+}
 
 /// Emits a stylesheet, failing with E8006 when the output would exceed
-/// `limit` bytes.
-pub(crate) fn emit(nodes: &[Node], limit: u64) -> Result<String, Diagnostic> {
+/// `limit` bytes. With `map`, also returns the mappings in output order.
+pub(crate) fn emit(
+    nodes: &[Node],
+    limit: u64,
+    map: bool,
+) -> Result<(String, Vec<RawMapping>), Diagnostic> {
     let mut writer = Writer {
         out: String::new(),
         limit: usize::try_from(limit).unwrap_or(usize::MAX),
         overflow: false,
+        map,
+        line: 0,
+        column: 0,
+        mappings: Vec::new(),
     };
     // An explicit stack of open blocks (not recursion), so the deepest
     // allowed nesting cannot exhaust the thread stack.
@@ -59,13 +80,19 @@ pub(crate) fn emit(nodes: &[Node], limit: u64) -> Result<String, Diagnostic> {
         )
         .with_note("raise it with the `output-bytes` limit"));
     }
-    Ok(writer.out)
+    Ok((writer.out, writer.mappings))
 }
 
 struct Writer {
     out: String,
     limit: usize,
     overflow: bool,
+    /// Whether to track positions and record mappings.
+    map: bool,
+    /// The current 0-based line and UTF-16 column, tracked only with `map`.
+    line: u32,
+    column: u32,
+    mappings: Vec<RawMapping>,
 }
 
 impl Writer {
@@ -75,6 +102,30 @@ impl Writer {
             return;
         }
         self.out.push_str(text);
+        if self.map {
+            // Output is at most `u32::MAX` bytes (the limit's maximum), so
+            // neither counter can overflow.
+            for c in text.chars() {
+                if c == '\n' {
+                    self.line = self.line.saturating_add(1);
+                    self.column = 0;
+                } else {
+                    let units = u32::try_from(c.len_utf16()).unwrap_or(2);
+                    self.column = self.column.saturating_add(units);
+                }
+            }
+        }
+    }
+
+    /// Records a mapping from the current position to `origin`.
+    fn mark(&mut self, origin: Option<&Origin>) {
+        if let (true, Some(origin)) = (self.map, origin) {
+            self.mappings.push(RawMapping {
+                line: self.line,
+                column: self.column,
+                origin: origin.clone(),
+            });
+        }
     }
 
     fn indent(&mut self, depth: usize) {
@@ -86,6 +137,13 @@ impl Writer {
     /// Writes an item, or the header of a block item and returns its body.
     fn item<'a>(&mut self, item: &'a Node, depth: usize) -> Option<&'a [Node]> {
         self.indent(depth);
+        match item {
+            Node::Rule { origin, .. }
+            | Node::Declaration { origin, .. }
+            | Node::AtRule { origin, .. }
+            | Node::Keyframe { origin, .. }
+            | Node::Verbatim { origin, .. } => self.mark(origin.as_ref()),
+        }
         match item {
             Node::Declaration {
                 name,
@@ -229,7 +287,7 @@ mod tests {
             at_rule("@font-face", "", Some(vec![])),
         ];
         assert_eq!(
-            emit(&sheet, 1 << 20).unwrap(),
+            emit(&sheet, 1 << 20, false).unwrap().0,
             "/*! banner */\n\n.a {\n  color: red;\n  --x: !important;\n}\n\n\
              @media print {\n  .b {\n    x {\n  y }\n  }\n  .c {\n    --e:;\n  }\n}\n\n\
              @layer a, b;\n\n@font-face {\n}\n"
@@ -239,13 +297,13 @@ mod tests {
     #[test]
     fn empty_output_is_zero_bytes() {
         let sheet: Vec<Node> = vec![rule(".a", vec![])];
-        assert_eq!(emit(&sheet, 1).unwrap(), "");
+        assert_eq!(emit(&sheet, 1, false).unwrap().0, "");
     }
 
     #[test]
     fn output_limit_is_inclusive() {
         let sheet: Vec<Node> = vec![verbatim("abc")];
-        assert_eq!(emit(&sheet, 4).unwrap(), "abc\n");
-        assert_eq!(emit(&sheet, 3).unwrap_err().code(), Code::E8006);
+        assert_eq!(emit(&sheet, 4, false).unwrap().0, "abc\n");
+        assert_eq!(emit(&sheet, 3, false).unwrap_err().code(), Code::E8006);
     }
 }

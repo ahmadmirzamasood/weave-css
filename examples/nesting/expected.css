@@ -1,0 +1,25 @@
+.nav, .menu {
+  display: flex;
+}
+
+:is(.nav, .menu) a {
+  color: inherit;
+}
+
+:is(.nav, .menu) a:hover {
+  text-decoration: underline;
+}
+
+:is(.nav, .menu) > .item + .item {
+  margin-inline-start: 1rem;
+}
+
+@media (width < 40rem) {
+  .nav, .menu {
+    flex-direction: column;
+  }
+}
+
+.nav, .menu {
+  gap: 0.5rem;
+}

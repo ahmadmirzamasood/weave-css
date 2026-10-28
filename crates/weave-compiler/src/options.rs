@@ -187,6 +187,8 @@ pub enum OutputStyle {
 pub struct CompileOptions {
     pub limits: ResourceLimits,
     pub output_style: OutputStyle,
+    /// Produce a source map ([`crate::SourceMap`]) with the CSS.
+    pub source_map: bool,
 }
 
 #[cfg(test)]

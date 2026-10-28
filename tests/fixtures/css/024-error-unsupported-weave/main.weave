@@ -1,9 +1,2 @@
 load "./x.weave" as x;
 export bind e = 1;
-recipe r {
-    @media print { color: blue; }
-}
-rule .a {
-    rule &:hover { color: red; }
-    @media print { color: blue; }
-}

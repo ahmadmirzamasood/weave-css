@@ -1,0 +1,2 @@
+description = "Declarations before, between and after nested rules keep their cascade position (nested declarations rules). Hoisting all declarations above the nested rules changes the winner."
+properties = ["color", "margin-top", "padding-top", "border-top-width"]

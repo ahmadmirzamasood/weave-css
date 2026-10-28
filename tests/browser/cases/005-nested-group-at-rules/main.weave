@@ -1,0 +1,15 @@
+@layer base, theme;
+rule .wrap { container-type: inline-size; }
+rule .card {
+    color: black;
+    @media (min-width: 1px) {
+        color: red;
+        rule .t { padding-top: 4px; }
+        @media (max-width: 1px) { color: green; }
+    }
+    @supports (display: grid) { margin-top: 5px; }
+    @container (min-width: 10px) { rule .t { margin-top: 6px; } }
+    @layer theme { background-color: blue; }
+    @layer base { background-color: red; }
+    @supports (not-a-property: x) { border-top-width: 9px; border-top-style: solid; }
+}

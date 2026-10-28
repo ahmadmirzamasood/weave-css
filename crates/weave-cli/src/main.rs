@@ -36,9 +36,9 @@ Options:
 
 Status: this build compiles the plain-CSS subset of Weave (`rule` blocks,
 declarations, at-rules, `opaque` blocks, comments) with bindings,
-expressions, interpolation, functions, `when`/`each`, recipes and the
-built-ins of docs/BUILTINS.md. Modules, nesting and the `color` built-ins
-fail with error E5001 (not implemented yet).
+expressions, interpolation, functions, `when`/`each`, recipes, nesting and
+the built-ins of docs/BUILTINS.md. Modules and the `color` built-ins fail
+with error E5001 (not implemented yet).
 
 Modules are resolved relative to the directory of the input file, which is
 also the module root.

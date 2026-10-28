@@ -12,9 +12,13 @@
 //! content blocks are parsed without knowing where they will be expanded:
 //! the evaluator checks the placement of their declarations and rules.
 //!
-//! Compile-time constructs that this build does not implement — `load`,
-//! `export`, nested `rule`s, at-rules nested in rules and known at-rules in
-//! recipe bodies and content blocks — are reported as E5001 and never
+//! Nested `rule`s and group at-rules nested in rules are kept as items;
+//! the evaluator lowers them ([`crate::selector`]). Known at-rules in
+//! recipe bodies and content blocks are kept too, and their placement is
+//! checked where they are expanded.
+//!
+//! Compile-time constructs that this build does not implement — `load`
+//! and `export` — are reported as E5001 and never
 //! silently dropped. Their extent is skipped so that parsing continues and
 //! later independent errors are reported.
 //!
@@ -66,7 +70,7 @@ const PAGE_MARGINS: [&str; 16] = [
     "right-bottom",
 ];
 
-const NOT_IMPLEMENTED_NOTE: &str = "this build implements the plain-CSS subset, bindings, expressions, interpolation, functions, control flow, recipes and the built-ins of docs/BUILTINS.md; modules and nesting are not implemented yet";
+const NOT_IMPLEMENTED_NOTE: &str = "this build implements the plain-CSS subset, bindings, expressions, interpolation, functions, control flow, recipes, nesting and the built-ins of docs/BUILTINS.md; modules are not implemented yet";
 
 /// The kind of block being parsed (CSS-COMPATIBILITY.md §2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -205,6 +209,8 @@ enum Pending {
     AtRule {
         name: String,
         prelude: Template,
+        context: Context,
+        top_only: bool,
         span: Span,
     },
     Keyframe {
@@ -363,15 +369,6 @@ impl<'a> Parser<'a, '_> {
             Diagnostic::error(Code::E4014, format!("{what} is not allowed in a function body"))
                 .with_primary(span)
                 .with_note("functions only compute values: their bodies may contain `bind`, `when`, `each`, `yield`, `fail` and `warn`; use a recipe to emit CSS"),
-        );
-    }
-
-    /// A known at-rule in a recipe body or content block, whose lowering
-    /// depends on where it is expanded.
-    fn not_in_recipe(&mut self, span: Span, raw: &str) {
-        self.not_implemented(
-            span,
-            &format!("`{raw}` in a recipe body or content block is"),
         );
     }
 
@@ -684,12 +681,15 @@ impl<'a> Parser<'a, '_> {
             Pending::AtRule {
                 name,
                 prelude,
+                context,
+                top_only,
                 span,
             } => items.push(Item::AtRule {
                 name,
                 prelude,
                 body: Some(body),
-                context: ctx.context(),
+                context,
+                top_only,
                 span,
             }),
             Pending::Keyframe { selectors, span } => items.push(Item::Keyframe {
@@ -1482,10 +1482,8 @@ impl<'a> Parser<'a, '_> {
                     }
                 }
             }
-            Ctx::Rule => {
-                self.not_implemented(span, "nested `rule`s (nesting) are");
-                keep = false;
-            }
+            // Lowered against the enclosing rule by the evaluator.
+            Ctx::Rule => {}
             Ctx::Declarations => {
                 self.error(
                     Code::E6002,
@@ -1607,7 +1605,8 @@ impl<'a> Parser<'a, '_> {
             return None;
         }
         if matches!(kind, AtKind::Unknown | AtKind::Preserved) {
-            if kind == AtKind::Preserved && !ctx.is_stylesheet() {
+            // In recipe bodies and content blocks, checked where expanded.
+            if kind == AtKind::Preserved && !ctx.is_stylesheet() && ctx != Ctx::Dynamic {
                 self.error(
                     Code::E6005,
                     span,
@@ -1616,15 +1615,15 @@ impl<'a> Parser<'a, '_> {
                 self.verbatim_at_rule(at);
                 return None;
             }
-            if kind == AtKind::Preserved && ctx == Ctx::Dynamic {
-                self.not_in_recipe(span, &raw);
-                self.verbatim_at_rule(at);
-                return None;
-            }
+            let verbatim = if kind == AtKind::Preserved && ctx == Ctx::Dynamic {
+                VerbatimKind::TopAtRule
+            } else {
+                VerbatimKind::AtRule
+            };
             if let Some(text) = self.verbatim_at_rule(at) {
                 items.push(Item::Verbatim {
                     text,
-                    kind: VerbatimKind::AtRule,
+                    kind: verbatim,
                     span,
                 });
             }
@@ -1662,14 +1661,14 @@ impl<'a> Parser<'a, '_> {
                     return None;
                 }
             }
-            if kind == AtKind::Layer && ctx == Ctx::Dynamic {
-                self.not_in_recipe(span, &raw);
-            } else if self.statement_at_rule_allowed(kind, at, ctx, &prelude_tokens) {
+            let dynamic_layer = kind == AtKind::Layer && ctx == Ctx::Dynamic;
+            if dynamic_layer || self.statement_at_rule_allowed(kind, at, ctx, &prelude_tokens) {
                 items.push(Item::AtRule {
                     name: raw,
                     prelude,
                     body: None,
                     context: Context::Stylesheet,
+                    top_only: dynamic_layer,
                     span,
                 });
             }
@@ -1684,16 +1683,18 @@ impl<'a> Parser<'a, '_> {
             );
             return None;
         };
+        let mut context = None;
+        let mut top_only = false;
         let (body_ctx, keep) = match (kind, ctx) {
             (AtKind::Group | AtKind::Layer, Ctx::TopLevel | Ctx::Stylesheet) => {
                 (Ctx::Stylesheet, true)
             }
-            (AtKind::Group | AtKind::Layer, Ctx::Rule) => {
-                self.not_implemented(
-                    span,
-                    &format!("`{raw}` nested in a rule (group at-rule lowering) is"),
-                );
-                (Ctx::Rule, false)
+            // Lowered by wrapping the enclosing rule (CSS-COMPATIBILITY.md
+            // §4.3); in recipe bodies and content blocks, wherever they are
+            // expanded.
+            (AtKind::Group | AtKind::Layer, Ctx::Rule | Ctx::Dynamic) => {
+                context = Some(Context::Enclosing);
+                (ctx, true)
             }
             (AtKind::Scope, Ctx::TopLevel | Ctx::Stylesheet) => (Ctx::Stylesheet, true),
             (AtKind::Scope, Ctx::Rule) => {
@@ -1708,17 +1709,14 @@ impl<'a> Parser<'a, '_> {
             (AtKind::Keyframes, Ctx::TopLevel | Ctx::Stylesheet) => (Ctx::Keyframes, true),
             (AtKind::Page, Ctx::TopLevel | Ctx::Stylesheet) => (Ctx::Page, true),
             (AtKind::PageMargin, Ctx::Page) => (Ctx::Declarations, true),
+            // Allowed only at stylesheet level: checked where the recipe or
+            // content block is expanded.
             (
-                AtKind::Group
-                | AtKind::Layer
-                | AtKind::Scope
-                | AtKind::Descriptors
-                | AtKind::Keyframes
-                | AtKind::Page,
+                AtKind::Scope | AtKind::Descriptors | AtKind::Keyframes | AtKind::Page,
                 Ctx::Dynamic,
             ) => {
-                self.not_in_recipe(span, &raw);
-                (Ctx::Dynamic, false)
+                top_only = true;
+                (body_context(kind), true)
             }
             (_, _) => {
                 self.error(
@@ -1729,11 +1727,14 @@ impl<'a> Parser<'a, '_> {
                 (body_context(kind), false)
             }
         };
+        let context = context.unwrap_or_else(|| body_ctx.context());
         self.top_item(ctx, TopClass::Other, at);
         let pending = if keep {
             Pending::AtRule {
                 name: raw,
                 prelude,
+                context,
+                top_only,
                 span,
             }
         } else {

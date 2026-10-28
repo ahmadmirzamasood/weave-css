@@ -2,8 +2,9 @@
 //!
 //! - `tests/fixtures/css` (phase 03, plain-CSS subset),
 //!   `tests/fixtures/values` (phase 04, values, scopes and interpolation)
-//!   and `tests/fixtures/functions` (phase 05, functions, control flow,
-//!   recipes and built-ins).
+//!   `tests/fixtures/functions` (phase 05, functions, control flow,
+//!   recipes and built-ins) and `tests/fixtures/nesting` (phase 06, nesting
+//!   and rule contexts).
 //!   Every case must pass: exact expected bytes (and identical output on a
 //!   second run) or exactly the expected diagnostics. Successful output is
 //!   also parsed by an independent CSS parser unless the case declares
@@ -33,9 +34,10 @@ use weave_compiler::{
 };
 
 /// Specification fixtures that this build compiles as specified.
-const SPEC_PASSING: [&str; 25] = [
+const SPEC_PASSING: [&str; 31] = [
     "001-plain-css-preservation",
     "002-bindings-value-interpolation",
+    "003-lexical-scope-shadowing",
     "004-error-duplicate-binding",
     "005-error-unresolved-name",
     "006-numbers-units-precision",
@@ -48,9 +50,13 @@ const SPEC_PASSING: [&str; 25] = [
     "013-error-index-out-of-range",
     "014-functions-defaults-named-recursion",
     "015-error-unknown-named-argument",
+    "016-recipes-content-blocks",
     "017-error-content-block-not-placed",
     "018-conditions-ranges-selector-escaping",
     "019-error-non-boolean-condition",
+    "020-nesting-parent-references",
+    "021-nesting-specificity-is",
+    "022-nested-group-at-rules",
     "023-at-rule-body-contexts",
     "024-opaque-and-unknown-syntax",
     "029-error-selector-without-rule",
@@ -58,6 +64,7 @@ const SPEC_PASSING: [&str; 25] = [
     "031-error-invalid-fragment",
     "032-error-argument-type",
     "033-error-top-level-declaration",
+    "034-error-nesting-under-pseudo-element",
     "035-unicode-and-crlf",
 ];
 
@@ -206,6 +213,11 @@ fn values_fixtures() {
 #[test]
 fn functions_fixtures() {
     exact_fixtures("functions", 12);
+}
+
+#[test]
+fn nesting_fixtures() {
+    exact_fixtures("nesting", 9);
 }
 
 /// Runs a fixture set in which every case must pass exactly.

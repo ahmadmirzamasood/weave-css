@@ -4,7 +4,8 @@ Checks fixture structure and metadata, diagnostic expectation syntax and
 positions, line endings, the fixture indexes, and relative Markdown links in
 git-tracked files, for the specification fixtures (tests/fixtures/spec), the
 CSS-subset fixtures (tests/fixtures/css), the value fixtures
-(tests/fixtures/values) and the function fixtures (tests/fixtures/functions).
+(tests/fixtures/values), the function fixtures (tests/fixtures/functions)
+and the nesting fixtures (tests/fixtures/nesting).
 It does not compile anything: the fixture runner in
 crates/weave-compiler/tests/fixtures.rs executes them.
 
@@ -23,6 +24,7 @@ FIXTURE_SETS = {
     Path("tests/fixtures/css"): {"description", "spec", "expect", "validation"},
     Path("tests/fixtures/values"): {"description", "spec", "expect", "validation"},
     Path("tests/fixtures/functions"): {"description", "spec", "expect", "validation"},
+    Path("tests/fixtures/nesting"): {"description", "spec", "expect", "validation"},
 }
 CRLF_FIXTURES = {"tests/fixtures/spec/035-unicode-and-crlf/main.weave"}
 VALIDATION = {"independent", "preserve-only"}

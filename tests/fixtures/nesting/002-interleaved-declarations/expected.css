@@ -1,0 +1,39 @@
+.a, .b {
+  color: red;
+  color: blue;
+}
+
+:is(.a, .b) .c {
+  margin: 0;
+}
+
+.a, .b {
+  /*! between */
+  padding: 1px !important;
+  --token: { x: y };
+}
+
+@media print {
+  .a, .b {
+    display: none;
+  }
+  :is(.a, .b) + :is(.a, .b) {
+    margin: 0;
+  }
+  .a, .b {
+    display: block;
+  }
+}
+
+.a, .b {
+  @unknown-thing x { y: z }
+  *zoom: 1;
+}
+
+:is(.a, .b) .d {
+  width: 1px;
+}
+
+.a, .b {
+  color: green;
+}

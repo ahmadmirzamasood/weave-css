@@ -1,0 +1,10 @@
+rule ul, ol {
+    rule > li {
+        color: red;
+        rule + li { background-color: red; }
+        rule ~ li.k { margin-left: 3px; }
+        rule & + & { padding-left: 4px; }
+        rule > &.deep, a { border-left-width: 2px; border-left-style: solid; }
+    }
+}
+rule li { color: blue; }

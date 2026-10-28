@@ -1,0 +1,2 @@
+description = "The source of specification fixture 021 (multi-selector parents, complex parents in non-leading positions, type selectors after `&`, `:where(&)`), compared with native nesting."
+properties = ["color", "margin-left"]

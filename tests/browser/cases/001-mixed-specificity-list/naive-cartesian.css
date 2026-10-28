@@ -1,0 +1,4 @@
+#main .item, .side .item { color: red; }
+#main:first-child, .side:first-child { background-color: red; }
+.side .item { color: blue; }
+.wrap .side:first-child { background-color: blue; }

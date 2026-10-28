@@ -1,0 +1,3 @@
+description = "At-rules that cannot be nested in a rule body are rejected while parsing: `@scope` is E6006; `@font-face`, `@keyframes`, `@property`, `@page`, `@layer` statements, `@import` and `@font-feature-values` are E6005."
+spec = ["CSS-COMPATIBILITY.md 2", "CSS-COMPATIBILITY.md 3"]
+expect = "error"

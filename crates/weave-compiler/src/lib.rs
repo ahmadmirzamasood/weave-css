@@ -1,11 +1,12 @@
 //! Compiler library for the Weave stylesheet language.
 //!
-//! Status: values, scopes and interpolation (phase 04). [`compile`]
-//! tokenizes, parses, evaluates and emits the plain-CSS subset (`rule`
-//! blocks, declarations, known and unknown at-rules, `opaque` blocks,
-//! comments) together with `bind` statements, expressions, `#{…}`
-//! interpolation in every CSS context and the `css.*` sequence
-//! constructors. Other Weave constructs are reported as E5001 (not
+//! Status: nesting and rule contexts (phase 06). [`compile`] tokenizes,
+//! parses, evaluates and emits the plain-CSS subset (`rule` blocks,
+//! declarations, known and unknown at-rules, `opaque` blocks, comments)
+//! together with `bind` statements, expressions, `#{…}` interpolation in
+//! every CSS context, functions, control flow, recipes, the built-ins of
+//! docs/BUILTINS.md, and nested rules and group at-rules lowered to flat
+//! CSS. Modules and the `color` built-ins are reported as E5001 (not
 //! implemented by this build); they are never silently ignored.
 
 #![forbid(unsafe_code)]
@@ -23,6 +24,7 @@ mod number;
 pub mod options;
 mod parser;
 pub mod resolve;
+mod selector;
 pub mod source;
 mod syntax;
 mod value;

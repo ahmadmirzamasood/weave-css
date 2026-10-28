@@ -1,0 +1,4 @@
+description = "Every `&` position of CSS-COMPATIBILITY.md §4.1: leading `&` with simple and complex parents, implicit descendant, leading combinators (also followed by `&`), `&` after other compounds, `&` inside `:not()`, `:is()`, `:where()`, `:has()` and `:nth-child(… of …)`, type and universal parents after other simple selectors, namespaced types, lists at every level (one output selector per nested selector, never a Cartesian product), and three levels of nesting."
+spec = ["LANGUAGE.md 11", "CSS-COMPATIBILITY.md 4.1", "CSS-COMPATIBILITY.md 4.2"]
+expect = "css"
+validation = "independent"

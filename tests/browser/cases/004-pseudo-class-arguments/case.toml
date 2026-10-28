@@ -1,0 +1,2 @@
+description = "`&` inside `:not()`, `:is()`, `:where()` and `:has()`, and type-selector parents after another simple selector (`a&` with `span.x`). `:where(&)` keeps zero specificity."
+properties = ["color", "background-color", "border-top-width", "outline-width", "text-decoration-line"]

@@ -1,0 +1,62 @@
+@layer reset, components;
+
+@font-face {
+  font-family: "Brand";
+  src: url("x.woff2");
+}
+
+@keyframes spin {
+  to {
+    rotate: 1turn;
+  }
+}
+
+@property --angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@page :first {
+  margin: 1in;
+  @top-center {
+    content: "Brand";
+  }
+}
+
+@scope (.card) {
+  .title {
+    margin: 0;
+  }
+}
+
+@font-feature-values Font One { @styleset { nice-style: 12; } }
+
+.button {
+  transition: transform 0.2s;
+}
+
+.button:hover {
+  transform: translateY(-4px);
+}
+
+@media (width >= 60em) {
+  .button {
+    padding: 2rem;
+  }
+  .button + .button {
+    margin-left: 1rem;
+  }
+}
+
+.button.size-1 {
+  font-size: 1rem;
+}
+
+.button.size-2 {
+  font-size: 2rem;
+}
+
+.button .icon {
+  width: 1em;
+}

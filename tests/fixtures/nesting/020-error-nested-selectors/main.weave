@@ -1,0 +1,16 @@
+rule .a::before {
+    content: "";
+    @media print { content: none; }
+    rule &:hover { color: red; }
+}
+rule .b:after { rule .x { color: red; } }
+rule .c::part(label) { rule .x { color: red; } }
+rule .d {
+    rule &div { color: red; }
+    rule .x, , .y { color: red; }
+    rule .x > { color: red; }
+    rule > > .x { color: red; }
+    rule &-suffix { color: red; }
+}
+bind t = css.fragment("span");
+rule .e { rule &#{t} { color: red; } }

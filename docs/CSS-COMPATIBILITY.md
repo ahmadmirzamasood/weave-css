@@ -39,6 +39,8 @@ Verified on 2026-10-15. Later revisions are adopted only as explicit specificati
 
 Inside a group at-rule the body context is the enclosing context: stylesheet at top level, rule body when nested in a rule.
 
+Recipe bodies and content blocks may contain any item a rule body or stylesheet may contain; whether an item is allowed is decided where the recipe or content block is expanded, with the codes of this matrix. Known at-rules allowed only at stylesheet level (declaration-list at-rules, `@keyframes`, `@page`, `@scope`, `@layer` statements, `@font-feature-values`) are E6005 when expanded anywhere else (`@scope` inside a rule: E6006); group at-rules take the context they are expanded in, and are E6005 in declaration lists, keyframe lists and page bodies.
+
 ## 3. At-rule matrix
 
 At-rule names match ASCII case-insensitively and are emitted as written. Vendor-prefixed names (`@-webkit-keyframes`) are unknown at-rules.
@@ -76,16 +78,17 @@ Weave lowers all nesting to flat CSS whose matching and specificity equal those 
 
 Input: the enclosing rule's lowered selector list `P = [p1 … pn]` (no `&` remains) and one complex selector `C` from the nested `rule` prelude. Each item of a nested selector list is lowered independently; output keeps the child list order.
 
-1. **Relative selectors.** If `C` contains no `&` anywhere (including inside pseudo-class arguments): if `C` begins with a combinator, prepend `&`; otherwise prepend `& ` (descendant).
-2. **Pseudo-elements.** If any `pi` contains a pseudo-element, a nested `rule` is E6004. (Nested group at-rules and declarations are still fine; they reuse `P` unchanged.)
-3. **Compound validity.** A type or universal selector that is not the first simple selector of its compound in `C` (counting `&` as a simple selector, as in `&div`) is E6007.
+0. **Structure.** After interpolation, `C`'s selector list is brought to the canonical layout of LANGUAGE.md §15 and parsed into complex selectors, compounds and simple selectors; pseudo-class arguments are selector lists too, and attribute selectors are atomic. An empty selector in the list, a combinator not followed by a selector and two adjacent combinators are E6007.
+1. **Relative selectors.** If `C` contains no `&` anywhere (including inside pseudo-class arguments), or begins with a combinator, it is relative: if `C` begins with a combinator, prepend `&`; otherwise prepend `& ` (descendant). (A selector beginning with a combinator is relative even when it contains `&` later, as in CSS Nesting: `> &.x` is `& > &.x`.)
+2. **Pseudo-elements.** If any `pi` contains a pseudo-element (`::name`, `::name(…)`, or the legacy `:before`, `:after`, `:first-line`, `:first-letter`), a nested `rule` is E6004. (Nested group at-rules and declarations are still fine; they reuse `P` unchanged.)
+3. **Compound validity.** A type or universal selector that is not the first simple selector of its compound in `C` (counting `&` as a simple selector, as in `&div`) is E6007. Weave has no suffix concatenation: `&-title` is `&` followed by the type selector `-title`, so it is E6007 too.
 4. **Replace each `&` occurrence `o`:**
    - If `n = 1` and the occurrence is *splice-safe* for `p1`, replace it with `p1`.
    - Otherwise replace it with `:is(p1, …, pn)`.
 5. An occurrence is **splice-safe** for `p` when either:
    - (a) `o` is not inside a pseudo-class argument and `o` is the first simple selector of the first compound of `C` (then `p` may be a complex selector: `p` followed by the rest of `C` is equivalent to `:is(p)` followed by the rest); or
    - (b) `p` is a single compound selector and `o` is the first simple selector of its compound or `p` has no type/universal selector.
-6. Count emitted complex selectors against the selector-expansion limit (E8005).
+6. **Limits.** The lowered list counts against the selector-expansion limit (E8005, LANGUAGE.md §17) with its *weight*: the number of complex selectors its text contains, including those inside inserted copies of ancestor lists. A complex selector weighs 1 plus, for each `&` occurrence, the weight of `P` when it is replaced by `:is(P)`, or the weight of `p1` minus 1 when `p1` is substituted directly (it merges into the enclosing complex selector). Selector lists written at stylesheet level weigh their number of complex selectors and do not count; the weights of all nested rules of a build are summed. Independently, the lowered text may not exceed the output limit (E8006); this is checked before the text is built, so growth such as `rule && { … }` repeated many levels deep stops early.
 
 Weave never performs Cartesian expansion of parent lists in v0.1; parent lists with more than one selector always produce `:is(…)`. This is always equivalent to native nesting and keeps output linear in size. Expansion of equal-specificity lists may be added later as an output optimization.
 
@@ -143,6 +146,12 @@ rule .a {
 
 A nested group at-rule inside a rule wraps whatever its body produces: declarations become a segment with the current selector; nested rules are lowered against the current selector.
 
+A segment uses the rule's lowered selector list as it stands, so each of its complex selectors matches with its own specificity, exactly like the declarations directly in a native rule and like `CSSNestedDeclarations` (which match as their parent rule does, not as `:is()`). Only selectors that contain `&` use `:is()` for multi-selector parents. Inside `@scope`, rules and their nested rules are lowered the same way; the lowered selectors receive the scoping that `@scope` gives the rules written directly in it.
+
+### 4.4 Verification
+
+The rules above are checked three ways: exact output fixtures (tests/fixtures/spec 020–022, 034 and tests/fixtures/nesting); a specificity comparison of every lowered selector with the native definition (`&` as `:is(P)`) over a matrix of parents and nested selectors one and two levels deep (crates/weave-compiler/tests/nesting.rs); and a computed-style comparison of lowered CSS with native CSS Nesting in a browser (scripts/browser_check.py, tests/browser), where each case also proves that a plausible wrong lowering (Cartesian expansion, hoisting, splicing, `:is()` for nested declarations, merged `@media`) is detected.
+
 ## 5. Module emission and CSS ordering
 
 ### 5.1 Order
@@ -190,5 +199,7 @@ For unknown at-rules and `opaque { }` blocks Weave guarantees: no interpolation,
 
 - No property/value validation, prefixing or minification.
 - `@scope` cannot be nested in rules; `@font-feature-values` and vendor-prefixed at-rules are preserved verbatim only.
+- Lowered nesting relies on `:is()` (and on `:where()`, `:not()`, `:has()` when written) for parent lists with several selectors and for parents that cannot be substituted directly, so it needs browsers that support `:is()`. Equal-specificity lists are not yet expanded into plain selectors (a possible later output optimization).
+- Nested selectors are validated structurally (§4.1 step 0) but pseudo-class names and arguments are not checked against the Selectors grammar; unknown pseudo-classes pass through.
 - Color values are 8-bit sRGB hex; other color syntaxes are fragments.
 - No selector extend/inheritance.

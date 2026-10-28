@@ -1,0 +1,4 @@
+description = "`@media`, `@supports`, `@container`, `@layer` and `@starting-style` nested in rules, in nested rules and in each other wrap the current selector; preludes are never merged; empty nested group rules are omitted while empty `@layer` blocks are kept; a nested rule inside an at-rule is lowered against the enclosing rule; a list parent stays a list in segments and becomes `:is()` only in nested selectors."
+spec = ["LANGUAGE.md 12", "LANGUAGE.md 15", "CSS-COMPATIBILITY.md 3", "CSS-COMPATIBILITY.md 4.3"]
+expect = "css"
+validation = "independent"

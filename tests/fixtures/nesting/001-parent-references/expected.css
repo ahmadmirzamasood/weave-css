@@ -1,0 +1,67 @@
+.card:hover {
+  a: 1;
+}
+
+.card .title {
+  a: 2;
+}
+
+.card > .icon, .card + .card, .card ~ p {
+  a: 3;
+}
+
+.card > .card.x {
+  a: 4;
+}
+
+.theme .card, :not(.card), :where(.card) {
+  a: 5;
+}
+
+:is(.card.on, .other), :has(> .card) {
+  a: 6;
+}
+
+li:nth-child(2n + 1 of .card) {
+  a: 7;
+}
+
+svg|rect.card, .card svg|rect {
+  a: 8;
+}
+
+:is(ul li, #side) + :is(ul li, #side) {
+  b: 1;
+}
+
+:is(ul li, #side).on {
+  b: 2;
+}
+
+.x :is(ul li, #side) {
+  b: 3;
+}
+
+ul li.on {
+  c: 1;
+}
+
+.x :is(ul li) {
+  c: 2;
+}
+
+a:is(ul li) {
+  c: 3;
+}
+
+a:is(span.x, *|em) {
+  d: 1;
+}
+
+:is(span.x, *|em).y {
+  d: 2;
+}
+
+:is(.a .b, .a.c) .d, .e :is(.a .b, .a.c) {
+  e: 1;
+}

@@ -1,0 +1,4 @@
+.a { color: red; margin-top: 1px; color: green; padding-top: 2px; border-top-width: 2px; }
+.a { color: blue; margin-top: 2px; }
+@media all { .a { margin-top: 3px; padding-top: 1px; } }
+.a.b { border-top-width: 1px; border-top-style: solid; }

@@ -1,0 +1,3 @@
+description = "Placement of known at-rules from recipe bodies and content blocks is checked where they are expanded: stylesheet-only at-rules inside a rule are E6005 (`@scope` E6006); a group at-rule expanded in a declaration list is E6005; declarations from a group at-rule expanded at stylesheet level are E6001; a nested rule under a pseudo-element via a recipe is E6004."
+spec = ["CSS-COMPATIBILITY.md 2", "CSS-COMPATIBILITY.md 3"]
+expect = "error"

@@ -1,0 +1,4 @@
+description = "Recipes and content blocks emit nested rules and group at-rules, lowered where they are expanded; `slot;` inside a nested group at-rule; `&` in a content block refers to the rule of the `apply`; `when`/`each` inside nested rules; at-rules allowed only at stylesheet level (`@font-face`, `@keyframes`, `@property`, `@page` with margin rules, `@layer` statements, `@scope`, `@font-feature-values`) emitted by a recipe applied at stylesheet level."
+spec = ["LANGUAGE.md 9", "LANGUAGE.md 11", "CSS-COMPATIBILITY.md 2", "CSS-COMPATIBILITY.md 3"]
+expect = "css"
+validation = "independent"

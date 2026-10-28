@@ -1,0 +1,34 @@
+@media screen {
+    rule .a {
+        color: red;
+        rule &:focus { outline: 0; }
+    }
+}
+
+@scope (.card) to (.content) {
+    rule .title {
+        margin: 0;
+        rule & > span { color: gray; }
+    }
+}
+
+@layer components {
+    @supports (display: grid) {
+        rule .grid {
+            display: grid;
+            rule > * { min-width: 0; }
+        }
+    }
+}
+
+@future-rule   name  {  keep : this ;  nested { x : y } }
+
+rule .b {
+    @future-inside   one { a  :  b }
+    rule .c {
+        @media print {
+            @future-deeper two;
+            color: black;
+        }
+    }
+}

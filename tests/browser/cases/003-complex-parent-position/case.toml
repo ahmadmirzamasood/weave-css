@@ -1,0 +1,2 @@
+description = "A complex parent (`.a .b`) referenced after another compound (`.x &`) must keep matching an `.x` between `.a` and `.b`; splicing it as `.x .a .b` would not."
+properties = ["color", "background-color"]

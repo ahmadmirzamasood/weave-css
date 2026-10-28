@@ -1,0 +1,4 @@
+description = "Known at-rules at stylesheet level with nested rules inside their bodies: `@media` and `@supports` around rules with nesting, `@scope` bodies whose rules nest, `@layer` blocks, and unknown future at-rules preserved byte for byte at every depth (also inside nested rules and nested group at-rules)."
+spec = ["CSS-COMPATIBILITY.md 2", "CSS-COMPATIBILITY.md 3", "CSS-COMPATIBILITY.md 7"]
+expect = "css"
+validation = "independent"

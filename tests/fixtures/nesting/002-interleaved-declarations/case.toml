@@ -1,0 +1,4 @@
+description = "Declarations before, between and after nested rules and nested group at-rules become rule segments in source order; duplicate declarations stay; `opaque` blocks, unknown at-rules and `/*!` comments join the segment they appear in; segments without output and empty nested rules are dropped; `!important` and custom properties are unchanged."
+spec = ["LANGUAGE.md 11", "CSS-COMPATIBILITY.md 4.3", "CSS-COMPATIBILITY.md 6"]
+expect = "css"
+validation = "preserve-only"

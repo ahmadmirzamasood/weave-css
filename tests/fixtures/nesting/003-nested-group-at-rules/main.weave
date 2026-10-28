@@ -1,0 +1,32 @@
+@layer base, theme;
+
+rule .nav, #top {
+    display: flex;
+    @media (width >= 40em) {
+        gap: 1rem;
+        @supports (display: grid) {
+            display: grid;
+            rule .item { grid-column: span 2; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            rule &:hover { transition: none; }
+        }
+    }
+    @container sidebar (inline-size > 20em) {
+        rule > a { padding: 0; }
+    }
+    @layer theme {
+        color: navy;
+    }
+    @layer base { }
+    @starting-style {
+        opacity: 0;
+    }
+    @media print { }
+    @supports (x: y) { rule .ghost { } }
+    rule .link {
+        @media (hover: hover) {
+            text-decoration: underline;
+        }
+    }
+}

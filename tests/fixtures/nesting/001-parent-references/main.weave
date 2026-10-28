@@ -1,0 +1,33 @@
+rule .card {
+    rule &:hover { a: 1; }
+    rule .title { a: 2; }
+    rule > .icon, + .card, ~ p { a: 3; }
+    rule > &.x { a: 4; }
+    rule .theme &, :not(&), :where(&) { a: 5; }
+    rule :is(&.on, .other), :has(> &) { a: 6; }
+    rule li:nth-child(2n + 1 of &) { a: 7; }
+    rule svg|rect&, & svg|rect { a: 8; }
+}
+
+rule ul li, #side {
+    rule & + & { b: 1; }
+    rule &.on { b: 2; }
+    rule .x & { b: 3; }
+}
+
+rule ul li {
+    rule &.on { c: 1; }
+    rule .x & { c: 2; }
+    rule a& { c: 3; }
+}
+
+rule span.x, *|em {
+    rule a& { d: 1; }
+    rule &.y { d: 2; }
+}
+
+rule .a {
+    rule .b, &.c {
+        rule & .d, .e & { e: 1; }
+    }
+}

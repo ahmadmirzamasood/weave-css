@@ -29,12 +29,12 @@ pub struct Compilation {
 
 /// Compiles the module `entry`, reading modules through `resolver`.
 ///
-/// This build compiles the plain-CSS subset of Weave (`rule` blocks at
-/// stylesheet level, declarations, known and unknown at-rules, `opaque`
-/// blocks and comments) with `bind` statements, expressions, `#{…}`
-/// interpolation and the `css.*` constructors. Every other Weave construct
-/// (control flow, functions, recipes, modules, nesting, the other
-/// built-ins) is reported as E5001 instead of being ignored.
+/// This build compiles the plain-CSS subset of Weave (`rule` blocks,
+/// declarations, known and unknown at-rules, `opaque` blocks and comments)
+/// with `bind` statements, expressions, `#{…}` interpolation, functions,
+/// control flow, recipes, nesting and the built-ins of docs/BUILTINS.md.
+/// Modules and the `color` built-ins are reported as E5001 instead of being
+/// ignored.
 pub fn compile(
     entry: &ModuleId,
     resolver: &mut dyn ModuleResolver,

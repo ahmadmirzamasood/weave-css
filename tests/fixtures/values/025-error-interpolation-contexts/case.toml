@@ -1,0 +1,3 @@
+description = "Collections never interpolate (E2004); a declaration name accepts only a single-identifier fragment (E2003); an interpolation that empties a selector compound is E6007 and one that introduces `&` at stylesheet level E6003; text that would join into a comment opener is E2003; evaluation errors inside interpolation keep their own codes."
+spec = ["LANGUAGE.md 7.1", "LANGUAGE.md 7.3", "TYPES.md 6"]
+expect = "error"

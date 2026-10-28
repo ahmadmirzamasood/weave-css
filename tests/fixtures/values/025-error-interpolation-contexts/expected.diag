@@ -1,0 +1,8 @@
+# severity code file:line:column "message substring"
+error E2004 main.weave:5:12 "css.space"
+error E2004 main.weave:6:13 "map"
+error E2003 main.weave:7:5 "single identifier"
+error E6007 main.weave:10:7 "selector"
+error E6003 main.weave:11:6 "`&`"
+error E3003 main.weave:12:20 "division by zero"
+error E2003 main.weave:13:21 "comment opener"

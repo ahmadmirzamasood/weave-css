@@ -4,7 +4,7 @@ use crate::diagnostic::{Code, Diagnostic, Diagnostics};
 use crate::options::{CompileOptions, Limit};
 use crate::resolve::{ModuleId, ModuleResolver, ResolveError};
 use crate::source::{FileId, SourceManager};
-use crate::{emit, parser};
+use crate::{emit, eval, parser};
 
 /// A successful build.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -29,11 +29,12 @@ pub struct Compilation {
 
 /// Compiles the module `entry`, reading modules through `resolver`.
 ///
-/// This build compiles the plain-CSS subset of Weave: `rule` blocks at
+/// This build compiles the plain-CSS subset of Weave (`rule` blocks at
 /// stylesheet level, declarations, known and unknown at-rules, `opaque`
-/// blocks and comments. Every other Weave construct (bindings, control
-/// flow, functions, recipes, modules, interpolation, nesting) is reported
-/// as E5001 instead of being ignored.
+/// blocks and comments) with `bind` statements, expressions, `#{…}`
+/// interpolation and the `css.*` constructors. Every other Weave construct
+/// (control flow, functions, recipes, modules, nesting, the other
+/// built-ins) is reported as E5001 instead of being ignored.
 pub fn compile(
     entry: &ModuleId,
     resolver: &mut dyn ModuleResolver,
@@ -64,7 +65,11 @@ pub fn compile(
     if diagnostics.has_errors() {
         return failed(sources, diagnostics);
     }
-    match emit::emit(&sheet, options.limits.get(Limit::OutputBytes)) {
+    let nodes = eval::evaluate(&sheet.items, &options.limits, &mut diagnostics);
+    if diagnostics.has_errors() {
+        return failed(sources, diagnostics);
+    }
+    match emit::emit(&nodes, options.limits.get(Limit::OutputBytes)) {
         Ok(css) => Compilation {
             sources,
             outcome: Ok(CompileOutput {
@@ -204,12 +209,32 @@ mod tests {
     #[test]
     fn unimplemented_statements_are_reported() {
         let result = run(
-            b"bind x = 1;
+            b"when true { }
 rule a { color: red; }
 ",
             &CompileOptions::default(),
         );
         assert_eq!(codes(&result), [Code::E5001]);
+    }
+
+    #[test]
+    fn bindings_are_evaluated() {
+        let result = run(
+            b"bind x = 2px * 3;
+rule a { width: #{x}; }
+",
+            &CompileOptions::default(),
+        );
+        assert_eq!(css(&result), "a {\n  width: 6px;\n}\n");
+    }
+
+    #[test]
+    fn evaluation_errors_stop_output() {
+        let result = run(
+            b"rule a { width: #{1px + 1em}; }",
+            &CompileOptions::default(),
+        );
+        assert_eq!(codes(&result), [Code::E3001]);
     }
 
     #[test]

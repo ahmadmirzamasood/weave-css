@@ -1,0 +1,4 @@
+description = "Top-level bindings; every block opens a scope (rule, group at-rule, keyframe list) whose bindings shadow outer ones only inside it; a user binding may shadow a prelude name."
+spec = ["LANGUAGE.md 4.2", "LANGUAGE.md 4.3"]
+expect = "css"
+validation = "independent"

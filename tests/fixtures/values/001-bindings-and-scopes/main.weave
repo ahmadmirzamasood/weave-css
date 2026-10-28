@@ -1,0 +1,19 @@
+bind size = 10px;
+bind meta = "shadowed prelude name";
+
+rule .a {
+    bind size = 20px;
+    width: #{size};
+}
+
+@media print {
+    bind size = 30px;
+    rule .b { width: #{size}; }
+}
+
+@keyframes pulse {
+    bind step = 50%;
+    #{step} { opacity: 0.5; }
+}
+
+rule .c { width: #{size}; content: #{meta}; }

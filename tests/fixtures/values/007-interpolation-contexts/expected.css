@@ -1,0 +1,23 @@
+.card, .w-0\.5, .\31 0, .-\32 , .x- {
+  --card-gap: 1px;
+  border-width: 2px;
+  --e: "a;b{c}d/*e*/";
+  content: "a;b{c}d/*e*/";
+  background: url(a;b{c}d/*e*/);
+}
+
+[data-name="a;b{c}d/*e*/"] {
+  color: red;
+}
+
+@media (min-width: 640px) {
+  .m {
+    color: blue;
+  }
+}
+
+@keyframes k {
+  20% {
+    opacity: 0;
+  }
+}

@@ -1,46 +1,53 @@
-//! The syntax tree of the supported plain-CSS subset.
+//! The syntax tree of one module.
 //!
-//! Text fields hold output-ready CSS: selectors and known at-rule preludes
-//! are normalized (LANGUAGE.md §12, §15), values keep their source text with
-//! line breaks written as LF, and verbatim regions are exact source text.
+//! CSS text that Weave processes (selectors, declaration names and values,
+//! known at-rule preludes, keyframe selectors) is held as a [`Template`]:
+//! output-ready text — selectors and preludes normalized (LANGUAGE.md §12,
+//! §15), values as written with line breaks as LF — with interpolations in
+//! place. Verbatim regions are exact source text. The evaluator turns the
+//! tree into CSS ([`crate::ir`]).
+
+use std::rc::Rc;
+
+use crate::expr::{Program, Template};
+use crate::source::Span;
 
 /// One parsed module.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default)]
 pub(crate) struct Stylesheet {
     pub items: Vec<Item>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub(crate) enum Item {
     /// `rule <selector list> { … }`.
-    Rule { selector: String, body: Vec<Item> },
+    Rule { selector: Template, body: Vec<Item> },
     Declaration {
-        name: String,
-        value: String,
+        name: Template,
+        value: Template,
         important: bool,
+        /// Whether the name, as written, is a custom property (`--*`).
+        custom: bool,
     },
     /// A known at-rule. `body` is `None` for statement at-rules such as
     /// `@import`. `name` includes the `@` and is written as in the source.
     AtRule {
         name: String,
-        prelude: String,
+        prelude: Template,
         body: Option<Vec<Item>>,
     },
     /// A keyframe block inside `@keyframes`.
-    Keyframe { selectors: String, body: Vec<Item> },
+    Keyframe {
+        selectors: Template,
+        body: Vec<Item>,
+    },
     /// Text emitted exactly as given: `opaque` contents, unknown at-rules and
     /// `/*!` comments.
     Verbatim(String),
-}
-
-impl Item {
-    /// Whether emitting this item writes anything. A style rule without
-    /// declarations or verbatim items is omitted (LANGUAGE.md §11); every
-    /// other item, including an empty at-rule block, is written.
-    pub fn emits(&self) -> bool {
-        match self {
-            Item::Rule { body, .. } => body.iter().any(Item::emits),
-            _ => true,
-        }
-    }
+    /// `bind name = expression;`.
+    Bind {
+        name: Rc<str>,
+        span: Span,
+        value: Program,
+    },
 }

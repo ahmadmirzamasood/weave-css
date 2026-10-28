@@ -1,0 +1,23 @@
+bind name = "card";
+bind n = 10;
+bind half = 0.5;
+bind dash = "-";
+bind evil = "a;b{c}d/*e*/";
+
+rule .#{name}, .w-#{half}, .#{n}, .-#{2}, .x#{dash} {
+    --#{name}-gap: 1px;
+    #{"border"}-width: 2px;
+    --e: #{evil};
+    content: "#{evil}";
+    background: url(#{evil});
+}
+
+rule [data-name="#{evil}"] { color: red; }
+
+@media (min-width: #{n * 64px}) {
+    rule .m { color: blue; }
+}
+
+@keyframes k {
+    #{n * 2%} { opacity: 0; }
+}

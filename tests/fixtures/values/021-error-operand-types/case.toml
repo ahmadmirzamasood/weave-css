@@ -1,0 +1,3 @@
+description = "No implicit coercion: arithmetic, negation, logic and ordering with the wrong operand types are E2001 at the operator; each binding fails independently."
+spec = ["LANGUAGE.md 5.2", "TYPES.md 1.1"]
+expect = "error"

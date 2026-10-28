@@ -1,26 +1,29 @@
-//! Parser for the plain-CSS subset of Weave.
+//! Parser for Weave modules.
 //!
 //! Implements item classification (LANGUAGE.md §3.1), declarations (§3.2),
-//! `rule` at stylesheet level (§11), the at-rule matrix and context matrix
-//! (CSS-COMPATIBILITY.md §2, §3), `opaque` blocks and unknown at-rules (§13)
-//! and `/*!` comments.
+//! `bind` statements (§4.2), `rule` at stylesheet level (§11), the at-rule
+//! matrix and context matrix (CSS-COMPATIBILITY.md §2, §3), `opaque` blocks
+//! and unknown at-rules (§13) and `/*!` comments. CSS regions that Weave
+//! processes become templates whose `#{…}` interpolations are parsed as
+//! expressions ([`crate::expr`]).
 //!
-//! Compile-time constructs that this build does not implement — `bind`,
-//! `when`, `each`, `apply`, `fn`, `recipe`, `load`, `export`, `fail`, `warn`,
-//! `#{…}` interpolation, nested `rule`s and group at-rules nested in rules —
-//! are reported as E5001 and never silently dropped. Their extent is skipped
-//! so that parsing continues and later independent errors are reported.
+//! Compile-time constructs that this build does not implement — `when`,
+//! `each`, `apply`, `fn`, `recipe`, `load`, `export`, `fail`, `warn`, nested
+//! `rule`s and group at-rules nested in rules — are reported as E5001 and
+//! never silently dropped. Their extent is skipped so that parsing continues
+//! and later independent errors are reported.
 //!
 //! Recovery is bounded: every step consumes at least one token, bracket and
 //! block nesting share the nesting-depth limit (E8002, which stops parsing),
 //! and parsing stops once the diagnostic limit is reached.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::css_text::{
-    normalize_newlines, normalize_prelude, normalize_selector, render, trim_css_whitespace,
+    Seg, normalize_newlines, normalize_prelude, normalize_selector, render, trim_css_whitespace,
 };
 use crate::diagnostic::{Code, Diagnostic, Diagnostics};
+use crate::expr::{self, Cx, Template};
 use crate::lexer::{Lexer, Mode, Token, TokenKind as K, ident_value};
 use crate::source::{FileId, Span};
 use crate::syntax::{Item, Stylesheet};
@@ -54,7 +57,7 @@ const PAGE_MARGINS: [&str; 16] = [
     "right-bottom",
 ];
 
-const NOT_IMPLEMENTED_NOTE: &str = "this build compiles the plain-CSS subset of Weave; the rest of the language is not implemented yet";
+const NOT_IMPLEMENTED_NOTE: &str = "this build implements the plain-CSS subset, bindings, expressions, interpolation and the css.* constructors; the rest of the language is not implemented yet";
 
 /// The kind of block being parsed (CSS-COMPATIBILITY.md §2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -161,14 +164,14 @@ enum Scan {
 #[derive(Debug)]
 enum Pending {
     Rule {
-        selector: String,
+        selector: Template,
     },
     AtRule {
         name: String,
-        prelude: String,
+        prelude: Template,
     },
     Keyframe {
-        selectors: String,
+        selectors: Template,
     },
     /// A block parsed only for its diagnostics.
     Discard,
@@ -252,7 +255,7 @@ struct Parser<'a, 'd> {
     namespace_blocker: Option<Span>,
 }
 
-impl Parser<'_, '_> {
+impl<'a> Parser<'a, '_> {
     // ----- diagnostics -------------------------------------------------
 
     fn span(&self, token: Token) -> Span {
@@ -334,16 +337,60 @@ impl Parser<'_, '_> {
                     "unterminated interpolation: `#{` has no `}`",
                 );
             }
-            K::Interpolation { terminated: true } if weave => {
-                self.not_implemented(span, "`#{…}` interpolation is");
-            }
             _ => {}
         }
-        if let Some(at) = token.interpolation {
-            if weave {
-                let span = Span::new(self.file, at, at.saturating_add(2));
-                self.not_implemented(span, "`#{…}` interpolation is");
+    }
+
+    // ----- templates ---------------------------------------------------
+
+    fn cx(&self) -> Cx<'a> {
+        Cx {
+            text: self.text,
+            file: self.file,
+            max_depth: self.max_depth,
+            depth: self.depth,
+            nesting: 0,
+        }
+    }
+
+    /// Builds the template of a CSS region; interpolation errors are
+    /// reported and leave an empty template.
+    fn template(&mut self, segs: &[Seg], ctx: expr::Ctx) -> Template {
+        match expr::css_template(self.cx(), segs, ctx) {
+            Ok(template) => template,
+            Err(diagnostic) => {
+                self.report(diagnostic);
+                Template::default()
             }
+        }
+    }
+
+    /// E1001 for a name bound twice directly in one block.
+    fn check_bindings(&mut self, items: &[Item]) {
+        let mut first: HashMap<&str, Span> = HashMap::new();
+        let mut duplicates = Vec::new();
+        for item in items {
+            if let Item::Bind { name, span, .. } = item {
+                match first.get(&**name) {
+                    Some(&earlier) => duplicates.push((name.to_string(), *span, earlier)),
+                    None => {
+                        first.insert(name, *span);
+                    }
+                }
+            }
+        }
+        for (name, span, earlier) in duplicates {
+            self.report(
+                Diagnostic::error(
+                    Code::E1001,
+                    format!("duplicate binding: `{name}` is already bound in this scope"),
+                )
+                .with_primary(span)
+                .with_label(earlier, "first bound here")
+                .with_note(
+                    "bindings are immutable; use a new name, or shadow it in a nested block",
+                ),
+            );
         }
     }
 
@@ -431,6 +478,7 @@ impl Parser<'_, '_> {
                     match frames.pop() {
                         Some(frame) => {
                             let body = std::mem::replace(&mut items, frame.parent_items);
+                            self.check_bindings(&body);
                             finish(frame.pending, body, &mut items);
                             ctx = frame.parent_ctx;
                             self.depth -= 1;
@@ -488,9 +536,11 @@ impl Parser<'_, '_> {
                 );
             }
             let body = std::mem::replace(&mut items, frame.parent_items);
+            self.check_bindings(&body);
             finish(frame.pending, body, &mut items);
         }
         self.depth = 0;
+        self.check_bindings(&items);
         items
     }
 
@@ -663,10 +713,15 @@ impl Parser<'_, '_> {
             Ctx::Rule | Ctx::Declarations | Ctx::Page => {}
         }
         let (value, important) = split_important(&tokens, self.text);
+        let name_segs = render(name, self.text);
+        let name = self.template(&name_segs, expr::Ctx::Name);
+        let value_segs = render(value, self.text);
+        let value = self.template(&value_segs, expr::Ctx::Value);
         items.push(Item::Declaration {
-            name: normalize_newlines(name_text),
-            value: render(value, self.text),
+            name,
+            value,
             important,
+            custom,
         });
     }
 
@@ -767,6 +822,15 @@ impl Parser<'_, '_> {
         let word = self.text_of(keyword).to_string();
         match word.as_str() {
             "rule" => return self.rule(keyword, ctx),
+            "bind" => {
+                self.bind(keyword, items);
+                if ctx == Ctx::TopLevel {
+                    // Statements emit nothing but still precede a later
+                    // `@charset`.
+                    self.top_items += 1;
+                }
+                return None;
+            }
             "opaque" => {
                 self.opaque(keyword, ctx, items);
                 return None;
@@ -804,6 +868,30 @@ impl Parser<'_, '_> {
         }
         self.skip_statement(&word);
         None
+    }
+
+    /// `bind name = expression;` (LANGUAGE.md §4.2).
+    fn bind(&mut self, keyword: Token, items: &mut Vec<Item>) {
+        match expr::parse_bind(self.cx(), keyword.end as usize) {
+            Ok(stmt) => {
+                self.unread_to(text_offset(stmt.end));
+                items.push(Item::Bind {
+                    name: stmt.name,
+                    span: stmt.name_span,
+                    value: stmt.program,
+                });
+            }
+            Err(error) => {
+                self.report(error.diagnostic);
+                match error.resume {
+                    Some(at) => self.unread_to(text_offset(at)),
+                    None => {
+                        self.unread_to(keyword.end);
+                        self.skip_statement("bind");
+                    }
+                }
+            }
+        }
     }
 
     /// Skips the extent of a statement this build does not implement.
@@ -925,8 +1013,9 @@ impl Parser<'_, '_> {
         }
         self.top_item(ctx, TopClass::Other, keyword);
         let pending = if keep {
+            let segs = normalize_selector(&tokens, self.text);
             Pending::Rule {
-                selector: normalize_selector(&tokens, self.text),
+                selector: self.template(&segs, expr::Ctx::Selector),
             }
         } else {
             Pending::Discard
@@ -1028,6 +1117,7 @@ impl Parser<'_, '_> {
 
         let (prelude_tokens, end) = self.scan(Scan::Prelude);
         let prelude = normalize_prelude(&prelude_tokens, self.text);
+        let prelude = self.template(&prelude, expr::Ctx::Value);
         let statement = match kind {
             AtKind::Charset | AtKind::Import | AtKind::Namespace => true,
             AtKind::Layer => !matches!(end, End::OpenBrace(_)),
@@ -1217,7 +1307,10 @@ impl Parser<'_, '_> {
             open,
             ctx: Ctx::Declarations,
             pending: Pending::Keyframe {
-                selectors: normalize_prelude(&tokens, self.text),
+                selectors: {
+                    let segs = normalize_prelude(&tokens, self.text);
+                    self.template(&segs, expr::Ctx::Value)
+                },
             },
         })
     }
@@ -1312,6 +1405,10 @@ fn closer_of(open: K) -> K {
 
 fn text_len(text: &str) -> u32 {
     u32::try_from(text.len()).unwrap_or(u32::MAX)
+}
+
+fn text_offset(pos: usize) -> u32 {
+    u32::try_from(pos).unwrap_or(u32::MAX)
 }
 
 /// Trims whitespace from a value and splits off a trailing `!important`

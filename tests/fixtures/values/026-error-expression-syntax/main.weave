@@ -1,0 +1,11 @@
+bind a = `x;y`;
+bind b = `{}`;
+bind c = `(`;
+bind d = 10%3;
+bind e = 1 < 2 < 3;
+bind f = f(a: 1, 2);
+bind g = {a: 1, a: 2};
+bind true = 1;
+rule .r { bind x = 1; bind x = 2; }
+bind i = 1000000000001;
+bind h = 1

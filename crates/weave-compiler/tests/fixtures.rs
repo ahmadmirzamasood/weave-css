@@ -1,9 +1,10 @@
 //! Executable fixture runner.
 //!
-//! - `tests/fixtures/css`: phase 03 fixtures for the plain-CSS subset. Every
-//!   case must pass: exact expected bytes (and identical output on a second
-//!   run) or exactly the expected diagnostics. Successful output is also
-//!   parsed by an independent CSS parser unless the case declares
+//! - `tests/fixtures/css` (phase 03, plain-CSS subset) and
+//!   `tests/fixtures/values` (phase 04, values, scopes and interpolation).
+//!   Every case must pass: exact expected bytes (and identical output on a
+//!   second run) or exactly the expected diagnostics. Successful output is
+//!   also parsed by an independent CSS parser unless the case declares
 //!   `validation = "preserve-only"` (syntax that parser may not understand).
 //! - `tests/fixtures/spec`: the phase 01 specification fixtures. A case
 //!   passes, is pending (the build reports E5001 for a construct it does not
@@ -30,11 +31,24 @@ use weave_compiler::{
 };
 
 /// Specification fixtures that this build compiles as specified.
-const SPEC_PASSING: [&str; 4] = [
+const SPEC_PASSING: [&str; 17] = [
     "001-plain-css-preservation",
+    "002-bindings-value-interpolation",
+    "004-error-duplicate-binding",
+    "005-error-unresolved-name",
+    "006-numbers-units-precision",
+    "007-error-incompatible-units",
+    "008-precedence-short-circuit",
+    "009-error-division-by-zero",
+    "010-strings-contexts-escaping",
+    "012-error-list-interpolation",
+    "013-error-index-out-of-range",
     "024-opaque-and-unknown-syntax",
     "029-error-selector-without-rule",
+    "030-interpolation-injection-safety",
+    "031-error-invalid-fragment",
     "033-error-top-level-declaration",
+    "035-unicode-and-crlf",
 ];
 
 fn fixtures(dir: &str) -> Vec<PathBuf> {
@@ -171,8 +185,18 @@ fn render(diags: &[Diagnostic], sources: &SourceManager) -> String {
 
 #[test]
 fn css_fixtures() {
-    let cases = fixtures("css");
-    assert!(cases.len() >= 20, "expected the phase 03 fixtures");
+    exact_fixtures("css", 30);
+}
+
+#[test]
+fn values_fixtures() {
+    exact_fixtures("values", 14);
+}
+
+/// Runs a fixture set in which every case must pass exactly.
+fn exact_fixtures(dir: &str, minimum: usize) {
+    let cases = fixtures(dir);
+    assert!(cases.len() >= minimum, "expected the {dir} fixtures");
     let mut failures = Vec::new();
     for case in &cases {
         let meta = case_toml(case);
@@ -218,7 +242,7 @@ fn css_fixtures() {
         }
     }
     eprintln!(
-        "css fixtures: {} run, {} failed",
+        "{dir} fixtures: {} run, {} failed",
         cases.len(),
         failures.len()
     );

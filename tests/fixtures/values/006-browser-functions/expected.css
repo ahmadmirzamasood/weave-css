@@ -1,0 +1,11 @@
+.f {
+  width: calc(100% - var(--gap, 8px));
+  height: calc(100% - 16px);
+  padding: env(safe-area-inset-top, 8px);
+  margin: max(gap, 2px);
+  color: primary;
+  inset: anchor(--a top);
+  --x: my-fn(8px, gap);
+  content: "gap";
+  transform: rotate(calc(1turn / 8));
+}

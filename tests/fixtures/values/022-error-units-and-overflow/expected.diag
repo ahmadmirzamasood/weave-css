@@ -1,0 +1,6 @@
+# severity code file:line:column "message substring"
+error E3004 main.weave:1:15 "compound"
+error E3004 main.weave:2:12 "inverse"
+error E3003 main.weave:3:14 "remainder by zero"
+error E3002 main.weave:4:18 "overflow"
+error E3001 main.weave:5:14 "incompatible units"

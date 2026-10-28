@@ -5,8 +5,46 @@
 //!   [`TokenKind::LiteralHash`] and inside strings and URLs textually.
 //! - Selectors and known at-rule preludes are normalized (§12, §15);
 //!   declaration values keep their text.
+//!
+//! Tokens that contain interpolation (`#{…}` itself, and strings and URLs
+//! with `#{…}` inside) are not rendered: they are kept as [`Seg::Token`] so
+//! that the parser can turn them into template interpolations.
 
 use crate::lexer::{Token, TokenKind as K};
+
+/// Rendered text, or a token carrying interpolation.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum Seg {
+    Text(String),
+    Token(Token),
+}
+
+fn has_interpolation(token: Token) -> bool {
+    matches!(token.kind, K::Interpolation { .. }) || token.interpolation.is_some()
+}
+
+/// Appends text, merging it with a preceding text segment.
+pub(crate) fn push_text(segs: &mut Vec<Seg>, text: &str) {
+    if text.is_empty() {
+        return;
+    }
+    if let Some(Seg::Text(last)) = segs.last_mut() {
+        last.push_str(text);
+    } else {
+        segs.push(Seg::Text(text.to_string()));
+    }
+}
+
+/// Appends a token: rendered, or kept if it carries interpolation.
+pub(crate) fn push_token(segs: &mut Vec<Seg>, token: Token, source: &str) {
+    if has_interpolation(token) {
+        segs.push(Seg::Token(token));
+    } else {
+        let mut text = String::new();
+        render_token(token, source, &mut text);
+        push_text(segs, &text);
+    }
+}
 
 /// Writes CR, CRLF and FF as LF.
 pub(crate) fn normalize_newlines(text: &str) -> String {
@@ -29,7 +67,7 @@ pub(crate) fn normalize_newlines(text: &str) -> String {
 
 /// Replaces each literal marker `\#{` by `#{`, leaving every other escape
 /// (including `\\`) untouched.
-fn replace_markers(text: &str) -> String {
+pub(crate) fn replace_markers(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut chars = text.chars().peekable();
     while let Some(c) = chars.next() {
@@ -70,18 +108,18 @@ pub(crate) fn render_token(token: Token, source: &str, out: &mut String) {
 }
 
 /// Renders tokens exactly, apart from line breaks and literal markers.
-pub(crate) fn render(tokens: &[Token], source: &str) -> String {
-    let mut out = String::new();
+pub(crate) fn render(tokens: &[Token], source: &str) -> Vec<Seg> {
+    let mut out = Vec::new();
     for &token in tokens {
-        render_token(token, source, &mut out);
+        push_token(&mut out, token, source);
     }
     out
 }
 
 /// A known at-rule prelude or keyframe selector: comments removed, every run
 /// of whitespace and comments written as one space, ends trimmed.
-pub(crate) fn normalize_prelude(tokens: &[Token], source: &str) -> String {
-    let mut out = String::new();
+pub(crate) fn normalize_prelude(tokens: &[Token], source: &str) -> Vec<Seg> {
+    let mut out = Vec::new();
     let mut space = false;
     for &token in tokens {
         if token.is_trivia() {
@@ -89,10 +127,10 @@ pub(crate) fn normalize_prelude(tokens: &[Token], source: &str) -> String {
             continue;
         }
         if space && !out.is_empty() {
-            out.push(' ');
+            push_text(&mut out, " ");
         }
         space = false;
-        render_token(token, source, &mut out);
+        push_token(&mut out, token, source);
     }
     out
 }
@@ -143,7 +181,7 @@ impl Level {
     }
 
     /// Writes the separator before a component value at this level.
-    fn before_value(&mut self, token: Token, out: &mut String) {
+    fn before_value(&mut self, token: Token, out: &mut Vec<Seg>) {
         let space = match self.kind {
             LevelKind::Selector => self.space && self.started && !self.after_combinator,
             LevelKind::Attribute => {
@@ -153,7 +191,7 @@ impl Level {
             LevelKind::Brace => self.space && self.started,
         };
         if space {
-            out.push(' ');
+            push_text(out, " ");
         }
         self.started = true;
         self.space = false;
@@ -172,8 +210,8 @@ impl Level {
 /// deeply nested input cannot exhaust the thread stack. Unmatched closers are
 /// written as ordinary tokens; unclosed brackets end with the input (the
 /// parser has already reported both).
-pub(crate) fn normalize_selector(tokens: &[Token], source: &str) -> String {
-    let mut out = String::new();
+pub(crate) fn normalize_selector(tokens: &[Token], source: &str) -> Vec<Seg> {
+    let mut out = Vec::new();
     let mut levels = vec![Level::new(LevelKind::Selector, None)];
     for &token in tokens {
         let nested = levels.len() > 1;
@@ -186,20 +224,20 @@ pub(crate) fn normalize_selector(tokens: &[Token], source: &str) -> String {
         }
         if nested && level.closer == Some(token.kind) {
             levels.pop();
-            render_token(token, source, &mut out);
+            push_token(&mut out, token, source);
             continue;
         }
         match (level.kind, token.kind) {
             (LevelKind::Selector, K::Comma) => {
-                out.push_str(", ");
+                push_text(&mut out, ", ");
                 *level = Level::new(LevelKind::Selector, level.closer);
             }
             (LevelKind::Selector, K::Delim('>' | '+' | '~')) => {
                 if level.started {
-                    out.push(' ');
+                    push_text(&mut out, " ");
                 }
-                render_token(token, source, &mut out);
-                out.push(' ');
+                push_token(&mut out, token, source);
+                push_text(&mut out, " ");
                 level.started = true;
                 level.space = false;
                 level.after_combinator = true;
@@ -212,7 +250,7 @@ pub(crate) fn normalize_selector(tokens: &[Token], source: &str) -> String {
                     K::OpenBrace => LevelKind::Brace,
                     _ => LevelKind::Selector,
                 };
-                render_token(token, source, &mut out);
+                push_token(&mut out, token, source);
                 if let Some(close) = closer(token.kind) {
                     levels.push(Level::new(inner, Some(close)));
                 }
@@ -244,8 +282,17 @@ mod tests {
         }
     }
 
+    fn flat(segs: Vec<Seg>) -> String {
+        segs.into_iter()
+            .map(|seg| match seg {
+                Seg::Text(text) => text,
+                Seg::Token(_) => "<token>".to_string(),
+            })
+            .collect()
+    }
+
     fn selector(text: &str) -> String {
-        normalize_selector(&tokens(text), text)
+        flat(normalize_selector(&tokens(text), text))
     }
 
     #[test]
@@ -280,11 +327,14 @@ mod tests {
     fn preludes_collapse_whitespace_and_drop_comments() {
         let text = "  screen  and/* c */(width\n>=\t768px)  ";
         assert_eq!(
-            normalize_prelude(&tokens(text), text),
+            flat(normalize_prelude(&tokens(text), text)),
             "screen and (width >= 768px)"
         );
         let text = "\"a  b\"  ,  'c'";
-        assert_eq!(normalize_prelude(&tokens(text), text), "\"a  b\" , 'c'");
+        assert_eq!(
+            flat(normalize_prelude(&tokens(text), text)),
+            "\"a  b\" , 'c'"
+        );
     }
 
     #[test]
@@ -300,6 +350,19 @@ mod tests {
         );
         assert_eq!(replace_markers("a\\"), "a\\");
         let text = r##"\#{a} "\#{b}" /* \#{c} */"##;
-        assert_eq!(render(&tokens(text), text), r##"#{a} "#{b}" /* \#{c} */"##);
+        assert_eq!(
+            flat(render(&tokens(text), text)),
+            r##"#{a} "#{b}" /* \#{c} */"##
+        );
+    }
+
+    #[test]
+    fn interpolation_tokens_are_kept_in_place() {
+        let text = ".a-#{x}  >  [t=\"#{y}\"]";
+        let segs = normalize_selector(&tokens(text), text);
+        assert_eq!(flat(segs.clone()), ".a-<token> > [t=<token>]");
+        assert_eq!(segs.len(), 5);
+        let text = "a #{b} url(#{c}) d";
+        assert_eq!(flat(render(&tokens(text), text)), "a <token> <token> d");
     }
 }

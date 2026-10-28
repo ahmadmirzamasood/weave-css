@@ -1,0 +1,4 @@
+description = "Weave string escapes (hex, quotes, U+0000); value-context quoting; string-context escaping inside double- and single-quoted CSS strings; nested interpolation in strings; the text of numbers, colors, booleans and fragments; url-context escaping."
+spec = ["TYPES.md 3", "TYPES.md 5", "LANGUAGE.md 7.1"]
+expect = "css"
+validation = "independent"

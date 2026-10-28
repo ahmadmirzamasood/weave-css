@@ -1,0 +1,4 @@
+description = "Numeric boundaries (plus and minus 1e12), six-decimal quantization, conversions within each category, unknown units, unit-preserving negation, string ordering and structural equality of lists and maps."
+spec = ["TYPES.md 2", "TYPES.md 5", "TYPES.md 6"]
+expect = "css"
+validation = "independent"

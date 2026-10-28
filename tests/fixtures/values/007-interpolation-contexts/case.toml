@@ -1,0 +1,4 @@
+description = "Selector and declaration-name contexts escape identifiers by position (start, continuation, after a lone hyphen); hostile text stays quoted in values, escaped in strings and attribute values, and escaped in URLs; interpolation in media preludes and keyframe selectors."
+spec = ["LANGUAGE.md 7.1", "LANGUAGE.md 7.2", "LANGUAGE.md 7.3"]
+expect = "css"
+validation = "independent"

@@ -1,20 +1,13 @@
 load "./x.weave" as x;
-bind gap = 4px;
 fn f(a) { yield a; }
 recipe r { color: red; }
 export bind e = 1;
-when gap > 1 { rule .w { } } otherwise { rule .o { } }
+when true { rule .w { } } otherwise { rule .o { } }
 each i in [1, 2] { rule .e { } }
 apply r;
 fail "no";
 warn "careful";
 rule .a {
-    margin: #{gap};
-    content: "x #{gap}";
-    background: url(#{gap});
-    #{"pro"}perty: 1;
     rule &:hover { color: red; }
     @media print { color: blue; }
 }
-rule .s-#{gap} { color: red; }
-@media (min-width: #{gap}) { }

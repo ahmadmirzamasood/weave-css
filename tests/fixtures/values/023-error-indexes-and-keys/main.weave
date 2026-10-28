@@ -1,0 +1,10 @@
+bind list = [1, 2];
+bind map = {a: 1};
+bind a = list[-1];
+bind b = list[0.5];
+bind c = list[1px];
+bind d = map.b;
+bind e = map["b"];
+bind f = map[0];
+bind g = 1[0];
+bind h = list.a;

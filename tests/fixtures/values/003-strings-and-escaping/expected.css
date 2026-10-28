@@ -1,0 +1,15 @@
+.s {
+  content: "a'b\"c";
+  content: 'a\'b"c';
+  content: "a'b\"c";
+  --ctrl: "line\a next";
+  --nul: "x�y";
+  --concat: "abc";
+  --nested: "outer inner 2";
+  --number: "3px";
+  --color: "#aabbcc";
+  --bool: "true";
+  --fragment: "x y";
+  background: url(a\20 b);
+  background: url("a\"b");
+}

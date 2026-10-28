@@ -1,0 +1,3 @@
+description = "Bindings are not hoisted: inside a block, a name used before that block binds it is E1003, even if an outer binding exists."
+spec = ["LANGUAGE.md 4.2"]
+expect = "error"

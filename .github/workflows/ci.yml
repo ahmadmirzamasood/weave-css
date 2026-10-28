@@ -94,3 +94,31 @@ jobs:
       # Uses the Google Chrome preinstalled on the runner image.
       - name: Compare lowered CSS with native nesting
         run: google-chrome --version && python3 scripts/browser_check.py --browser google-chrome
+
+  fuzz:
+    name: Fuzz smoke (nightly)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Keep in sync with fuzz/Dockerfile. Fuzzing needs nightly and
+      # libFuzzer (C++); neither is required to build or use Weave.
+      - name: Install toolchain and cargo-fuzz
+        run: |
+          rustup toolchain install nightly-2026-10-08 --profile minimal
+          cargo +nightly-2026-10-08 install cargo-fuzz --version 0.13.2 --locked
+      - name: Seed corpora
+        run: python3 fuzz/seed.py fuzz/corpus
+      # A short smoke run per target: evidence that the harness works and
+      # that no seed regresses, not an exhaustive campaign (fuzz/README.md).
+      - name: Run each target for 60 seconds
+        working-directory: fuzz
+        run: |
+          for target in lex parse compile; do
+            cargo +nightly-2026-10-08 fuzz run -O --debug-assertions "$target" "corpus/$target" -- \
+              -dict=weave.dict -max_total_time=60 -timeout=10 -rss_limit_mb=2048 -max_len=65536
+          done

@@ -1,0 +1,42 @@
+[package]
+name = "weave-fuzz"
+version = "0.0.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+# Not a member of the main workspace: fuzzing needs a nightly toolchain and
+# libFuzzer (C++, built by libfuzzer-sys), neither of which the compiler or
+# CLI may require. See fuzz/README.md.
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+weave-compiler = { path = "../crates/weave-compiler", features = ["fuzzing"] }
+
+[[bin]]
+name = "lex"
+path = "fuzz_targets/lex.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parse"
+path = "fuzz_targets/parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "compile"
+path = "fuzz_targets/compile.rs"
+test = false
+doc = false
+bench = false
+
+[profile.release]
+debug = 1

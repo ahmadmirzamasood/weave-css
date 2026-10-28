@@ -15,3 +15,8 @@ workspace = true
 # Independent CSS Syntax 3 parser used only to validate emitted CSS in tests
 # (ADR 0010). Default features pull in proc macros and phf; not needed.
 cssparser = { version = "=0.38.0", default-features = false }
+
+[features]
+# Exposes `weave_compiler::fuzzing`, the tokenizer and parser entry points
+# used by the fuzz targets in fuzz/. Not a stable API.
+fuzzing = []

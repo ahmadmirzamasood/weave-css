@@ -46,7 +46,7 @@ Tested in CI, and the only ones with prebuilt binaries planned: Linux x86_64 (gl
 
 ## Benchmark evidence
 
-On one Windows laptop, interleaved against the previous `main`, the candidate is within noise on all workloads except one cold slowdown of 8.8 % (selector-expansion), under the 10 % investigation threshold; memory unchanged; output byte-identical. Earlier optimization work cut cold build times by 9–43 % on larger workloads. No other tool was measured and no other machine was used. Full method, tables and caveats: [BENCHMARKS.md](BENCHMARKS.md).
+On one Windows computer, interleaved against the previous `main`, the candidate is within noise on all workloads except one cold slowdown of 8.8 % (selector-expansion), under the 10 % investigation threshold; memory unchanged; output byte-identical. Earlier optimization work cut cold build times by 9–43 % on larger workloads. No other tool was measured and no other machine was used. Full method, tables and caveats: [BENCHMARKS.md](BENCHMARKS.md).
 
 ## Security evidence
 

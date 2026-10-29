@@ -6,8 +6,7 @@ Weave is designed to be fast, but **no speed claim is made relative to any other
 
 | | |
 |---|---|
-| CPU / RAM | Intel Core i5-9300H (4 cores, 8 threads, 2.4 GHz base), 23.9 GiB |
-| OS | Windows 11 Home 10.0.26200, Balanced power plan, on AC power |
+| Machine | one x86_64 Windows 11 computer, on mains power with a balanced power plan (hardware details intentionally not published) |
 | Toolchain | rustc 1.99.1 (`x86_64-pc-windows-gnullvm`), release profile `codegen-units = 1`, `lto = "thin"`, no `RUSTFLAGS` |
 | Corpus | 7 deterministic generated workloads (`weave-bench generate`, generator v1), listed below |
 | Statistics | medians and interquartile ranges; a difference is called faster or slower only when the IQRs do not overlap; differences below about 5 % are not claimed |
@@ -51,7 +50,7 @@ Before the candidate, the performance phase reduced cold build times by comparin
 
 ## Limits of this evidence
 
-- **One machine.** One laptop CPU on Windows. There are no Linux or macOS measurements, so no cross-platform claim is made.
+- **One machine.** One x86_64 Windows computer. There are no Linux or macOS measurements, so no cross-platform claim is made.
 - **A first, non-interleaved run was discarded.** A single run of the candidate compared against the old results from another day showed 10-35 % "slower" on everything, including `weavec --version`, which runs none of the compiler. That is machine drift between days, which is why only interleaved comparisons are used above.
 - **Cold numbers include the cost of starting the process from Python**; the `weavec --version` row measures it (about 10 ms).
 - **Nothing here compares Weave with other tools**, and small inputs are dominated by process start.

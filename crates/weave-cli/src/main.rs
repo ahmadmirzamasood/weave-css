@@ -34,15 +34,15 @@ fn help() -> String {
         .collect();
     format!(
         "\
-weave {VERSION} - compiler for the Weave stylesheet language (release candidate)
+weavec {VERSION} - compiler for the Weave stylesheet language (release candidate)
 
 Usage:
-  weave build <input.weave> [options]   Compile and write CSS (stdout by default)
-  weave check <input.weave> [options]   Compile without writing CSS
-  weave watch <input.weave> -o <file> [options]
+  weavec build <input.weave> [options]  Compile and write CSS (stdout by default)
+  weavec check <input.weave> [options]  Compile without writing CSS
+  weavec watch <input.weave> -o <file> [options]
                                         Build, then rebuild when inputs change
-  weave help                            Show this help
-  weave version                         Show version information
+  weavec help                           Show this help
+  weavec version                        Show version information
 
 The input may be `-` to read the entry module from stdin (`build` and
 `check`); its `load` paths are then relative to the module root.
@@ -92,7 +92,7 @@ Exit status: 0 success, 1 compilation failed or output not written,
 
 fn version() -> String {
     format!(
-        "weave {VERSION}\nlanguage specification: v{LANGUAGE_VERSION}\n\
+        "weavec {VERSION}\nlanguage specification: v{LANGUAGE_VERSION}\n\
          compilation: Weave v0.1 except the `color` built-ins (E5001)\n\
          tools: build, check, watch (polling), source maps (ECMA-426), JSON diagnostics\n"
     )
@@ -101,7 +101,7 @@ fn version() -> String {
 fn main() -> ExitCode {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     let worker = std::thread::Builder::new()
-        .name("weave".to_string())
+        .name("weavec".to_string())
         .stack_size(STACK_BYTES)
         .spawn(move || run_command(args));
     match worker.map(|handle| handle.join()) {
@@ -128,7 +128,7 @@ fn run_command(args: Vec<std::ffi::OsString>) -> u8 {
         }
         Err(UsageError(message)) => {
             eprintln!(
-                "error: {}\n\nRun `weave --help` for usage.",
+                "error: {}\n\nRun `weavec --help` for usage.",
                 escape_control(&message)
             );
             EXIT_USAGE

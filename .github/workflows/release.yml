@@ -133,13 +133,13 @@ jobs:
           cargo build --release --locked -p weave-css
       - name: Binary reports the intended version
         run: |
-          exe=target/release/weave; [ -f "$exe.exe" ] && exe="$exe.exe"
+          exe=target/release/weavec; [ -f "$exe.exe" ] && exe="$exe.exe"
           first=$("$exe" --version | head -1)
           echo "$first"
-          test "$first" = "weave $VERSION" || { echo "expected 'weave $VERSION'"; exit 1; }
+          test "$first" = "weavec $VERSION" || { echo "expected 'weavec $VERSION'"; exit 1; }
       - name: Smoke test the binary on the examples
         run: |
-          exe="$PWD/target/release/weave"; [ -f "$exe.exe" ] && exe="$exe.exe"
+          exe="$PWD/target/release/weavec"; [ -f "$exe.exe" ] && exe="$exe.exe"
           for dir in examples/*/; do
             [ -f "$dir/main.weave" ] || continue
             (cd "$dir" && "$exe" build main.weave > "$RUNNER_TEMP/out.css")
@@ -151,7 +151,7 @@ jobs:
           if printf 'rule .a { color: #{nope}; }\n' | "$exe" check -; then echo "a bad input must fail"; exit 1; else test $? -eq 1; fi
       - name: Package
         run: |
-          exe=target/release/weave; [ -f "$exe.exe" ] && exe="$exe.exe"
+          exe=target/release/weavec; [ -f "$exe.exe" ] && exe="$exe.exe"
           ${{ matrix.python }} scripts/package_release.py archive --version "$VERSION" --target "${{ matrix.target }}" --binary "$exe" --out dist
           ${{ matrix.python }} -c "import hashlib,sys; print('binary sha256', hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$exe" | tee "dist/binary-sha256-${{ matrix.target }}.txt"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -182,7 +182,7 @@ jobs:
         run: |
           export RUSTFLAGS="--remap-path-prefix=$PWD=/build/weave-css --remap-path-prefix=$HOME/.cargo=/build/cargo --remap-path-prefix=$HOME/.rustup=/build/rustup"
           cargo build --release --locked -p weave-css
-          second=$(sha256sum target/release/weave | cut -d' ' -f1)
+          second=$(sha256sum target/release/weavec | cut -d' ' -f1)
           first=$(sed -n 's/^binary sha256 //p' first/binary-sha256-x86_64-unknown-linux-gnu.txt)
           echo "first : $first"
           echo "second: $second"
@@ -208,9 +208,9 @@ jobs:
       - name: Source archive and SHA256SUMS
         run: |
           mkdir -p release
-          cp artifacts/weave-*.tar.gz artifacts/weave-*.zip release/
+          cp artifacts/weavec-*.tar.gz artifacts/weavec-*.zip release/
           python3 scripts/package_release.py source --version "$VERSION" --out release
-          python3 scripts/package_release.py sums --out release/SHA256SUMS release/weave-*.tar.gz release/weave-*.zip
+          python3 scripts/package_release.py sums --out release/SHA256SUMS release/weavec-*.tar.gz release/weavec-*.zip
           (cd release && sha256sum --check SHA256SUMS)
           ls -l release
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

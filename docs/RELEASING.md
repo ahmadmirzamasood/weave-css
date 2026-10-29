@@ -6,9 +6,9 @@ This is the maintainers' procedure for turning a release candidate commit into a
 
 | Artifact | Produced by | Contents |
 |---|---|---|
-| `weave-<version>-x86_64-unknown-linux-gnu.tar.gz` | release workflow, `ubuntu-latest` | `weave`, LICENSE, THIRD-PARTY-NOTICES.md, README.md |
-| `weave-<version>-aarch64-apple-darwin.tar.gz` | release workflow, `macos-latest` | same |
-| `weave-<version>-x86_64-pc-windows-msvc.zip` | release workflow, `windows-latest` | `weave.exe` and the same files |
+| `weavec-<version>-x86_64-unknown-linux-gnu.tar.gz` | release workflow, `ubuntu-latest` | `weavec`, LICENSE, THIRD-PARTY-NOTICES.md, README.md |
+| `weavec-<version>-aarch64-apple-darwin.tar.gz` | release workflow, `macos-latest` | same |
+| `weavec-<version>-x86_64-pc-windows-msvc.zip` | release workflow, `windows-latest` | `weavec.exe` and the same files |
 | `weave-css-<version>-source.tar.gz` | `git archive` of the release commit | complete source, tests, examples, docs |
 | `SHA256SUMS` | release workflow | SHA-256 of every file above |
 | build-provenance attestation | `actions/attest-build-provenance` (draft-release job only) | signed statement over `SHA256SUMS` subjects |
@@ -62,15 +62,15 @@ To reproduce a Linux release binary yourself, check out the release commit, inst
 Do these in order. Each can be stopped; none can be silently continued by CI.
 
 1. **Merge the release candidate to `main`** by pull request after its required checks pass. Note the full commit SHA (`git rev-parse origin/main`). The commit that was tested must be the commit that is released: if anything changes, run the pre-flight again.
-2. **Run the workflow.** Actions -> *Release candidate* -> *Run workflow* on `main`, with `expected_commit` = that SHA and `draft_release` = true. The jobs: verify (consistency checks, fmt, Clippy, tests, package dry run), build x3 with a smoke test of each binary (`weave --version` must print `weave <version>` and every example must build to its `expected.css`), reproducibility, checksums, then attestation and a draft release. Nothing is public yet: the draft is visible only to maintainers, and no tag exists.
+2. **Run the workflow.** Actions -> *Release candidate* -> *Run workflow* on `main`, with `expected_commit` = that SHA and `draft_release` = true. The jobs: verify (consistency checks, fmt, Clippy, tests, package dry run), build x3 with a smoke test of each binary (`weavec --version` must print `weave <version>` and every example must build to its `expected.css`), reproducibility, checksums, then attestation and a draft release. Nothing is public yet: the draft is visible only to maintainers, and no tag exists.
 3. **Verify the draft** before publishing it. For each downloaded asset, in a clean directory (not the checkout):
 
    ```bash
    sha256sum --check SHA256SUMS            # macOS: shasum -a 256 --check SHA256SUMS
-   gh attestation verify weave-<version>-x86_64-unknown-linux-gnu.tar.gz --repo ahmadmirzamasood/weave-css
-   tar xzf weave-<version>-x86_64-unknown-linux-gnu.tar.gz
-   ./weave-<version>-x86_64-unknown-linux-gnu/weave --version          # first line: weave <version>
-   printf 'bind c = #0b5fff;\nrule .a { color: #{c}; }\n' | ./weave-<version>-x86_64-unknown-linux-gnu/weave build -
+   gh attestation verify weavec-<version>-x86_64-unknown-linux-gnu.tar.gz --repo ahmadmirzamasood/weave-css
+   tar xzf weavec-<version>-x86_64-unknown-linux-gnu.tar.gz
+   ./weavec-<version>-x86_64-unknown-linux-gnu/weavec --version          # first line: weavec <version>
+   printf 'bind c = #0b5fff;\nrule .a { color: #{c}; }\n' | ./weavec-<version>-x86_64-unknown-linux-gnu/weavec build -
    ```
 
    Do the same on macOS and Windows machines, or accept the workflow's smoke test as the evidence and say so.
@@ -89,7 +89,7 @@ Do these in order. Each can be stopped; none can be silently continued by CI.
 
    ```bash
    cargo install weave-css --version <version> --locked
-   weave --version
+   weavec --version
    # download a release asset, check SHA256SUMS and `gh attestation verify`, run it on a fixture
    ```
 

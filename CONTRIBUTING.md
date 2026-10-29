@@ -6,7 +6,7 @@ Run `python3 scripts/check_spec.py` to check fixtures and documentation links (C
 
 ## Rust workspace
 
-- `crates/weave-compiler`: the compiler library (package `weave-compiler`). `crates/weave-cli`: the `weave` binary (package `weave-css`). `crates/weave-bench`: benchmark tooling and `crates/weave-docs`: the harness that compiles the library guide's examples; neither is published. `fuzz/` is a separate workspace.
+- `crates/weave-compiler`: the compiler library (package `weave-compiler`). `crates/weave-cli`: the `weavec` binary (package `weave-css`). `crates/weave-bench`: benchmark tooling and `crates/weave-docs`: the harness that compiles the library guide's examples; neither is published. `fuzz/` is a separate workspace.
 - Toolchain: `rust-toolchain.toml` pins Rust 1.99.1 with rustfmt and Clippy; rustup installs it automatically (or run `rustup toolchain install`). The minimum supported Rust version is 1.85 (`rust-version` in Cargo.toml), checked in CI.
 - Checks, all required before merging:
 

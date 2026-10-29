@@ -1,4 +1,4 @@
-# Weave 0.1.0-rc.1 release notes
+# Weave 0.1.0-rc.2 release notes
 
 **Release candidate. Not published:** no package is on a registry and no GitHub release exists. These notes describe what the candidate contains and what is unproven, so that the decision to publish can be made on facts.
 
@@ -8,7 +8,7 @@ The candidate is one exact commit of the `phase/11-release` branch (later `main`
 
 ## What it is
 
-Weave is a stylesheet language that compiles `.weave` files to standard CSS, with a Rust compiler library (`weave-compiler`) and the `weave` command (package `weave-css`). Pure Rust, no third-party dependencies, `unsafe` forbidden, MIT licensed.
+Weave is a stylesheet language that compiles `.weave` files to standard CSS, with a Rust compiler library (`weave-compiler`) and the `weavec` command (package `weave-css`). Pure Rust, no third-party dependencies, `unsafe` forbidden, MIT licensed.
 
 ## Supported features
 
@@ -20,7 +20,7 @@ All of the [v0.1 language](LANGUAGE.md) except the `color` built-ins:
 - Nested rules lowered to flat CSS with CSS Nesting specificity (checked against Chrome in CI), nested `@media`/`@supports`/`@container`/`@layer`/`@starting-style`.
 - All CSS preserved: declarations, custom properties, `!important`, known at-rules by their body grammar, unknown at-rules and `opaque { }` blocks verbatim.
 - Modules: `load`, `export`, namespaces, cycle detection, each module built once, root-confined paths.
-- Tools: `weave build|check|watch`, stdin/stdout, atomic output, human or JSON diagnostics with stable codes, ECMA-426 source maps, dependency lists, `--limit` overrides. Library: `compile`, caching, dependency graph, resolvers, source maps ([LIBRARY.md](LIBRARY.md)).
+- Tools: `weavec build|check|watch`, stdin/stdout, atomic output, human or JSON diagnostics with stable codes, ECMA-426 source maps, dependency lists, `--limit` overrides. Library: `compile`, caching, dependency graph, resolvers, source maps ([LIBRARY.md](LIBRARY.md)).
 - Syntax highlighting for VS Code-compatible editors (TextMate grammar; not a language server).
 
 ## Platforms
@@ -41,7 +41,7 @@ Tested in CI, and the only ones with prebuilt binaries planned: Linux x86_64 (gl
 
 ## Decisions needed before publication
 
-- **The binary name `weave` collides** with the `weave-cli` crate (an unrelated tool that also installs `weave`), a Homebrew formula named `weave`, and other projects (checked 2026-10-29; details in [INSTALL.md](INSTALL.md#binary-name-collisions)). Keeping it is safe for `cargo install` (it refuses to overwrite another package's binary) but confusing for users who have both. Renaming the binary, and with it perhaps the `.weave` extension, is a product decision not made here; after publication it becomes a breaking change.
+- **Binary name (decided for this candidate):** the command is `weavec`. The earlier choice `weave` collides with the `weave-cli` crate (an unrelated tool that also installs `weave`), a Homebrew formula named `weave` and other projects (checked 2026-10-29; [INSTALL.md](INSTALL.md#the-binary-name)). The language, `.weave` extension and package names are unchanged. Whether to rename the language itself before 1.0 remains open.
 - **Whether `0.1.0` may ship without the `color` built-ins**, or this candidate should be labelled beta.
 - **Registry names must be re-checked immediately before publishing.** On 2026-10-29 `weave-css` and `weave-compiler` were free on crates.io (and `weave-css` on npm and PyPI); `weave` and `weave-cli` were taken.
 - Repository setup for publication: a `release` environment with a required reviewer, and scoped crates.io credentials held by a maintainer.
@@ -68,8 +68,8 @@ Report vulnerabilities privately through GitHub: <https://github.com/ahmadmirzam
 ## Migration implications
 
 - This is the first release, so there is nothing to migrate from. Weave is not compatible with Sass, Less or other preprocessors; there is no converter. Plain CSS becomes Weave by prefixing selectors of style rules with `rule` ([COMPATIBILITY-POLICY.md](COMPATIBILITY-POLICY.md#migration)).
-- Anything may change between release candidates and before 1.0 as described in the compatibility policy: the library API in particular, and the names (`weave`, `.weave`, package names) are working choices.
-- If you adopted the repository before this candidate: the CLI package is now `weave-css` (`cargo run -p weave-css`; was `-p weave-cli`). The binary, flags and output are unchanged.
+- Anything may change between release candidates and before 1.0 as described in the compatibility policy: the library API in particular, and the names (`weavec`, `.weave`, package names) are working choices.
+- If you adopted the repository before this candidate: the CLI package is now `weave-css` (`cargo run -p weave-css`; was `-p weave-cli`) and the command is `weavec` (was `weave`), including the `[weavec]` prefix of `watch` status lines. Flags and CSS output are unchanged. 0.1.0-rc.1 was prepared but never published.
 
 ## How this candidate was verified
 

@@ -2,14 +2,14 @@
 
 This tutorial builds a small stylesheet step by step. Every `weave` block with a `css` block after it is compiled by the test suite (`crates/weave-compiler/tests/docs.rs`), so the output shown is what the compiler produces. The language rules are in the [language reference](LANGUAGE.md); this is the guided tour.
 
-Weave is a **release candidate** (0.1.0-rc.1). Two things in this tour are limited today: the `color` built-ins are not implemented (see [Limitations](#limitations)), and there is no editor integration beyond syntax highlighting.
+Weave is a **release candidate** (0.1.0-rc.2). Two things in this tour are limited today: the `color` built-ins are not implemented (see [Limitations](#limitations)), and there is no editor integration beyond syntax highlighting.
 
 ## 1. Install and build the first file
 
 Follow the [installation guide](INSTALL.md), then check the command works:
 
 ```bash
-weave --version
+weavec --version
 ```
 
 Create `styles.weave`:
@@ -31,8 +31,8 @@ rule .button {
 Build it:
 
 ```bash
-weave build styles.weave            # CSS to stdout
-weave build styles.weave -o site.css
+weavec build styles.weave            # CSS to stdout
+weavec build styles.weave -o site.css
 ```
 
 Two things to notice. Style rules always start with the keyword `rule`; Weave never guesses between a selector and a declaration. And everything else, such as `color: white;`, is ordinary CSS and is emitted as written.
@@ -315,16 +315,16 @@ rule .button {
 Paths start with `./` or `../` and are resolved from the importing file; they cannot leave the project root. Each module is built once, and its CSS comes before the CSS of the modules that load it. [examples/design-system](../examples/design-system/main.weave) is a complete multi-file project:
 
 ```bash
-weave build examples/design-system/main.weave -o site.css --source-map
+weavec build examples/design-system/main.weave -o site.css --source-map
 ```
 
 ## 11. Tooling
 
 ```bash
-weave check styles.weave                       # report errors, write nothing
-weave build styles.weave -o site.css --source-map
-weave watch styles.weave -o site.css           # rebuild on change
-weave build styles.weave --diagnostics json    # machine-readable errors
+weavec check styles.weave                       # report errors, write nothing
+weavec build styles.weave -o site.css --source-map
+weavec watch styles.weave -o site.css           # rebuild on change
+weavec build styles.weave --diagnostics json    # machine-readable errors
 ```
 
 Errors name a stable code, the file, line and column, and often a note:

@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 fn weave_in(dir: &Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_weave"))
+    Command::new(env!("CARGO_BIN_EXE_weavec"))
         .current_dir(dir)
         .args(args)
         .output()
@@ -22,7 +22,7 @@ fn weave_in(dir: &Path, args: &[&str]) -> Output {
 }
 
 fn weave_stdin(dir: &Path, args: &[&str], input: &[u8]) -> Output {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_weave"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_weavec"))
         .current_dir(dir)
         .args(args)
         .stdin(Stdio::piped())
@@ -129,7 +129,7 @@ fn exit_statuses() {
     ] {
         let out = weave_in(&dir, args);
         assert_eq!(out.status.code(), Some(2), "{args:?}");
-        assert!(text(&out.stderr).contains("weave --help"));
+        assert!(text(&out.stderr).contains("weavec --help"));
     }
     assert!(!dir.join("ok2.weave").exists());
 }

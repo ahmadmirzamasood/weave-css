@@ -133,7 +133,7 @@ def main() -> int:
     weave = args.weave
     if weave is None:
         subprocess.run(["cargo", "build", "--quiet", "--locked", "-p", "weave-css"], cwd=ROOT, check=True)
-        exe = "weave.exe" if os.name == "nt" else "weave"
+        exe = "weavec.exe" if os.name == "nt" else "weavec"
         weave = str(ROOT / "target" / "debug" / exe)
 
     cases = sorted(p for p in CASES.iterdir() if (p / "case.toml").is_file())
@@ -151,7 +151,7 @@ def main() -> int:
             body = (case / "body.html").read_text(encoding="utf-8")
             build = subprocess.run([weave, "build", str(case / "main.weave")], capture_output=True, text=True, encoding="utf-8")
             if build.returncode != 0:
-                print(f"FAIL {case.name}: weave build failed\n{build.stderr}")
+                print(f"FAIL {case.name}: weavec build failed\n{build.stderr}")
                 failures += 1
                 continue
             native = computed(browser, native_css(source), body, props, work, f"{case.name}-native")

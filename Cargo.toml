@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/weave-compiler", "crates/weave-cli", "crates/weave-bench", "crates/weave-docs"]
 
 [workspace.package]
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
@@ -12,7 +12,7 @@ homepage = "https://github.com/ahmadmirzamasood/weave-css"
 authors = ["Weave contributors"]
 
 [workspace.dependencies]
-weave-compiler = { path = "crates/weave-compiler", version = "=0.1.0-rc.1" }
+weave-compiler = { path = "crates/weave-compiler", version = "=0.1.0-rc.2" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

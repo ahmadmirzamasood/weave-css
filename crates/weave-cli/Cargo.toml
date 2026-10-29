@@ -1,6 +1,6 @@
 [package]
 name = "weave-css"
-description = "The weave command: compiles Weave stylesheets (.weave) to standard CSS"
+description = "The weavec command: compiles Weave stylesheets (.weave) to standard CSS"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,12 +9,12 @@ repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
 readme = "README.md"
-keywords = ["css", "preprocessor", "stylesheet", "cli", "weave"]
+keywords = ["css", "preprocessor", "stylesheet", "cli", "weavec"]
 categories = ["command-line-utilities", "web-programming"]
 include = ["src/**/*.rs", "README.md", "LICENSE", "Cargo.toml"]
 
 [[bin]]
-name = "weave"
+name = "weavec"
 path = "src/main.rs"
 
 [dependencies]

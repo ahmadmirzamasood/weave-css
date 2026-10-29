@@ -4,7 +4,15 @@
 
 Nothing yet.
 
+## 0.1.0-rc.2
+
+Release candidate for 0.1.0 (not yet published). Supersedes 0.1.0-rc.1, which was prepared but never published or tagged.
+
+- The command is now `weavec` (was `weave`), because the name `weave` is used by other command-line tools (the `weave-cli` crate, a Homebrew formula). The language, the `.weave` extension, the packages `weave-css` and `weave-compiler` and all flags and output are unchanged. `watch` status lines now start with `[weavec]`; release archives are named `weavec-<version>-<target>`. Update scripts and editor task matchers that run `weave` or match `[weave]`.
+
 ## 0.1.0-rc.1
+
+Prepared, never published. Its entries are kept because they describe the work leading to rc.2.
 
 Release candidate for 0.1.0 (not yet published to any registry or as a GitHub release). The v0.1 language is implemented except the `color` built-ins (error E5001). Bullets below record the work from the first specification to this candidate, in phase order, newest first.
 

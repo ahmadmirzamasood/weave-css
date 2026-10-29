@@ -84,7 +84,7 @@ pub fn run(session: &mut Session) -> io::Result<()> {
             if outcome.success {
                 writeln!(
                     stderr,
-                    "[weave] wrote {output} ({} bytes from {} module{})",
+                    "[weavec] wrote {output} ({} bytes from {} module{})",
                     outcome.css_bytes,
                     outcome.modules,
                     if outcome.modules == 1 { "" } else { "s" }
@@ -92,13 +92,13 @@ pub fn run(session: &mut Session) -> io::Result<()> {
             } else {
                 writeln!(
                     stderr,
-                    "[weave] build failed; {output} keeps the last successful output"
+                    "[weavec] build failed; {output} keeps the last successful output"
                 )?;
             }
             if !announced {
                 writeln!(
                     stderr,
-                    "[weave] watching for changes every {} ms (Ctrl-C to stop)",
+                    "[weavec] watching for changes every {} ms (Ctrl-C to stop)",
                     session.options.poll_interval.as_millis()
                 )?;
                 announced = true;

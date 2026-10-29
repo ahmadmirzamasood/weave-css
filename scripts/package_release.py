@@ -5,7 +5,7 @@
     package_release.py source  --version V --out DIR
     package_release.py sums    --out FILE ARCHIVE...
 
-Archives contain the `weave` binary, LICENSE, THIRD-PARTY-NOTICES.md and
+Archives contain the `weavec` binary, LICENSE, THIRD-PARTY-NOTICES.md and
 README.md under a directory named after the archive, with fixed timestamps,
 owners and permissions, so the same inputs always give the same bytes.
 Windows targets get a .zip, others a .tar.gz. Standard library only.
@@ -33,7 +33,7 @@ def epoch() -> int:
 
 
 def members(binary: Path, directory: str, windows: bool):
-    name = "weave.exe" if windows else "weave"
+    name = "weavec.exe" if windows else "weavec"
     yield f"{directory}/{name}", binary.read_bytes(), 0o755
     for extra in EXTRAS:
         yield f"{directory}/{extra}", (ROOT / extra).read_bytes(), 0o644
@@ -76,7 +76,7 @@ def sha256(path: Path) -> str:
 
 def cmd_archive(args) -> Path:
     windows = "windows" in args.target
-    directory = f"weave-{args.version}-{args.target}"
+    directory = f"weavec-{args.version}-{args.target}"
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     files = list(members(Path(args.binary), directory, windows))

@@ -12,7 +12,7 @@ Weave is designed to be fast, but **no speed claim is made relative to any other
 | Corpus | 7 deterministic generated workloads (`weave-bench generate`, generator v1), listed below |
 | Statistics | medians and interquartile ranges; a difference is called faster or slower only when the IQRs do not overlap; differences below about 5 % are not claimed |
 
-**Cold** means a new `weave build <entry> -o out.css` process per sample with the operating system's file cache warm (one untimed build first). **warm-fresh** is an in-process build with an empty module cache; **warm-unchanged** reuses parsed modules; **edit-** rebuilds after changing one module. Every sample's output is checked: all workloads produced byte-identical CSS in every build compared.
+**Cold** means a new `weavec build <entry> -o out.css` process per sample with the operating system's file cache warm (one untimed build first). **warm-fresh** is an in-process build with an empty module cache; **warm-unchanged** reuses parsed modules; **edit-** rebuilds after changing one module. Every sample's output is checked: all workloads produced byte-identical CSS in every build compared.
 
 | workload | modules | input bytes | output bytes |
 |---|---:|---:|---:|
@@ -26,11 +26,13 @@ Weave is designed to be fast, but **no speed claim is made relative to any other
 
 ## Results for this release candidate
 
+(Measured with the release candidate before the command was renamed from `weave` to `weavec`; the rename changes no compiler code.)
+
 An interleaved comparison (4 rounds, the order alternating each round) of the release-candidate tree against the previous `main` (commit `18918cd`, after the hardening phase), 2026-10-29. Medians in milliseconds.
 
 | series | `main` 18918cd | this candidate | verdict |
 |---|---:|---:|---|
-| cold, `weave --version` (process overhead) | 10.18 | 10.28 | noise |
+| cold, `weavec --version` (process overhead) | 10.18 | 10.28 | noise |
 | cold, small-component | 14.04 | 13.74 | noise |
 | cold, large-plain (2.6 MB) | 259.6 | 245.1 | noise |
 | cold, large-mixed | 83.7 | 89.5 | noise |
@@ -50,8 +52,8 @@ Before the candidate, the performance phase reduced cold build times by comparin
 ## Limits of this evidence
 
 - **One machine.** One laptop CPU on Windows. There are no Linux or macOS measurements, so no cross-platform claim is made.
-- **A first, non-interleaved run was discarded.** A single run of the candidate compared against the old results from another day showed 10-35 % "slower" on everything, including `weave --version`, which runs none of the compiler. That is machine drift between days, which is why only interleaved comparisons are used above.
-- **Cold numbers include the cost of starting the process from Python**; the `weave --version` row measures it (about 10 ms).
+- **A first, non-interleaved run was discarded.** A single run of the candidate compared against the old results from another day showed 10-35 % "slower" on everything, including `weavec --version`, which runs none of the compiler. That is machine drift between days, which is why only interleaved comparisons are used above.
+- **Cold numbers include the cost of starting the process from Python**; the `weavec --version` row measures it (about 10 ms).
 - **Nothing here compares Weave with other tools**, and small inputs are dominated by process start.
 - **The `watch` rebuild latency and allocation counts are not measured.**
 - Raw samples are not published in the repository; rerun the script to produce your own.

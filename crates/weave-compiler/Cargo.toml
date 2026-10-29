@@ -6,7 +6,13 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-publish.workspace = true
+homepage.workspace = true
+authors.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/weave-compiler"
+keywords = ["css", "preprocessor", "stylesheet", "compiler", "weave"]
+categories = ["compilers", "web-programming"]
+include = ["src/**/*.rs", "README.md", "LICENSE", "Cargo.toml"]
 
 [lints]
 workspace = true

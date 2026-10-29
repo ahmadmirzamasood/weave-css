@@ -36,7 +36,7 @@ struct Watcher {
 
 impl Watcher {
     fn start(dir: &Path, extra: &[&str]) -> Watcher {
-        let mut child = Command::new(env!("CARGO_BIN_EXE_weave"))
+        let mut child = Command::new(env!("CARGO_BIN_EXE_weavec"))
             .current_dir(dir)
             .args([
                 "watch",
@@ -51,7 +51,7 @@ impl Watcher {
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .spawn()
-            .expect("failed to start weave watch");
+            .expect("failed to start weavec watch");
         let stderr = child.stderr.take().unwrap();
         let (send, reports) = mpsc::channel();
         std::thread::spawn(move || {
@@ -268,7 +268,7 @@ fn deleted_entry_fails_and_recovers() {
 fn human_status_lines() {
     let dir = scratch("human");
     put(&dir.join("main.weave"), "rule a { b: c; }\n");
-    let mut child = Command::new(env!("CARGO_BIN_EXE_weave"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_weavec"))
         .current_dir(&dir)
         .args([
             "watch",
@@ -284,11 +284,11 @@ fn human_status_lines() {
     let mut lines = BufReader::new(child.stderr.take().unwrap()).lines();
     let deadline = Instant::now() + TIMEOUT;
     let first = lines.next().unwrap().unwrap();
-    assert_eq!(first, "[weave] wrote out.css (14 bytes from 1 module)");
+    assert_eq!(first, "[weavec] wrote out.css (14 bytes from 1 module)");
     let second = lines.next().unwrap().unwrap();
     assert_eq!(
         second,
-        "[weave] watching for changes every 20 ms (Ctrl-C to stop)"
+        "[weavec] watching for changes every 20 ms (Ctrl-C to stop)"
     );
     put(&dir.join("main.weave"), "rule a { b: #{x}; }\n");
     let error = lines.next().unwrap().unwrap();
@@ -296,13 +296,13 @@ fn human_status_lines() {
     let mut status = String::new();
     while Instant::now() < deadline {
         status = lines.next().unwrap().unwrap();
-        if status.starts_with("[weave]") {
+        if status.starts_with("[weavec]") {
             break;
         }
     }
     assert_eq!(
         status,
-        "[weave] build failed; out.css keeps the last successful output"
+        "[weavec] build failed; out.css keeps the last successful output"
     );
     let _ = child.kill();
     let _ = child.wait();
@@ -315,7 +315,7 @@ fn control_characters_in_status_lines_are_escaped() {
     // character on every supported platform.
     let dir = scratch("escaped-status");
     put(&dir.join("main.weave"), "rule a { b: c; }\n");
-    let mut child = Command::new(env!("CARGO_BIN_EXE_weave"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_weavec"))
         .current_dir(&dir)
         .args([
             "watch",
@@ -334,6 +334,6 @@ fn control_characters_in_status_lines_are_escaped() {
     let _ = child.wait();
     assert_eq!(
         first,
-        "[weave] wrote out\\u{202e}ssc.css (14 bytes from 1 module)"
+        "[weavec] wrote out\\u{202e}ssc.css (14 bytes from 1 module)"
     );
 }

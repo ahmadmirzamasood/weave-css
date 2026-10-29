@@ -199,4 +199,6 @@ All built-ins are deterministic and follow the call rules of LANGUAGE §5.4. Par
 | `color.mix(a, b, weight = 50%)` | color | per channel and alpha: `round(a × w + b × (1 − w))`, ties toward +∞; `w` unitless 0–1 or `%` |
 | `color.red(c)`, `color.green(c)`, `color.blue(c)` | number | 0–255 |
 | `color.alpha(c)` | number | `a / 255`, unitless |
+
+Color built-in errors ([BUILTINS.md](BUILTINS.md#color-8-bit-srgb-colors)): a channel, alpha or weight with a unit other than `%` is E3001; a `mix` weight outside 0–1 or 0%–100% is E2003; a non-color argument is E4005. Arithmetic is exact integer arithmetic on the six-decimal quantized arguments.
 | `meta.type(x)` | string | `"number"`, `"string"`, `"color"`, `"bool"`, `"list"`, `"map"`, `"css"` |

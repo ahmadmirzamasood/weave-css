@@ -30,7 +30,7 @@ The grammar is line-based, like every TextMate grammar: it does not
 reproduce the compiler's item classification exactly (for example a
 selector split across lines after `rule`, or a declaration whose property
 name comes from interpolation), so treat colours as a reading aid, and
-`weave check` as the authority.
+`weavec check` as the authority.
 
 ## VS Code: install locally
 
@@ -75,7 +75,7 @@ can parse; the human format is easier to read in a terminal:
     {
       "label": "weave: watch",
       "type": "shell",
-      "command": "weave watch src/main.weave -o dist/site.css --root src --source-map",
+      "command": "weavec watch src/main.weave -o dist/site.css --root src --source-map",
       "isBackground": true,
       "problemMatcher": {
         "owner": "weave",
@@ -85,9 +85,9 @@ can parse; the human format is easier to read in a terminal:
           { "regexp": "^  --> (.+):(\\d+):(\\d+)$", "file": 1, "line": 2, "column": 3 }
         ],
         "background": {
-          "activesBegin": "^\\[weave\\] (wrote|build failed)",
+          "activesBegin": "^\\[weavec\\] (wrote|build failed)",
           "beginsPattern": "^(error|warning)\\[",
-          "endsPattern": "^\\[weave\\] (wrote|build failed)"
+          "endsPattern": "^\\[weavec\\] (wrote|build failed)"
         }
       }
     }

@@ -25,6 +25,8 @@ jobs:
         run: python3 scripts/check_spec.py
       - name: Check editor support files
         run: python3 scripts/check_editor.py
+      - name: Check release consistency
+        run: python3 scripts/check_release.py
 
   rust:
     name: Rust (${{ matrix.os }})

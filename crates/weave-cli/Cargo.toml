@@ -1,15 +1,20 @@
 [package]
-name = "weave-cli"
-description = "Command-line interface for the Weave stylesheet language"
+name = "weave-css"
+description = "The weavec command: compiles Weave stylesheets (.weave) to standard CSS"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-publish.workspace = true
+homepage.workspace = true
+authors.workspace = true
+readme = "README.md"
+keywords = ["css", "preprocessor", "stylesheet", "cli", "weavec"]
+categories = ["command-line-utilities", "web-programming"]
+include = ["src/**/*.rs", "README.md", "LICENSE", "Cargo.toml"]
 
 [[bin]]
-name = "weave"
+name = "weavec"
 path = "src/main.rs"
 
 [dependencies]

@@ -1,0 +1,26 @@
+bind brand = #2563eb;
+bind a = color.rgb(37, 99, 235);
+bind half = color.rgb(0, 0, 0, 50%);
+
+rule .rgb {
+  literal: #{a};
+  percent: #{color.rgb(100%, 0%, 50%)};
+  clamped: #{color.rgb(300, -5, 127.5, 0.5)};
+  alpha-percent: #{half};
+  equal: #{a == brand};
+}
+
+rule .mix {
+  default: #{color.mix(#000000, #ffffff)};
+  quarter: #{color.mix(#ff0000, #0000ff, 25%)};
+  fraction: #{color.mix(#ff000080, #0000ff, 0.5)};
+  first: #{color.mix(#123456, #abcdef, 1)};
+  second: #{color.mix(#123456, #abcdef, 0)};
+}
+
+rule .parts {
+  channels: #{color.red(brand)} #{color.green(brand)} #{color.blue(brand)};
+  solid: #{color.alpha(brand)};
+  translucent: #{color.alpha(#2563eb80)};
+  named: #{color.rgb(r: 1, g: 2, b: 3, alpha: 0.2)};
+}

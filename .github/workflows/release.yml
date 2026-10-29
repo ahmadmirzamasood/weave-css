@@ -1,0 +1,258 @@
+name: Release candidate
+
+# Builds, tests and packages release artifacts from one exact commit.
+#
+# - On pull requests that touch the release machinery it only rehearses: the
+#   same build, smoke tests, packaging and reproducibility check, with
+#   artifacts kept for 7 days, no attestation, no release.
+# - A manual run (Actions -> Release candidate -> Run workflow) does the same
+#   for the chosen ref. Only with `draft_release: true`, from `main`, with
+#   `expected_commit` equal to the built commit, does it also attest
+#   provenance and create a DRAFT GitHub release. It never publishes the draft,
+#   creates a tag or publishes to a package registry; see docs/RELEASING.md.
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - scripts/package_release.py
+      - scripts/check_release.py
+  workflow_dispatch:
+    inputs:
+      expected_commit:
+        description: Full commit SHA this run must build (required for a draft release)
+        required: false
+        type: string
+      draft_release:
+        description: Attest provenance and create a draft GitHub release (never published automatically)
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  verify:
+    name: Verify commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      source_date_epoch: ${{ steps.meta.outputs.source_date_epoch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read version and commit time
+        id: meta
+        run: |
+          version=$(python3 - <<'PY'
+          import re, pathlib
+          text = pathlib.Path("Cargo.toml").read_text()
+          section = re.search(r"\[workspace\.package\](.*?)(?=^\[)", text, re.S | re.M).group(1)
+          print(re.search(r'^version\s*=\s*"([^"]+)"', section, re.M).group(1))
+          PY
+          )
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "source_date_epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
+          echo "Building $version from $GITHUB_SHA"
+      - name: Check the commit is the expected one
+        if: inputs.expected_commit != ''
+        env:
+          EXPECTED: ${{ inputs.expected_commit }}
+        run: |
+          test "$EXPECTED" = "$GITHUB_SHA" || { echo "expected $EXPECTED but building $GITHUB_SHA"; exit 1; }
+      - name: Install toolchain
+        run: rustup toolchain install && rustc --version --verbose && cargo --version
+      - name: Release consistency checks
+        run: |
+          python3 scripts/check_release.py
+          python3 scripts/check_spec.py
+          python3 scripts/check_editor.py
+          python3 scripts/check_deps.py
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+      - name: Test
+        run: cargo test --workspace --all-features --locked
+      - name: Package dry run (no upload)
+        run: |
+          cargo package --workspace --locked --exclude weave-bench --exclude weave-docs
+          for crate in weave-compiler weave-css; do
+            echo "== $crate"
+            cargo package -p "$crate" --locked --list --allow-dirty 2>/dev/null | sort
+          done
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, python: python3 }
+          - { os: macos-latest, target: aarch64-apple-darwin, python: python3 }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, python: python }
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+      SOURCE_DATE_EPOCH: ${{ needs.verify.outputs.source_date_epoch }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install toolchain
+        run: rustup toolchain install && rustc --version --verbose && cargo --version
+      - name: Check the host is the target
+        run: |
+          host=$(rustc -vV | sed -n 's/^host: //p')
+          echo "host: $host"
+          test "$host" = "${{ matrix.target }}" || { echo "runner host $host is not ${{ matrix.target }}"; exit 1; }
+      - name: Runner details
+        run: |
+          uname -a || true
+          (ldd --version | head -1) 2>/dev/null || true
+          sw_vers 2>/dev/null || true
+      - name: Build
+        # Paths are remapped so the binary does not embed the runner's layout.
+        run: |
+          export RUSTFLAGS="--remap-path-prefix=$PWD=/build/weave-css --remap-path-prefix=$HOME/.cargo=/build/cargo --remap-path-prefix=$HOME/.rustup=/build/rustup"
+          cargo build --release --locked -p weave-css
+      - name: Binary reports the intended version
+        run: |
+          exe=target/release/weavec; [ -f "$exe.exe" ] && exe="$exe.exe"
+          first=$("$exe" --version | head -1)
+          echo "$first"
+          test "$first" = "weavec $VERSION" || { echo "expected 'weavec $VERSION'"; exit 1; }
+      - name: Smoke test the binary on the examples
+        run: |
+          exe="$PWD/target/release/weavec"; [ -f "$exe.exe" ] && exe="$exe.exe"
+          for dir in examples/*/; do
+            [ -f "$dir/main.weave" ] || continue
+            (cd "$dir" && "$exe" build main.weave > "$RUNNER_TEMP/out.css")
+            cmp "$RUNNER_TEMP/out.css" "$dir/expected.css" || { echo "$dir differs"; exit 1; }
+            echo "ok $dir"
+          done
+          printf 'bind c = #0b5fff;\nrule .a { color: #{c}; }\n' | "$exe" build - > "$RUNNER_TEMP/stdin.css"
+          printf '.a {\n  color: #0b5fff;\n}\n' | cmp - "$RUNNER_TEMP/stdin.css"
+          if printf 'rule .a { color: #{nope}; }\n' | "$exe" check -; then echo "a bad input must fail"; exit 1; else test $? -eq 1; fi
+      - name: Package
+        run: |
+          exe=target/release/weavec; [ -f "$exe.exe" ] && exe="$exe.exe"
+          ${{ matrix.python }} scripts/package_release.py archive --version "$VERSION" --target "${{ matrix.target }}" --binary "$exe" --out dist
+          ${{ matrix.python }} -c "import hashlib,sys; print('binary sha256', hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$exe" | tee "dist/binary-sha256-${{ matrix.target }}.txt"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: weave-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: ${{ github.event_name == 'pull_request' && 7 || 30 }}
+
+  reproduce:
+    name: Reproducibility (Linux)
+    needs: [verify, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOURCE_DATE_EPOCH: ${{ needs.verify.outputs.source_date_epoch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: weave-x86_64-unknown-linux-gnu
+          path: first
+      - name: Install toolchain
+        run: rustup toolchain install
+      - name: Rebuild from a clean checkout and compare
+        run: |
+          export RUSTFLAGS="--remap-path-prefix=$PWD=/build/weave-css --remap-path-prefix=$HOME/.cargo=/build/cargo --remap-path-prefix=$HOME/.rustup=/build/rustup"
+          cargo build --release --locked -p weave-css
+          second=$(sha256sum target/release/weavec | cut -d' ' -f1)
+          first=$(sed -n 's/^binary sha256 //p' first/binary-sha256-x86_64-unknown-linux-gnu.txt)
+          echo "first : $first"
+          echo "second: $second"
+          test "$first" = "$second" || { echo "binary is not reproducible between two builds on this runner image"; exit 1; }
+
+  checksums:
+    name: Checksums and source archive
+    needs: [verify, build, reproduce]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+      SOURCE_DATE_EPOCH: ${{ needs.verify.outputs.source_date_epoch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: weave-*
+          path: artifacts
+          merge-multiple: true
+      - name: Source archive and SHA256SUMS
+        run: |
+          mkdir -p release
+          cp artifacts/weavec-*.tar.gz artifacts/weavec-*.zip release/
+          python3 scripts/package_release.py source --version "$VERSION" --out release
+          python3 scripts/package_release.py sums --out release/SHA256SUMS release/weavec-*.tar.gz release/weavec-*.zip
+          (cd release && sha256sum --check SHA256SUMS)
+          ls -l release
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-files
+          path: release/*
+          if-no-files-found: error
+          retention-days: ${{ github.event_name == 'pull_request' && 7 || 30 }}
+
+  draft-release:
+    name: Attest and create draft release
+    needs: [verify, checksums]
+    if: github.event_name == 'workflow_dispatch' && inputs.draft_release && github.ref == 'refs/heads/main' && inputs.expected_commit == github.sha
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Add required reviewers to this environment in the repository settings
+    # to gate the step on a person.
+    environment: release
+    permissions:
+      contents: write       # create the draft release
+      id-token: write       # sign the attestation
+      attestations: write   # store the attestation
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-files
+          path: release
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: release/SHA256SUMS
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          path: src
+      - name: Create the draft release (not published, no tag created)
+        run: |
+          tag="v$VERSION"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then echo "release $tag already exists"; exit 1; fi
+          if git ls-remote --exit-code --tags "https://github.com/$GITHUB_REPOSITORY" "refs/tags/$tag" >/dev/null 2>&1; then echo "tag $tag already exists; never move a published tag"; exit 1; fi
+          flags=(--draft --target "$GITHUB_SHA" --title "Weave $VERSION" --notes-file "src/docs/RELEASE-NOTES-$VERSION.md")
+          case "$VERSION" in *-*) flags+=(--prerelease) ;; esac
+          gh release create "$tag" "${flags[@]}" --repo "$GITHUB_REPOSITORY" release/*

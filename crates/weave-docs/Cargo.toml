@@ -1,0 +1,16 @@
+[package]
+name = "weave-docs"
+description = "Compiles the Rust examples of the Weave documentation as doctests"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+# Test harness for the documentation; never published.
+publish = false
+
+[dependencies]
+weave-compiler.workspace = true
+
+[lints]
+workspace = true

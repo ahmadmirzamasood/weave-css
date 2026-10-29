@@ -1,3 +1,3 @@
-description = "Unresolved names and functions (E1002), namespaces and values in the wrong role (E1004), unknown prelude members (E7003), specified but unimplemented built-ins (E5001), and built-in argument binding and type errors."
+description = "Unresolved names and functions (E1002), namespaces and values in the wrong role (E1004), unknown prelude members (E7003), and built-in argument binding and type errors."
 spec = ["LANGUAGE.md 4.3", "LANGUAGE.md 5.4", "TYPES.md 9"]
 expect = "error"

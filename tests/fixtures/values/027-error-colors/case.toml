@@ -1,0 +1,3 @@
+description = "Color built-in argument errors, one per statement: channel or alpha with a unit that is neither unitless nor a percentage (E3001), mix weights outside 0-1 or 0%-100% (E2003) or with a unit (E3001), non-color arguments (E4005), missing arguments (E4001) and too many arguments (E4004)."
+spec = ["TYPES.md 9", "BUILTINS.md color"]
+expect = "error"

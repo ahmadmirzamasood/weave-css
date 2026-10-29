@@ -29,7 +29,7 @@ maps), `warm-unchanged` (primed parse cache), and `edit-<label>` (one module
 changes before every build). Every cached build is compared with an uncached
 build of the same sources.
 
-`scripts/bench.py` adds cold processes (`weave build` per sample), peak
+`scripts/bench.py` adds cold processes (`weavec build` per sample), peak
 memory, environment details and corpus hashes, and can measure a baseline
 checkout interleaved with the current build:
 

@@ -2,7 +2,11 @@
 
 ## Status and reporting
 
-No supported release exists yet. Once releases begin, security fixes target the latest minor release until a broader policy is published. Enable GitHub private vulnerability reporting during repository setup. Report vulnerabilities through the repository Security tab -> Report a vulnerability; do not post exploitable details in public issues. If private reporting is unavailable, contact a listed maintainer privately to arrange a channel; no response-time guarantee is currently made.
+**Supported versions.** No stable release exists yet; the current release candidate is 0.1.0-rc.3. Until 1.0, security fixes are made against the latest release (or release candidate) only; older pre-releases are not patched, and users should move to the newest one.
+
+**Reporting a vulnerability.** Report privately: open <https://github.com/ahmadmirzamasood/weave-css/security/advisories/new> (repository Security tab -> Report a vulnerability). Do not post exploitable details in public issues, pull requests or discussions. Include the Weave version (`weavec --version`), your platform, the smallest input that shows the problem and what you expected. Examples of in-scope problems: a crash, hang or unbounded memory use caused by a stylesheet; reading or writing a file outside the configured root or over an input; output that lets interpolated data change CSS structure; terminal-control injection through diagnostics; supply-chain problems in the repository or release artifacts. Out of scope: CSS that a browser later interprets in a harmful way (Weave is not a sanitizer), and races against concurrent writers to the module tree (documented in docs/CLI.md).
+
+**What to expect.** This is a volunteer project and makes no response-time guarantee. The maintainers aim to acknowledge a report, agree on a fix and disclose in a published advisory with credit (if you want it) after a fixed release exists. Registry versions with a vulnerability are yanked where justified and an advisory is published; see docs/RELEASING.md. If private reporting is unavailable, contact a maintainer through the address on their GitHub profile to arrange a private channel.
 
 ## Threat model
 

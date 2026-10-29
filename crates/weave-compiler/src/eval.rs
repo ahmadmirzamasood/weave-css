@@ -856,14 +856,6 @@ impl<'s> Evaluator<'s, '_> {
         }
         match builtins::member(namespace, &callee.name) {
             Member::Implemented(builtin) => Ok(Callee::Builtin(builtin)),
-            Member::Specified => Err(self.report(
-                Diagnostic::error(
-                    Code::E5001,
-                    format!("built-in `{}` is not implemented in this build", full()),
-                )
-                .with_primary(callee.span)
-                .with_note("docs/BUILTINS.md lists the built-ins this build implements"),
-            )),
             Member::Unknown => Err(self.error(
                 Code::E7003,
                 callee.span,

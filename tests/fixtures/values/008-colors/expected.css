@@ -1,0 +1,22 @@
+.rgb {
+  literal: #2563eb;
+  percent: #ff0080;
+  clamped: #ff008080;
+  alpha-percent: #00000080;
+  equal: true;
+}
+
+.mix {
+  default: #808080;
+  quarter: #4000bf;
+  fraction: #800080c0;
+  first: #123456;
+  second: #abcdef;
+}
+
+.parts {
+  channels: 37 99 235;
+  solid: 1;
+  translucent: 0.501961;
+  named: #01020333;
+}

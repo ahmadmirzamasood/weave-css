@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 fn weave(args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_weave"))
+    Command::new(env!("CARGO_BIN_EXE_weavec"))
         .args(args)
         .output()
         .expect("failed to run weave")
@@ -40,11 +40,11 @@ fn version_reports_crate_and_language_versions() {
         assert_eq!(out.status.code(), Some(0), "{flag}");
         let text = stdout(&out);
         assert!(
-            text.starts_with(&format!("weave {}\n", env!("CARGO_PKG_VERSION"))),
+            text.starts_with(&format!("weavec {}\n", env!("CARGO_PKG_VERSION"))),
             "{text}"
         );
         assert!(text.contains("language specification: v0.1"));
-        assert!(text.contains("compilation: plain-CSS subset"));
+        assert!(text.contains("compilation: Weave v0.1"));
         assert!(out.stderr.is_empty());
     }
 }
@@ -56,10 +56,10 @@ fn help_lists_commands_and_states_status() {
         assert_eq!(out.status.code(), Some(0), "{flag}");
         let text = stdout(&out);
         for needle in [
-            "weave build <input.weave>",
-            "weave check <input.weave>",
-            "plain-CSS subset",
-            "E5001",
+            "weavec build <input.weave>",
+            "weavec check <input.weave>",
+            "Status: release candidate",
+            "docs/LANGUAGE.md",
         ] {
             assert!(text.contains(needle), "{flag}: missing {needle}");
         }
@@ -77,7 +77,7 @@ fn invalid_command_lines_exit_with_usage_status() {
         let out = weave(args);
         assert_eq!(out.status.code(), Some(2), "{args:?}");
         assert!(out.stdout.is_empty());
-        assert!(stderr(&out).contains("weave --help"), "{args:?}");
+        assert!(stderr(&out).contains("weavec --help"), "{args:?}");
     }
 }
 

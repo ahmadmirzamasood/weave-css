@@ -1,7 +1,7 @@
 """Weave benchmark driver.
 
 Builds the release binaries, generates the benchmark corpus with
-`weave-bench generate`, measures cold `weave build` processes (wall time and
+`weave-bench generate`, measures cold `weavec build` processes (wall time and
 peak memory), runs the in-process scenarios of `weave-bench run`, and writes
 one JSON file with the environment, the corpus hashes and every raw sample.
 
@@ -14,14 +14,14 @@ Cold means a new `weave` process per build. The operating system's file
 cache is warm: every workload is built once, untimed, before its samples, so
 cold numbers measure process start, file reading and compilation, not disk
 latency. Spawning from Python adds overhead to every cold sample; the
-`process-baseline` scenario (`weave --version`) measures it.
+`process-baseline` scenario (`weavec --version`) measures it.
 
 With --baseline, both builds are measured in alternating rounds (the order
 flips every round) so that slow drift in machine speed affects both alike;
 before.json and after.json then hold the merged samples of each build.
 
 Peak memory is the peak working set (Windows) or maximum resident set size
-(Linux, macOS) of each `weave build` process.
+(Linux, macOS) of each `weavec build` process.
 """
 
 import argparse
@@ -40,6 +40,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 EXE = ".exe" if os.name == "nt" else ""
+
+
+def cli_package(tree: Path) -> str:
+    """The CLI package name of a checkout (`weave-cli` before 0.1.0-rc.3)."""
+    manifest = (tree / "crates" / "weave-cli" / "Cargo.toml").read_text(encoding="utf-8")
+    return "weave-css" if 'name = "weave-css"' in manifest else "weave-cli"
 
 
 def sh(*cmd: str) -> str:
@@ -154,7 +160,7 @@ def timed_process(cmd: list[str]) -> tuple[int, int | None, int]:
 
 def cold(weave: Path, corpus: Path, entries: dict, bench: dict, samples: int) -> list:
     results = []
-    baseline = {"name": "process-baseline", "command": "weave --version", "wall": [], "peak_memory": []}
+    baseline = {"name": "process-baseline", "command": "weavec --version", "wall": [], "peak_memory": []}
     timed_process([str(weave), "--version"])
     for _ in range(samples):
         wall, peak, _ = timed_process([str(weave), "--version"])
@@ -176,7 +182,7 @@ def cold(weave: Path, corpus: Path, entries: dict, bench: dict, samples: int) ->
                     checked = css[: css.rstrip(b"\n").rfind(b"\n") + 1]
                 if fnv1a64(checked) != workload["output_fnv1a64"]:
                     raise SystemExit(f"{name}/{scenario}: CLI output differs from the in-process build")
-                row = {"name": f"{name}/{scenario}", "command": "weave build " + " ".join(
+                row = {"name": f"{name}/{scenario}", "command": "weavec build " + " ".join(
                     [f"{name}/{entry.name}", "-o", "out.css", *extra]), "wall": [], "peak_memory": [],
                     "output_bytes": len(css)}
                 if extra:
@@ -232,7 +238,9 @@ def merge(parts: list) -> dict:
 
 def binaries(tree: Path) -> tuple[Path, Path]:
     target = tree / "target" / "release"
-    return target / f"weave{EXE}", target / f"weave-bench{EXE}"
+    # The binary was called `weave` before 0.1.0-rc.3.
+    cli = target / f"weavec{EXE}"
+    return (cli if cli.exists() else target / f"weave{EXE}"), target / f"weave-bench{EXE}"
 
 
 def run(args) -> None:
@@ -242,7 +250,7 @@ def run(args) -> None:
     if not args.no_build:
         for _, tree in trees:
             subprocess.run(
-                ["cargo", "build", "--release", "--locked", "-p", "weave-cli", "-p", "weave-bench"],
+                ["cargo", "build", "--release", "--locked", "-p", cli_package(tree), "-p", "weave-bench"],
                 cwd=tree,
                 check=True,
             )

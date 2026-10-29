@@ -1,17 +1,17 @@
-# The `weave` command line
+# The `weavec` command line
 
-Reference for the `weave` binary of this repository (crate `weave-cli`). Run
-`weave --help` for the summary and the resource-limit defaults of your build.
+Reference for the `weavec` binary (package `weave-css`, source in `crates/weave-cli`). Run
+`weavec --help` for the summary and the resource-limit defaults of your build.
 
 ## Commands
 
 | Command | Effect |
 |---|---|
-| `weave build <input> [options]` | Compile and write CSS: to stdout by default, or to `--output <file>` |
-| `weave check <input> [options]` | Compile and report diagnostics; write no CSS (`--deps` is allowed) |
-| `weave watch <input> -o <file> [options]` | Build, then rebuild whenever an input changes ([Watch](#watch)) |
-| `weave help`, `-h`, `--help` | Print help |
-| `weave version`, `-V`, `--version` | Print the compiler version, the language specification version and the tool features |
+| `weavec build <input> [options]` | Compile and write CSS: to stdout by default, or to `--output <file>` |
+| `weavec check <input> [options]` | Compile and report diagnostics; write no CSS (`--deps` is allowed) |
+| `weavec watch <input> -o <file> [options]` | Build, then rebuild whenever an input changes ([Watch](#watch)) |
+| `weavec help`, `-h`, `--help` | Print help |
+| `weavec version`, `-V`, `--version` | Print the compiler version, the language specification version and the tool features |
 
 `<input>` is a `.weave` file, or `-` to read the entry module from stdin
 (`build` and `check` only). Diagnostics name stdin `<stdin>.weave`.
@@ -34,6 +34,16 @@ could not be written; `2` invalid command line.
 | `--` | Ends options; a later argument starting with `-` is the input. |
 
 Options take their value as the next argument or after `=` (`--output=out.css`).
+
+## Resource limits
+
+Every build is bounded by the limits of [LANGUAGE.md §17](LANGUAGE.md#17-resource-limits); `weavec --help` prints the defaults of your build. A limit that is exceeded stops the build with the matching `E8xxx` diagnostic that names the limit to raise. Raise one only for input you trust, for example:
+
+```bash
+weavec build big.weave -o big.css --limit evaluation-steps=10000000
+```
+
+**Very large plain CSS.** An evaluation step is counted per emitted item as well as per expression, so the default of 1,000,000 steps stops a file of simple one-declaration rules at about 333,000 rules (about 3.6 MB of source; measured on a generated 12 MB file with 400,000 rules, which fails with `E8004` at line 333,334 and builds when `evaluation-steps` is raised to 10,000,000). The default is deliberately unchanged in this release candidate because it also bounds work on hostile input; most real stylesheets are far smaller. If you compile generated CSS of this size, set the limit explicitly.
 
 ## Module files and the root
 
@@ -139,7 +149,7 @@ as `\u{…}`.
 
 ## Watch
 
-`weave watch <input> -o <file>` builds once, then polls the files that can
+`weavec watch <input> -o <file>` builds once, then polls the files that can
 change the result and rebuilds when one changes. It runs until interrupted.
 
 - **What is watched.** After every build (successful or not): the input,
@@ -149,14 +159,14 @@ change the result and rebuilds when one changes. It runs until interrupted.
   the right rebuilds, and the watched set follows the new module graph.
 - **Failures keep the last good output.** A failed build writes nothing:
   CSS, map and dependency list stay as the last successful build wrote them.
-  The report says so (human: `[weave] build failed; out.css keeps the last
+  The report says so (human: `[weavec] build failed; out.css keeps the last
   successful output`; JSON: `"success":false`).
 - **No loops.** Output files are never watched, and outputs cannot name a
   `.weave` file or an input module, so writing output cannot trigger a
   build.
 - **Reports.** Human format: diagnostics followed by one status line per
-  build (`[weave] wrote out.css (… bytes from … modules)`), and once
-  `[weave] watching for changes every … ms (Ctrl-C to stop)`. JSON format:
+  build (`[weavec] wrote out.css (… bytes from … modules)`), and once
+  `[weavec] watching for changes every … ms (Ctrl-C to stop)`. JSON format:
   one object per build with `"command":"watch"`, and nothing else.
 - **Implementation and platforms.** Polling of file metadata (existence,
   length, modification time) with the standard library only; no native

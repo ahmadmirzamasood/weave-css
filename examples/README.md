@@ -15,7 +15,7 @@ output byte for byte, and checks that `complete` is exactly the example of
 Try one:
 
 ```bash
-cargo run -p weave-cli -- build examples/design-system/main.weave
-cargo run -p weave-cli -- build examples/design-system/main.weave -o site.css --source-map
-cargo run -p weave-cli -- watch examples/nesting/main.weave -o nesting.css
+cargo run -p weave-css -- build examples/design-system/main.weave
+cargo run -p weave-css -- build examples/design-system/main.weave -o site.css --source-map
+cargo run -p weave-css -- watch examples/nesting/main.weave -o nesting.css
 ```

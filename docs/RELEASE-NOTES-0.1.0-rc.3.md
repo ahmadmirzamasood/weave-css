@@ -21,7 +21,7 @@ All of the [v0.1 language](LANGUAGE.md):
 - All CSS preserved: declarations, custom properties, `!important`, known at-rules by their body grammar, unknown at-rules and `opaque { }` blocks verbatim.
 - Modules: `load`, `export`, namespaces, cycle detection, each module built once, root-confined paths.
 - Tools: `weavec build|check|watch`, stdin/stdout, atomic output, human or JSON diagnostics with stable codes, ECMA-426 source maps, dependency lists, `--limit` overrides. Library: `compile`, caching, dependency graph, resolvers, source maps ([LIBRARY.md](LIBRARY.md)).
-- Syntax highlighting for VS Code-compatible editors (TextMate grammar; not a language server).
+- Syntax highlighting for VS Code-compatible editors (TextMate grammar; not a language server), shipped as a release asset `weave-syntax-<version>.vsix`: download it and run `code --install-extension weave-syntax-<version>.vsix`. It is not on the Marketplace and is for local installation.
 
 ## Platforms
 

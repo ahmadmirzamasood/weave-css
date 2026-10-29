@@ -210,7 +210,8 @@ jobs:
           mkdir -p release
           cp artifacts/weavec-*.tar.gz artifacts/weavec-*.zip release/
           python3 scripts/package_release.py source --version "$VERSION" --out release
-          python3 scripts/package_release.py sums --out release/SHA256SUMS release/weavec-*.tar.gz release/weavec-*.zip
+          python3 scripts/package_vscode.py --out "release/weave-syntax-$VERSION.vsix"
+          python3 scripts/package_release.py sums --out release/SHA256SUMS release/weavec-*.tar.gz release/weavec-*.zip release/weave-css-*-source.tar.gz release/weave-syntax-*.vsix
           (cd release && sha256sum --check SHA256SUMS)
           ls -l release
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

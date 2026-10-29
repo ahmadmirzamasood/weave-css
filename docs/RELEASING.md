@@ -10,6 +10,7 @@ This is the maintainers' procedure for turning a release candidate commit into a
 | `weavec-<version>-aarch64-apple-darwin.tar.gz` | release workflow, `macos-latest` | same |
 | `weavec-<version>-x86_64-pc-windows-msvc.zip` | release workflow, `windows-latest` | `weavec.exe` and the same files |
 | `weave-css-<version>-source.tar.gz` | `git archive` of the release commit | complete source, tests, examples, docs |
+| `weave-syntax-<version>.vsix` | release workflow, `scripts/package_vscode.py` | the VS Code syntax extension for `.weave` files (highlighting only), for `code --install-extension` |
 | `SHA256SUMS` | release workflow | SHA-256 of every file above |
 | build-provenance attestation | `actions/attest-build-provenance` (draft-release job only) | signed statement over `SHA256SUMS` subjects |
 | crates `weave-compiler`, `weave-css` | `cargo publish` by a maintainer | `src/`, README, LICENSE, manifest |

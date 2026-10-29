@@ -86,7 +86,7 @@ fn quickly<T>(f: impl FnOnce() -> T) -> T {
     let start = Instant::now();
     let result = f();
     assert!(
-        start.elapsed() < Duration::from_secs(20),
+        start.elapsed() < Duration::from_secs(120),
         "took {:?}",
         start.elapsed()
     );

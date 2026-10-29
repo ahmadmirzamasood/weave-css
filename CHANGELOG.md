@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.0-rc.1
+
+Release candidate for 0.1.0 (not yet published to any registry or as a GitHub release). The v0.1 language is implemented except the `color` built-ins (error E5001). Bullets below record the work from the first specification to this candidate, in phase order, newest first.
+
+- Phase 11: release preparation. Version `0.1.0-rc.1` for every package; the CLI package is renamed from `weave-cli` to `weave-css` (the name `weave-cli` is taken on crates.io and `weave` too; the installed binary is still `weave`; the library stays `weave-compiler`). Both published packages carry registry metadata, a README and a LICENSE copy, and ship only `src/`, the README, the license and the manifest. `weave-bench` and the new `weave-docs` test harness are never published.
+- Documentation: new README, installation guide, tutorial, library API guide, compatibility policy, benchmarks page, release procedure and release notes (docs/); `THIRD-PARTY-NOTICES.md`. The tutorial and README examples are compiled by `crates/weave-compiler/tests/docs.rs`, the library guide's Rust examples by the `weave-docs` crate's doctests, and the compiler crate's README as its doctest.
+- Release machinery: `.github/workflows/release.yml` (pinned actions; tests, packaging dry run, native builds for Linux x86_64, macOS arm64 and Windows x86_64, version and example smoke tests of the built binaries, Linux reproducibility check, deterministic archives, `SHA256SUMS`, and only on explicit request build-provenance attestation and a draft GitHub release); `scripts/package_release.py`; `scripts/check_release.py`, which CI also runs.
+- `weave --version` and `--help` no longer say "pre-alpha" or name a phase.
+- Decision recorded for the evaluation-step default (security review F-08): the default of 1,000,000 steps is unchanged; plain CSS with more than about 333,000 simple rules needs `--limit evaluation-steps=…`, now documented in docs/CLI.md.
+- The wall-clock budget of the test `functions::comparison_bombs_are_bounded` is 120 s instead of 20 s: it detects a hang, and 20 s was flaky on a loaded machine.
+
 - Phase 10: hardening. New `fuzz/` crate (separate workspace, nightly + cargo-fuzz 0.13.2, libFuzzer) with `lex`, `parse` and `compile` targets, a seed-corpus builder from the repository's fixtures and examples, a Weave/CSS dictionary, a Docker environment and a non-required 60-second "Fuzz smoke (nightly)" CI job. The compiler's new `fuzzing` cargo feature exposes the tokenizer and parser invariant checks (`weave_compiler::fuzzing`, not a stable API, no dependencies); `tests/fuzz_replay.rs` replays them on every fixture, example and stored regression on stable.
 - Fixed superlinear compile time on untrusted input: duplicate-key detection in map literals, duplicate parameter names, duplicate or misplaced named arguments, and named-argument binding were quadratic (a 1 MiB input could take minutes). Dependency-graph post-processing and watch invalidation are now linear too. Output and diagnostics are unchanged.
 - The filesystem resolver reads only regular files: a FIFO, directory or device named like a module is E7001 instead of blocking the build. docs/CLI.md documents root confinement and its limits against concurrent writers.

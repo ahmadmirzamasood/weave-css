@@ -1,6 +1,6 @@
 # The `weave` command line
 
-Reference for the `weave` binary of this repository (crate `weave-cli`). Run
+Reference for the `weave` binary (package `weave-css`, source in `crates/weave-cli`). Run
 `weave --help` for the summary and the resource-limit defaults of your build.
 
 ## Commands
@@ -34,6 +34,16 @@ could not be written; `2` invalid command line.
 | `--` | Ends options; a later argument starting with `-` is the input. |
 
 Options take their value as the next argument or after `=` (`--output=out.css`).
+
+## Resource limits
+
+Every build is bounded by the limits of [LANGUAGE.md §17](LANGUAGE.md#17-resource-limits); `weave --help` prints the defaults of your build. A limit that is exceeded stops the build with the matching `E8xxx` diagnostic that names the limit to raise. Raise one only for input you trust, for example:
+
+```bash
+weave build big.weave -o big.css --limit evaluation-steps=10000000
+```
+
+**Very large plain CSS.** An evaluation step is counted per emitted item as well as per expression, so the default of 1,000,000 steps stops a file of simple one-declaration rules at about 333,000 rules (about 3.6 MB of source; measured on a generated 12 MB file with 400,000 rules, which fails with `E8004` at line 333,334 and builds when `evaluation-steps` is raised to 10,000,000). The default is deliberately unchanged in this release candidate because it also bounds work on hostile input; most real stylesheets are far smaller. If you compile generated CSS of this size, set the limit explicitly.
 
 ## Module files and the root
 

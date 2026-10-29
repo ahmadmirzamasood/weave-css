@@ -34,7 +34,7 @@ fn help() -> String {
         .collect();
     format!(
         "\
-weave {VERSION} - compiler for the Weave stylesheet language (pre-alpha)
+weave {VERSION} - compiler for the Weave stylesheet language (release candidate)
 
 Usage:
   weave build <input.weave> [options]   Compile and write CSS (stdout by default)
@@ -73,11 +73,9 @@ Options:
 Limits and defaults:
   {limits}
 
-Status: this build compiles the plain-CSS subset of Weave (`rule` blocks,
-declarations, at-rules, `opaque` blocks, comments) with bindings,
-expressions, interpolation, functions, `when`/`each`, recipes, nesting,
-modules (`load`, `export`) and the built-ins of docs/BUILTINS.md. The
-`color` built-ins fail with error E5001 (not implemented yet).
+Status: release candidate. This build compiles the Weave v0.1 language
+(docs/LANGUAGE.md) except the `color` built-ins, which fail with error
+E5001 (not implemented in this release).
 
 Outputs are written only after a successful build, through a temporary file
 renamed over the target; a failed build leaves earlier output untouched.
@@ -95,8 +93,8 @@ Exit status: 0 success, 1 compilation failed or output not written,
 fn version() -> String {
     format!(
         "weave {VERSION}\nlanguage specification: v{LANGUAGE_VERSION}\n\
-         compilation: plain-CSS subset, values, functions, recipes, nesting and modules\n\
-         tools: build, check, watch (polling), source maps (ECMA-426), JSON diagnostics (phase 08)\n"
+         compilation: Weave v0.1 except the `color` built-ins (E5001)\n\
+         tools: build, check, watch (polling), source maps (ECMA-426), JSON diagnostics\n"
     )
 }
 

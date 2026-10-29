@@ -42,6 +42,12 @@ ROOT = Path(__file__).resolve().parent.parent
 EXE = ".exe" if os.name == "nt" else ""
 
 
+def cli_package(tree: Path) -> str:
+    """The CLI package name of a checkout (`weave-cli` before 0.1.0-rc.1)."""
+    manifest = (tree / "crates" / "weave-cli" / "Cargo.toml").read_text(encoding="utf-8")
+    return "weave-css" if 'name = "weave-css"' in manifest else "weave-cli"
+
+
 def sh(*cmd: str) -> str:
     return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=False).stdout.strip()
 
@@ -242,7 +248,7 @@ def run(args) -> None:
     if not args.no_build:
         for _, tree in trees:
             subprocess.run(
-                ["cargo", "build", "--release", "--locked", "-p", "weave-cli", "-p", "weave-bench"],
+                ["cargo", "build", "--release", "--locked", "-p", cli_package(tree), "-p", "weave-bench"],
                 cwd=tree,
                 check=True,
             )

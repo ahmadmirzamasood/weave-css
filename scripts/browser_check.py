@@ -132,7 +132,7 @@ def main() -> int:
         return 2
     weave = args.weave
     if weave is None:
-        subprocess.run(["cargo", "build", "--quiet", "--locked", "-p", "weave-cli"], cwd=ROOT, check=True)
+        subprocess.run(["cargo", "build", "--quiet", "--locked", "-p", "weave-css"], cwd=ROOT, check=True)
         exe = "weave.exe" if os.name == "nt" else "weave"
         weave = str(ROOT / "target" / "debug" / exe)
 

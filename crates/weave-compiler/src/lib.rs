@@ -1,17 +1,4 @@
-//! Compiler library for the Weave stylesheet language.
-//!
-//! Status: developer tools (phase 08). [`compile`] tokenizes, parses, evaluates and
-//! emits the plain-CSS subset (`rule` blocks, declarations, known and
-//! unknown at-rules, `opaque` blocks, comments) together with `bind`
-//! statements, expressions, `#{…}` interpolation in every CSS context,
-//! functions, control flow, recipes, the built-ins of docs/BUILTINS.md,
-//! nested rules and group at-rules lowered to flat CSS, and modules
-//! (`load`, `export`, namespaces) read through an injected
-//! [`ModuleResolver`]. The `color` built-ins are reported as E5001 (not
-//! implemented by this build); they are never silently ignored. With
-//! [`CompileOptions::source_map`], [`CompileOutput::source_map`] holds an
-//! ECMA-426 [`SourceMap`] (see `source_map` for the provenance policy).
-
+#![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
 mod builtins;

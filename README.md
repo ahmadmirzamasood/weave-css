@@ -1,35 +1,97 @@
 # Weave
 
-Weave is an independently designed stylesheet language that compiles `.weave` files to standard CSS. The compiler and CLI are written in Rust, with no JavaScript, C or C++ runtime. Weave is not compatible with Sass, Less or other preprocessors.
+Weave is a stylesheet language that compiles `.weave` files to standard CSS. The compiler and command line are written in Rust, with no JavaScript, C or C++ runtime and no third-party Rust dependencies. Weave is designed independently; it is not compatible with Sass, Less or other preprocessors.
 
-Status: the v0.1 language specification is complete; **the compiler implements the plain-CSS subset plus values, scopes, interpolation, functions, control flow, recipes, nesting and modules** (pre-alpha). `weave build` compiles `rule` blocks with nested rules and nested group at-rules (lowered to flat CSS with CSS Nesting specificity, verified against a browser), declarations (including custom properties and `!important`), known at-rules with their CSS body grammar, unknown at-rules and `opaque` blocks preserved verbatim, `/*!` comments and literal `\#{` markers, immutable `bind` statements with lexical scopes, expressions over numbers with units, strings, colors, booleans, lists and maps, `#{…}` interpolation in values, strings, URLs, selectors, property names and preludes, typed functions with defaults, named arguments and recursion, `when`/`otherwise` and `each`, recipes with content blocks and `slot`, `fail`/`warn`, modules (`load "./x.weave" as x;`, `export`, namespaces; resolved relative to the importing file and confined to the input file's directory, symbolic links included; each module emitted once, dependencies first), and the built-ins of [docs/BUILTINS.md](docs/BUILTINS.md). The CLI ([docs/CLI.md](docs/CLI.md)) has `build` (stdout or an atomically replaced `--output` file, stdin input with `-`), `check` and a polling `watch` that keeps the last good output after a failed build; a `--root` for module loading; human or JSON diagnostics; dependency lists; resource-limit overrides; and ECMA-426 source maps (relative paths, no embedded sources unless requested). Basic editor highlighting is in [editors/](editors/README.md) (not a language server). The `color` built-ins are reported as error E5001 (not implemented yet) and never silently ignored. No benchmark result is claimed. Weave and `.weave` are working names.
+**Status: release candidate 0.1.0-rc.1.** The v0.1 language is implemented, with the exception of the `color` built-ins (they report error E5001, never silently). Nothing has been published to a package registry yet. The grammar and the library API are not declared stable before 1.0; read the [compatibility policy](docs/COMPATIBILITY-POLICY.md) and the [release notes](docs/RELEASE-NOTES-0.1.0-rc.1.md) before depending on it. Weave and `.weave` are the project's names; the [installation guide](docs/INSTALL.md#binary-name-collisions) lists existing tools that also use `weave`.
 
-```bash
-cargo run -p weave-cli -- --help
-cargo run -p weave-cli -- build examples/design-system/main.weave -o site.css --source-map
+```weave
+bind brand = #0b5fff;
+bind steps = [4px, 8px, 16px];
+
+fn space(n: number) -> length {
+    yield 4px * n;
+}
+
+recipe card(pad: length = space(4)) {
+    padding: #{pad};
+    border-radius: 6px;
+}
+
+rule .button {
+    apply card();
+    background: #{brand};
+    rule &:hover { opacity: 0.9; }
+}
+
+each i, step in steps {
+    rule .gap-#{i} { gap: #{step}; }
+}
 ```
 
-## Language
+```css
+.button {
+  padding: 16px;
+  border-radius: 6px;
+  background: #0b5fff;
+}
 
-- [Language specification](docs/LANGUAGE.md)
-- [Grammar](docs/grammar.ebnf)
-- [Types, numbers and built-ins](docs/TYPES.md)
-- [Built-in reference](docs/BUILTINS.md)
-- [CSS compatibility](docs/CSS-COMPATIBILITY.md)
-- [Specification fixtures](tests/fixtures/spec/README.md)
-- [CSS-subset fixtures](tests/fixtures/css/README.md)
-- [Value fixtures](tests/fixtures/values/README.md)
-- [Function fixtures](tests/fixtures/functions/README.md)
+.button:hover {
+  opacity: 0.9;
+}
 
-## Tools
+.gap-0 {
+  gap: 4px;
+}
 
-- [Command line, source maps and watch](docs/CLI.md)
-- [Examples](examples/README.md)
-- [Editor support](editors/README.md)
+.gap-1 {
+  gap: 8px;
+}
+
+.gap-2 {
+  gap: 16px;
+}
+```
+
+## What it does
+
+- **Compile-time language.** Immutable `bind` values (numbers with units, strings, colors, booleans, lists, ordered maps), expressions, typed `fn` functions, `when`/`each`, reusable `recipe` rules with content blocks, modules (`load`/`export`) and a [built-in library](docs/BUILTINS.md).
+- **All of CSS.** Declarations, custom properties and unknown at-rules are preserved, `opaque { … }` blocks are emitted verbatim, and bare words in values are always CSS. Nested rules are lowered to flat CSS with native CSS Nesting specificity, checked against a browser.
+- **Safe by construction.** Interpolated values are escaped for where they land and cannot change CSS structure. Every resource (input, nesting, steps, output, …) has a finite limit and fails with a diagnostic; the core performs no filesystem, network, environment or clock access.
+- **Deterministic output** with stable error codes, human or JSON diagnostics, ECMA-426 source maps, dependency lists and a polling `watch`.
+
+## Install and use
+
+Prebuilt binaries and registry packages do not exist yet. Build from source (Rust 1.85 or newer):
+
+```bash
+git clone https://github.com/ahmadmirzamasood/weave-css
+cd weave-css
+cargo install --path crates/weave-cli --locked
+weave --version
+weave build examples/design-system/main.weave -o site.css --source-map
+```
+
+Details, supported platforms and verification steps: [docs/INSTALL.md](docs/INSTALL.md). Start with the [tutorial](docs/TUTORIAL.md).
+
+## Documentation
+
+| | |
+|---|---|
+| [Installation](docs/INSTALL.md) | Build from source, platforms, verifying a build |
+| [Tutorial](docs/TUTORIAL.md) | A guided tour with checked examples |
+| [Language reference](docs/LANGUAGE.md) | Normative v0.1 specification; with [grammar](docs/grammar.ebnf), [types](docs/TYPES.md), [built-ins](docs/BUILTINS.md), [CSS compatibility](docs/CSS-COMPATIBILITY.md) |
+| [Command line](docs/CLI.md) | `build`, `check`, `watch`, options, diagnostics, source maps, limits |
+| [Library API](docs/LIBRARY.md) | Using `weave-compiler` from Rust |
+| [Examples](examples/README.md) | Three complete projects with expected output |
+| [Editor support](editors/README.md) | Syntax highlighting (not a language server) |
+| [Compatibility policy](docs/COMPATIBILITY-POLICY.md) | What may change before 1.0 |
+| [Benchmarks](docs/BENCHMARKS.md) | Method and one-machine results |
+| [Release notes](docs/RELEASE-NOTES-0.1.0-rc.1.md), [changelog](CHANGELOG.md) | What is in this candidate and its limits |
+| [Releasing](docs/RELEASING.md) | Maintainer procedure, verification, rollback |
 
 ## Project
 
-- [Contributing](CONTRIBUTING.md)
-- [Security policy](SECURITY.md)
-- [Changelog](CHANGELOG.md)
-- [MIT license](LICENSE)
+- [Contributing](CONTRIBUTING.md): build, test and review expectations.
+- [Security policy](SECURITY.md): threat model and how to report vulnerabilities privately.
+- [Third-party notices](THIRD-PARTY-NOTICES.md).
+- [MIT license](LICENSE).

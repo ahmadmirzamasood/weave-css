@@ -44,7 +44,7 @@ fn version_reports_crate_and_language_versions() {
             "{text}"
         );
         assert!(text.contains("language specification: v0.1"));
-        assert!(text.contains("compilation: plain-CSS subset"));
+        assert!(text.contains("compilation: Weave v0.1 except the `color` built-ins"));
         assert!(out.stderr.is_empty());
     }
 }
@@ -58,7 +58,7 @@ fn help_lists_commands_and_states_status() {
         for needle in [
             "weave build <input.weave>",
             "weave check <input.weave>",
-            "plain-CSS subset",
+            "Status: release candidate",
             "E5001",
         ] {
             assert!(text.contains(needle), "{flag}: missing {needle}");

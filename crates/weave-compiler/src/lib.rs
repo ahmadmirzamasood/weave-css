@@ -21,6 +21,9 @@ pub mod diagnostic;
 mod emit;
 mod eval;
 mod expr;
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+pub mod fuzzing;
 mod ir;
 mod lexer;
 mod modules;

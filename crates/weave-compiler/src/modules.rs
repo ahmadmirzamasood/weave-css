@@ -75,6 +75,15 @@ impl DependencyGraph {
         let Some(start) = self.position(id) else {
             return Vec::new();
         };
+        // Reverse edges once, so the walk is linear in the graph's size.
+        let mut importers: Vec<Vec<usize>> = vec![Vec::new(); self.modules.len()];
+        for (importer, targets) in self.edges.iter().enumerate() {
+            for &target in targets {
+                if let Some(list) = importers.get_mut(target) {
+                    list.push(importer);
+                }
+            }
+        }
         let mut affected = vec![false; self.modules.len()];
         let mut work = vec![start];
         while let Some(current) = work.pop() {
@@ -82,10 +91,8 @@ impl DependencyGraph {
                 Some(seen) if !*seen => *seen = true,
                 _ => continue,
             }
-            for (importer, targets) in self.edges.iter().enumerate() {
-                if targets.contains(&current) {
-                    work.push(importer);
-                }
+            if let Some(list) = importers.get(current) {
+                work.extend(list);
             }
         }
         self.modules
@@ -232,8 +239,10 @@ impl Discovered {
             .iter()
             .map(|module| {
                 let mut targets: Vec<usize> = Vec::new();
+                let mut seen = vec![false; self.modules.len()];
                 for &t in module.targets.iter().flatten() {
-                    if !targets.contains(&t) {
+                    if let Some(slot @ false) = seen.get_mut(t) {
+                        *slot = true;
                         targets.push(t);
                     }
                 }

@@ -29,6 +29,7 @@ use std::time::SystemTime;
 
 use crate::args::{DiagnosticFormat, Target};
 use crate::pipeline::Session;
+use weave_compiler::diagnostic::escape_control;
 
 /// What polling observes of one path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -60,7 +61,7 @@ fn snapshot(paths: &BTreeSet<PathBuf>) -> BTreeMap<PathBuf, Stamp> {
 /// Runs builds forever; returns only if writing status fails.
 pub fn run(session: &mut Session) -> io::Result<()> {
     let output = match &session.options.output {
-        Some(Target::File(path)) => path.display().to_string(),
+        Some(Target::File(path)) => escape_control(&path.display().to_string()),
         _ => "-".to_string(),
     };
     let human = session.options.diagnostics == DiagnosticFormat::Human;

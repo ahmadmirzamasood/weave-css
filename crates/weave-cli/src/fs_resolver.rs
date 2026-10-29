@@ -201,6 +201,15 @@ impl ModuleResolver for FsResolver {
         let canonical = self.canonical(id)?;
         self.touched.insert(canonical.clone());
         let canonical_id = self.module_id(&canonical)?;
+        // Opening a FIFO or device could block or never end; only regular
+        // files are modules. (The type can still change between this check
+        // and the open; see docs/CLI.md on concurrent modification.)
+        let metadata = std::fs::metadata(&canonical).map_err(|err| io_error(id, &err))?;
+        if !metadata.is_file() {
+            return Err(ResolveError::Unreadable(format!(
+                "cannot read module `{id}`: not a regular file"
+            )));
+        }
         let file = File::open(&canonical).map_err(|err| io_error(id, &err))?;
         let mut bytes = Vec::new();
         // Read one byte past the limit so the compiler can report E8001
@@ -350,6 +359,80 @@ mod tests {
             resolver.resolve(&entry, "./link.weave"),
             Err(ResolveError::OutsideRoot(_))
         ));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Directory junctions need no privilege on Windows, so unlike the
+    /// symbolic-link test above this one always runs there (phase 10).
+    #[cfg(windows)]
+    #[test]
+    fn directory_junction_escaping_the_root_is_outside_root() {
+        let dir = temp_dir("junction");
+        fs::create_dir_all(dir.join("root/real")).unwrap();
+        fs::create_dir_all(dir.join("outside")).unwrap();
+        fs::write(dir.join("root/main.weave"), "m").unwrap();
+        fs::write(dir.join("root/real/t.weave"), "t").unwrap();
+        fs::write(dir.join("outside/s.weave"), "s").unwrap();
+        // `mklink` needs `\` separators; collecting the components gives them.
+        let native = |path: &str| dir.join(path).components().collect::<PathBuf>();
+        let junction = |link: &str, target: &str| {
+            let status = std::process::Command::new("cmd")
+                .args(["/C", "mklink", "/J"])
+                .arg(native(link))
+                .arg(native(target))
+                .stdout(std::process::Stdio::null())
+                .status()
+                .unwrap();
+            assert!(status.success(), "mklink /J {link} {target}");
+        };
+        junction("root/out", "outside");
+        junction("root/inner", "root/real");
+        let (mut resolver, entry) = FsResolver::for_entry(&dir.join("root/main.weave")).unwrap();
+        assert!(matches!(
+            resolver.resolve(&entry, "./out/s.weave"),
+            Err(ResolveError::OutsideRoot(_))
+        ));
+        let escaping = ModuleId::new("out/s.weave").unwrap();
+        assert!(matches!(
+            resolver.load(&escaping, 100),
+            Err(ResolveError::OutsideRoot(_))
+        ));
+        // A junction that stays inside the root shares its target's identity.
+        assert_eq!(
+            resolver.resolve(&entry, "./inner/t.weave").unwrap(),
+            ModuleId::new("real/t.weave").unwrap()
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Found in review (phase 10): opening a FIFO blocks until a writer
+    /// appears, so a FIFO named like a module hung the build.
+    #[cfg(unix)]
+    #[test]
+    fn special_files_are_unreadable_not_opened() {
+        let dir = temp_dir("fifo");
+        fs::write(dir.join("main.weave"), "m").unwrap();
+        let status = std::process::Command::new("mkfifo")
+            .arg(dir.join("pipe.weave"))
+            .status()
+            .unwrap();
+        assert!(status.success());
+        fs::create_dir(dir.join("dir.weave")).unwrap();
+        let (mut resolver, entry) = FsResolver::for_entry(&dir.join("main.weave")).unwrap();
+        let (send, receive) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let pipe = resolver.resolve(&entry, "./pipe.weave").unwrap();
+            let directory = resolver.resolve(&entry, "./dir.weave").unwrap();
+            let _ = send.send((resolver.load(&pipe, 100), resolver.load(&directory, 100)));
+        });
+        let (pipe, directory) = receive
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .expect("loading a FIFO must not block");
+        assert!(matches!(pipe, Err(ResolveError::Unreadable(_))), "{pipe:?}");
+        assert!(
+            matches!(directory, Err(ResolveError::Unreadable(_))),
+            "{directory:?}"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 

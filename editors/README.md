@@ -34,14 +34,38 @@ name comes from interpolation), so treat colours as a reading aid, and
 
 ## VS Code: install the extension package
 
-Build a `.vsix` with the standard library only (Python 3, no Node or network access) and install it:
+A release attaches the ready-made package `weave-syntax-<version>.vsix`. From a checkout you can build it yourself with the Python standard library only (no Node, no network access):
 
 ```bash
+# macOS and Linux
 python3 scripts/package_vscode.py --out weave-syntax.vsix
-code --install-extension weave-syntax.vsix
 ```
 
-Reload the window; files ending in `.weave` get the language `Weave`, and fenced blocks tagged `weave` in Markdown are highlighted too. To remove it: `code --uninstall-extension weave-local.weave-syntax`. The package is for local use (publisher `weave-local`, `"private": true`); publishing to a marketplace needs a publisher account and is not done by this repository.
+```powershell
+# Windows (PowerShell): the command is `python` (or `py`), not `python3`
+python scripts\package_vscode.py --out weave-syntax.vsix
+```
+
+Install the `.vsix` in **Visual Studio Code**, by either way:
+
+- **From the editor (works everywhere):** open the Extensions view (`Ctrl+Shift+X`), choose `...` -> *Install from VSIX...* and pick the file.
+- **From a terminal:** `code --install-extension weave-syntax.vsix`, **if `code` is VS Code's command.** Other editors built on VS Code (Cursor, VSCodium, Windsurf, ...) install a `code`-style command too, and whichever comes first on your `PATH` wins, so the extension can silently go into the wrong editor. Check with `code --version` (VS Code prints a version such as `1.9x.x` and a commit hash) or `where code` (Windows) / `which -a code`. If it is the wrong one, call VS Code's own command by its full path:
+
+  ```powershell
+  # Windows, per-user install
+  & "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd" --install-extension weave-syntax.vsix
+  ```
+
+  ```bash
+  # macOS
+  "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" --install-extension weave-syntax.vsix
+  ```
+
+  On macOS and Linux you can also run *Shell Command: Install 'code' command in PATH* from the VS Code command palette.
+
+Then reload the window or restart the editor (`Ctrl+Shift+P` -> *Developer: Reload Window*). Files ending in `.weave` get the language **Weave** (shown at the right of the status bar), and fenced blocks tagged `weave` in Markdown are highlighted too. To remove it: uninstall *Weave* in the Extensions view, or `code --uninstall-extension weave-local.weave-syntax`. The same package installs in the other VS Code-based editors through their *Install from VSIX* command.
+
+The package is for local use (publisher `weave-local`, `"private": true`); publishing to a marketplace needs a publisher account and is not done by this repository.
 
 ## VS Code: install from the folder
 

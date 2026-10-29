@@ -70,7 +70,7 @@ sha256sum --check --ignore-missing SHA256SUMS         # macOS: shasum -a 256 --c
 gh attestation verify weavec-0.1.0-rc.3-x86_64-unknown-linux-gnu.tar.gz --repo ahmadmirzamasood/weave-css
 ```
 
-A release also attaches `weave-syntax-<version>.vsix`, the VS Code highlighting extension (`code --install-extension weave-syntax-<version>.vsix`; see [editors/README.md](../editors/README.md)). The archives contain the `weavec` binary, `LICENSE`, `THIRD-PARTY-NOTICES.md` and `README.md`. The procedure that produces them is in [RELEASING.md](RELEASING.md).
+A release also attaches `weave-syntax-<version>.vsix`, the VS Code highlighting extension (in Visual Studio Code: Extensions view -> `...` -> *Install from VSIX...*, or `code --install-extension weave-syntax-<version>.vsix` when `code` is VS Code's command; see [editors/README.md](../editors/README.md#vs-code-install-the-extension-package)). The archives contain the `weavec` binary, `LICENSE`, `THIRD-PARTY-NOTICES.md` and `README.md`. The procedure that produces them is in [RELEASING.md](RELEASING.md).
 
 ## From crates.io (after publication)
 

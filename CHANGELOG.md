@@ -12,6 +12,7 @@ Release candidate for 0.1.0 (not yet published). Supersedes 0.1.0-rc.2, which wa
 - Fixtures: new values cases 008-colors (expected output derived by hand from the specification) and 027-error-colors; the E5001 fixture css/024 is removed because no construct is unimplemented any more; `crates/weave-compiler/tests/colors.rs` checks every channel value, percentages, clamping, ties, alpha round trips and a mix grid against independent integer oracles.
 - `weavec --help` and `--version` no longer mention unimplemented built-ins.
 - The release workflow now attaches the VS Code extension as `weave-syntax-<version>.vsix` and `SHA256SUMS` also covers the source archive (it previously listed only the binary archives).
+- Docs: the VS Code install steps now cover Windows (`python`, not `python3`), installing through the Extensions view, and the case where `code` on the `PATH` belongs to another editor such as Cursor.
 - VS Code: `scripts/package_vscode.py` builds an installable `.vsix` of the syntax extension in editors/vscode (standard library only; local use, not published), with an extension README and license; CI builds it.
 
 ## 0.1.0-rc.2

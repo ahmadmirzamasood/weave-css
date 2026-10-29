@@ -2,7 +2,7 @@
 
 Weave is a stylesheet language that compiles `.weave` files to standard CSS. The compiler and command line are written in Rust, with no JavaScript, C or C++ runtime and no third-party Rust dependencies. Weave is designed independently; it is not compatible with Sass, Less or other preprocessors.
 
-**Status: release candidate 0.1.0-rc.3.** The v0.1 language is fully implemented, including the `color` built-ins. Nothing has been published to a package registry yet. The grammar and the library API are not declared stable before 1.0; read the [compatibility policy](docs/COMPATIBILITY-POLICY.md) and the [release notes](docs/RELEASE-NOTES-0.1.0-rc.3.md) before depending on it. Weave and `.weave` are the project's names; the [installation guide](docs/INSTALL.md#binary-name-collisions) lists existing tools that also use `weave`.
+**Status: release candidate 0.1.0-rc.3.** The v0.1 language is fully implemented, including the `color` built-ins. It is published as a pre-release: `cargo install weave-css --version 0.1.0-rc.3 --locked` installs the `weavec` command, and [binaries for Linux, macOS and Windows](https://github.com/ahmadmirzamasood/weave-css/releases/tag/v0.1.0-rc.3) (with checksums and build provenance) are attached to the GitHub release. The grammar and the library API are not declared stable before 1.0; read the [compatibility policy](docs/COMPATIBILITY-POLICY.md) and the [release notes](docs/RELEASE-NOTES-0.1.0-rc.3.md) before depending on it. Weave and `.weave` are the project's names; the [installation guide](docs/INSTALL.md#binary-name-collisions) lists existing tools that also use `weave`.
 
 ```weave
 bind brand = #0b5fff;
@@ -61,7 +61,14 @@ each i, step in steps {
 
 ## Install and use
 
-Prebuilt binaries and registry packages do not exist yet. Build from source (Rust 1.85 or newer):
+Install from crates.io (Rust 1.85 or newer), or download a binary from the [release](https://github.com/ahmadmirzamasood/weave-css/releases/tag/v0.1.0-rc.3):
+
+```bash
+cargo install weave-css --version 0.1.0-rc.3 --locked
+weavec --version
+```
+
+Or build from source:
 
 ```bash
 git clone https://github.com/ahmadmirzamasood/weave-css

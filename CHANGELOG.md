@@ -6,7 +6,7 @@ Nothing yet.
 
 ## 0.1.0-rc.3
 
-Release candidate for 0.1.0 (not yet published). Supersedes 0.1.0-rc.2, which was prepared but never published or tagged.
+Release candidate for 0.1.0, published 2026-10-29 (crates.io and GitHub pre-release `v0.1.0-rc.3`). Supersedes 0.1.0-rc.2, which was prepared but never published or tagged.
 
 - The `color` built-ins are implemented: `color.rgb`, `color.mix`, `color.red`, `color.green`, `color.blue` and `color.alpha` (TYPES.md section 9, docs/BUILTINS.md). They compute with exact integer arithmetic on the six-decimal quantized arguments and round to the nearest integer with ties toward +infinity. Channels and alpha accept unitless numbers or percentages and are clamped; a mix weight outside 0-1 / 0%-100% is E2003 (not clamped); other units are E3001; non-color arguments E4005. Programs that used these names before got E5001, so no previously compiling program changes meaning.
 - Fixtures: new values cases 008-colors (expected output derived by hand from the specification) and 027-error-colors; the E5001 fixture css/024 is removed because no construct is unimplemented any more; `crates/weave-compiler/tests/colors.rs` checks every channel value, percentages, clamping, ties, alpha round trips and a mix grid against independent integer oracles.

@@ -1,6 +1,6 @@
 # Weave 0.1.0-rc.3 release notes
 
-**Release candidate. Not published:** no package is on a registry and no GitHub release exists. These notes describe what the candidate contains and what is unproven, so that the decision to publish can be made on facts.
+**Release candidate, published 2026-10-29** as the crates `weave-compiler` and `weave-css` 0.1.0-rc.3 on crates.io and as the GitHub pre-release `v0.1.0-rc.3` (tag at commit `2a14867f8a72787f4d2312819226863e605634b9`). These notes describe what the candidate contains and what is unproven.
 
 ## Candidate commit
 
@@ -79,8 +79,8 @@ Report vulnerabilities privately through GitHub: <https://github.com/ahmadmirzam
 
 ## Install
 
-Build from source today: [INSTALL.md](INSTALL.md). Registry packages and binaries exist only after the maintainers publish ([RELEASING.md](RELEASING.md)).
+`cargo install weave-css --version 0.1.0-rc.3 --locked`, a binary from the release page, or a source build: see [INSTALL.md](INSTALL.md). How the release was made: [RELEASING.md](RELEASING.md).
 
 ## Rollback
 
-Before publication the draft is simply deleted. After publication tags and assets are never moved; a bad version is yanked from crates.io, superseded by a fixed release and described in an advisory ([RELEASING.md](RELEASING.md#rollback-and-incident-handling)).
+Tags and assets of a published release are never moved; a bad version is yanked from crates.io, superseded by a fixed release and described in an advisory ([RELEASING.md](RELEASING.md#rollback-and-incident-handling)).

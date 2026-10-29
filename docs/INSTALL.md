@@ -1,6 +1,6 @@
 # Installing Weave
 
-Weave 0.1.0-rc.3 is a release candidate. **No package has been published to a registry and no binary release exists yet**; the supported way to install it today is to build it from source. Sections marked *after publication* describe what will work once a release is published and are not available now.
+Weave 0.1.0-rc.3 is a release candidate, published on 2026-10-29 as the crates `weave-css` and `weave-compiler` on crates.io and as a GitHub pre-release with binaries ([release page](https://github.com/ahmadmirzamasood/weave-css/releases/tag/v0.1.0-rc.3)). You can install it from crates.io, download a binary, or build it from source.
 
 ## Requirements
 
@@ -61,9 +61,9 @@ cargo test --workspace --all-features --locked
 
 The prebuilt Linux binary is built on the runner image (Ubuntu with glibc 2.43 at the time of the rehearsal) and needs a glibc at least that new; on an older distribution build from source. Other targets may well work, since the code is portable safe Rust, but they are untested. Intel macOS, Linux musl/ARM and Windows ARM are not tested and no binaries are built for them. The same is true of 32-bit targets: spans use 32-bit offsets and the limits are validated for 64-bit hosts.
 
-## Prebuilt binaries (after publication)
+## Prebuilt binaries
 
-A release will attach one archive per tested platform, a `SHA256SUMS` file and a build-provenance attestation. When that exists, verify before use:
+The [release](https://github.com/ahmadmirzamasood/weave-css/releases/tag/v0.1.0-rc.3) attaches one archive per tested platform, a `SHA256SUMS` file and a build-provenance attestation. Verify before use:
 
 ```bash
 sha256sum --check --ignore-missing SHA256SUMS         # macOS: shasum -a 256 --check
@@ -72,7 +72,7 @@ gh attestation verify weavec-0.1.0-rc.3-x86_64-unknown-linux-gnu.tar.gz --repo a
 
 A release also attaches `weave-syntax-<version>.vsix`, the VS Code highlighting extension (in Visual Studio Code: Extensions view -> `...` -> *Install from VSIX...*, or `code --install-extension weave-syntax-<version>.vsix` when `code` is VS Code's command; see [editors/README.md](../editors/README.md#vs-code-install-the-extension-package)). The archives contain the `weavec` binary, `LICENSE`, `THIRD-PARTY-NOTICES.md` and `README.md`. The procedure that produces them is in [RELEASING.md](RELEASING.md).
 
-## From crates.io (after publication)
+## From crates.io
 
 ```bash
 cargo install weave-css --version 0.1.0-rc.3 --locked

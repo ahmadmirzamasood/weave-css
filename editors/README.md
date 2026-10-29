@@ -32,7 +32,18 @@ selector split across lines after `rule`, or a declaration whose property
 name comes from interpolation), so treat colours as a reading aid, and
 `weavec check` as the authority.
 
-## VS Code: install locally
+## VS Code: install the extension package
+
+Build a `.vsix` with the standard library only (Python 3, no Node or network access) and install it:
+
+```bash
+python3 scripts/package_vscode.py --out weave-syntax.vsix
+code --install-extension weave-syntax.vsix
+```
+
+Reload the window; files ending in `.weave` get the language `Weave`, and fenced blocks tagged `weave` in Markdown are highlighted too. To remove it: `code --uninstall-extension weave-local.weave-syntax`. The package is for local use (publisher `weave-local`, `"private": true`); publishing to a marketplace needs a publisher account and is not done by this repository.
+
+## VS Code: install from the folder
 
 Copy or link the `vscode` folder into your extensions directory and reload
 the window:

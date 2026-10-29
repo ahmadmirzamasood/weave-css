@@ -25,6 +25,8 @@ jobs:
         run: python3 scripts/check_spec.py
       - name: Check editor support files
         run: python3 scripts/check_editor.py
+      - name: Build the VS Code package
+        run: python3 scripts/package_vscode.py --out "$RUNNER_TEMP/weave-syntax.vsix"
       - name: Check release consistency
         run: python3 scripts/check_release.py
 

@@ -27,3 +27,6 @@ CLAUDE.local.md
 /docs/TESTING.md
 /docs/decisions/
 /docs/reports/
+
+# VS Code packages
+*.vsix

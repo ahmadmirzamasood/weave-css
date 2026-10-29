@@ -1,0 +1,45 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import DocsNav from '../../components/DocsNav.astro';
+import { getPages, neighbours } from '../../data/docs-tree.mjs';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('docs');
+  return entries.map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const { Content, headings } = await render(entry);
+const page = getPages().find((p) => p.id === entry.id)!;
+const { prev, next } = neighbours(entry.id);
+const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
+---
+
+<Base title={`${page.title} | Weave docs`} description={`${page.section}: ${page.title}`}>
+  <div class="wrap docs-layout">
+    <DocsNav current={entry.id} />
+    <main class="prose" id="main">
+      <p class="crumbs"><a href="/docs/">Documentation</a> <span aria-hidden="true">/</span> {page.section}</p>
+      {page.note && <p class="compat"><strong>Compatibility.</strong> {page.note.replace(/^Compatibility: /, '')}</p>}
+      <Content />
+      <p class="edit-link"><a href={page.edit} rel="noopener">View this page's source on GitHub</a></p>
+      <div class="pager">
+        {prev ? <a href={prev.url}><small>Previous</small>{prev.title}</a> : <span></span>}
+        {next ? <a href={next.url}><small>Next</small>{next.title}</a> : <span></span>}
+      </div>
+    </main>
+    <aside class="toc" aria-label="On this page">
+      {toc.length > 0 && (
+        <>
+          <h4>On this page</h4>
+          <ul>
+            {toc.map((h) => (
+              <li class={`d${h.depth}`}><a href={`#${h.slug}`}>{h.text}</a></li>
+            ))}
+          </ul>
+        </>
+      )}
+    </aside>
+  </div>
+</Base>

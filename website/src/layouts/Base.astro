@@ -1,0 +1,104 @@
+---
+import '@fontsource-variable/figtree';
+import '@fontsource-variable/bricolage-grotesque';
+import '@fontsource-variable/jetbrains-mono';
+import '../styles/global.css';
+import { REPO } from '../data/docs-tree.mjs';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description = 'Weave is a stylesheet language that compiles to standard CSS, written in Rust.' } = Astro.props;
+const path = Astro.url.pathname;
+const nav = [
+  { href: '/playground/', label: 'Playground' },
+  { href: '/install/', label: 'Install' },
+  { href: '/guide/', label: 'Learn Weave' },
+  { href: '/blog/', label: 'Blog' },
+  { href: '/docs/', label: 'Documentation' },
+  { href: '/community/', label: 'Get Involved' },
+];
+const active = (href: string) => path.startsWith(href);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to main content</a>
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="Weave home">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <rect width="32" height="32" rx="8" fill="currentColor" />
+            <path d="M7 9l4.5 14L16 13l4.5 10L25 9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>Weave</span>
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+        <nav id="site-nav" aria-label="Main">
+          <ul>
+            {nav.map((n) => (
+              <li><a href={n.href} aria-current={active(n.href) ? 'page' : undefined}>{n.label}</a></li>
+            ))}
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <slot />
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <div>
+          <p class="tag">Weave</p>
+          <small>A stylesheet language that compiles to CSS. Independent of Sass and Less. Written in pure Rust. MIT licensed.</small>
+        </div>
+        <div>
+          <h4>Learn</h4>
+          <ul>
+            <li><a href="/install/">Install</a></li>
+            <li><a href="/guide/">Learn Weave</a></li>
+            <li><a href="/playground/">Playground</a></li>
+            <li><a href="/docs/tutorial/">Tutorial</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Reference</h4>
+          <ul>
+            <li><a href="/docs/language/">Language</a></li>
+            <li><a href="/docs/builtins/">Built-ins</a></li>
+            <li><a href="/docs/cli/">Command line</a></li>
+            <li><a href="/docs/library/">Library API</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Project</h4>
+          <ul>
+            <li><a href={REPO} rel="noopener">GitHub</a></li>
+            <li><a href="/community/#contribute">Contributing</a></li>
+            <li><a href={`${REPO}/blob/main/SECURITY.md`} rel="noopener">Security policy</a></li>
+            <li><a href={`${REPO}/blob/main/CHANGELOG.md`} rel="noopener">Changelog</a></li>
+            <li><a href={`${REPO}/tree/main/website`} rel="noopener">Website source</a></li>
+          </ul>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      const btn = document.querySelector<HTMLButtonElement>('.menu-toggle');
+      const nav = document.getElementById('site-nav');
+      btn?.addEventListener('click', () => {
+        const open = nav?.classList.toggle('open') ?? false;
+        btn.setAttribute('aria-expanded', String(open));
+      });
+    </script>
+  </body>
+</html>

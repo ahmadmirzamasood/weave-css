@@ -1,0 +1,31 @@
+---
+import { getEntry, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { posts } from '../../data/posts.mjs';
+
+export function getStaticPaths() {
+  return posts.map((post) => ({ params: { slug: post.slug }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const entry = await getEntry('docs', post.doc);
+const { Content } = await render(entry!);
+---
+
+<Base title={`${post.title} | Weave blog`} description={post.summary}>
+  <main id="main">
+    <div class="page-head">
+      <div class="wrap">
+        <p class="eyebrow">Blog</p>
+        <h1>{post.title}</h1>
+        <p class="meta"><time datetime={post.date}>{post.date}</time> · {post.author}</p>
+      </div>
+    </div>
+    <div class="wrap" style="padding-top:2rem">
+      <article class="prose">
+        <Content />
+        <p class="edit-link"><a href="/blog/">← All posts</a></p>
+      </article>
+    </div>
+  </main>
+</Base>

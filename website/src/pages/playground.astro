@@ -1,0 +1,125 @@
+---
+import Base from '../layouts/Base.astro';
+
+const examples = [
+  {
+    name: 'Bindings and interpolation',
+    src: `bind brand = #0b5fff;\nbind radius = 6px;\n\nrule .button {\n    background: #{brand};\n    border-radius: #{radius};\n    color: white;\n}\n`,
+    css: `.button {\n  background: #0b5fff;\n  border-radius: 6px;\n  color: white;\n}\n`,
+  },
+  {
+    name: 'Functions and recipes',
+    src: `bind unit = 4px;\n\nfn space(steps: number) -> length {\n    yield unit * steps;\n}\n\nrecipe card(pad: length = space(4)) {\n    padding: #{pad};\n    border-radius: 6px;\n}\n\nrule .card {\n    apply card();\n    margin-bottom: #{space(2)};\n}\n`,
+    css: `.card {\n  padding: 16px;\n  border-radius: 6px;\n  margin-bottom: 8px;\n}\n`,
+  },
+  {
+    name: 'Loops over a map',
+    src: `bind palette = {primary: #0b5fff, danger: #d92d20};\n\neach name, value in palette {\n    rule .text-#{name} {\n        color: #{value};\n    }\n}\n`,
+    css: `.text-primary {\n  color: #0b5fff;\n}\n\n.text-danger {\n  color: #d92d20;\n}\n`,
+  },
+  {
+    name: 'Nesting',
+    src: `rule .nav {\n    display: flex;\n    rule a { color: inherit; }\n    rule > li { list-style: none; }\n    rule &:hover { opacity: 0.9; }\n    @media (width >= 768px) {\n        gap: 24px;\n    }\n}\n`,
+    css: `.nav {\n  display: flex;\n}\n\n.nav a {\n  color: inherit;\n}\n\n.nav > li {\n  list-style: none;\n}\n\n.nav:hover {\n  opacity: 0.9;\n}\n\n@media (width >= 768px) {\n  .nav {\n    gap: 24px;\n  }\n}\n`,
+  },
+  {
+    name: 'Colors',
+    src: `bind brand = #0b5fff;\n\nrule .button {\n    background: #{brand};\n    border-color: #{color.mix(brand, #000000, 80%)};\n    outline-color: #{color.rgb(11, 95, 255, 50%)};\n}\n`,
+    css: `.button {\n  background: #0b5fff;\n  border-color: #094ccc;\n  outline-color: #0b5fff80;\n}\n`,
+  },
+  {
+    name: 'An error',
+    src: `rule .a {\n    color: #{missing};\n}\n`,
+    css: '',
+  },
+];
+---
+
+<Base title="Playground | Weave" description="Write Weave and see the CSS it compiles to.">
+  <main id="main">
+    <div class="page-head">
+      <div class="wrap">
+        <p class="eyebrow">Try it</p>
+        <h1>Playground</h1>
+        <p class="intro">Write Weave on the left, see CSS on the right. Weave has no browser runtime, so this page sends your code to the local <code>weavec</code> binary through the dev server. In a static build it shows each example's recorded output instead.</p>
+      </div>
+    </div>
+
+    <div class="wrap" style="padding-top:1.5rem">
+      <div class="pg-bar">
+        <label>Example
+          <select id="example">
+            {examples.map((e, i) => <option value={i}>{e.name}</option>)}
+          </select>
+        </label>
+        <button class="btn primary" id="run" type="button">Compile</button>
+        <span class="pg-status" id="status" role="status" aria-live="polite"></span>
+      </div>
+      <div class="pg">
+        <div class="pane">
+          <div class="code-label">Weave</div>
+          <textarea id="src" spellcheck="false" aria-label="Weave source"></textarea>
+        </div>
+        <div class="pane">
+          <div class="code-label">CSS Output</div>
+          <pre class="out" id="out" aria-live="polite"></pre>
+        </div>
+        <div class="diag" id="diag" role="alert"></div>
+      </div>
+    </div>
+  </main>
+
+  <script type="application/json" id="examples-data" set:html={JSON.stringify(examples)} />
+  <script>
+    const examples: { name: string; src: string; css: string }[] = JSON.parse(document.getElementById('examples-data')!.textContent!);
+    const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+    const src = $<HTMLTextAreaElement>('src');
+    const out = $('out');
+    const diag = $('diag');
+    const status = $('status');
+    const select = $<HTMLSelectElement>('example');
+    let live = false;
+    let timer: number | undefined;
+
+    function showStatic() {
+      const ex = examples[Number(select.value)];
+      out.textContent = ex.css || '(this example produces an error; compile it in the dev server to see the diagnostic)';
+      diag.classList.remove('show');
+    }
+
+    async function compile() {
+      if (!live) { status.textContent = 'Static build: showing recorded output'; showStatic(); return; }
+      status.textContent = 'Compiling…';
+      try {
+        const res = await fetch('/api/compile', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: src.value }) });
+        const data = await res.json();
+        if (data.ok) {
+          out.textContent = data.css;
+          diag.classList.remove('show');
+          status.textContent = 'Compiled with weavec';
+        } else {
+          out.textContent = '';
+          diag.textContent = data.diagnostics || data.error || 'Compilation failed';
+          diag.classList.add('show');
+          status.textContent = 'Compilation failed';
+        }
+      } catch {
+        status.textContent = 'Could not reach the compiler';
+      }
+    }
+
+    function load() {
+      src.value = examples[Number(select.value)].src;
+      compile();
+    }
+
+    select.addEventListener('change', load);
+    $('run').addEventListener('click', compile);
+    src.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(compile, 350);
+    });
+
+    fetch('/api/compile').then((r) => r.json()).then((d) => { live = !!d.available; }).catch(() => { live = false; }).finally(load);
+  </script>
+</Base>

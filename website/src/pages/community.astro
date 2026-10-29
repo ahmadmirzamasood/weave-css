@@ -1,0 +1,61 @@
+---
+import Base from '../layouts/Base.astro';
+import { REPO } from '../data/docs-tree.mjs';
+
+const resources = [
+  { h: 'Tutorial', p: 'A guided tour with compiler-checked examples.', href: '/docs/tutorial/' },
+  { h: 'Language reference', p: 'The normative v0.1 specification, with grammar, types and built-ins.', href: '/docs/language/' },
+  { h: 'Example projects', p: 'Three complete projects with their expected CSS: complete, design-system and nesting.', href: `${REPO}/tree/main/examples` },
+  { h: 'Editor support', p: 'TextMate grammar and VS Code extension package for highlighting.', href: `${REPO}/tree/main/editors` },
+  { h: 'Benchmarks', p: 'Method and one-machine results. No invented numbers.', href: '/docs/benchmarks/' },
+  { h: 'Changelog', p: 'Everything that changed, release by release.', href: `${REPO}/blob/main/CHANGELOG.md` },
+];
+---
+
+<Base title="Get Involved | Weave" description="Contribute to Weave, report bugs, and find resources.">
+  <main id="main">
+    <div class="page-head">
+      <div class="wrap">
+        <p class="eyebrow">Get involved</p>
+        <h1>#teamWeave</h1>
+        <p class="intro">Weave is developed in public. Bug reports, fixtures, documentation fixes and language proposals are all welcome. Be respectful and explain technical disagreements with examples.</p>
+      </div>
+    </div>
+
+    <div class="wrap docs-layout two">
+      <nav class="sidebar" aria-label="On this page">
+        <h4>Topics</h4>
+        <ul>
+          <li><a href="#contribute">Contribute</a></li>
+          <li><a href="#checks">Required checks</a></li>
+          <li><a href="#security">Security</a></li>
+          <li><a href="#resources">Resources</a></li>
+        </ul>
+      </nav>
+      <div class="prose">
+        <h2 id="contribute" style="border-top:0;margin-top:0">Contribute <a class="permalink" href="#contribute" aria-label="Permalink">#</a></h2>
+        <p>Development happens in public GitHub branches and pull requests. Discuss language changes in an <a href={`${REPO}/issues`} rel="noopener">issue</a> before changing semantics, and update the specification documents and fixtures together. Submit focused changes with fixtures, documentation and exact validation results. Contributions are made under the project's MIT license.</p>
+        <p>Documentation examples are tests: every <code>weave</code> block followed by a <code>css</code> block is compiled by the test suite, so if you change behavior the checks tell you which docs are stale.</p>
+        <p><a class="btn primary" href={`${REPO}/blob/main/CONTRIBUTING.md`} rel="noopener">Read CONTRIBUTING.md</a> <a class="btn" href={`${REPO}/issues`} rel="noopener">Open an issue</a></p>
+
+        <h2 id="checks">Required checks <a class="permalink" href="#checks" aria-label="Permalink">#</a></h2>
+        <p>All of these must pass before a change merges. The toolchain is pinned in <code>rust-toolchain.toml</code>.</p>
+        <pre><code>cargo fmt --all --check
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+cargo test --workspace --all-features --locked
+python3 scripts/check_deps.py
+python3 scripts/check_spec.py
+python3 scripts/check_release.py</code></pre>
+        <p>Project code is safe Rust (<code>unsafe_code</code> is forbidden) and must not panic or index unchecked on user-controlled input. The compiler must never require a JavaScript, C or C++ runtime.</p>
+
+        <h2 id="security">Security <a class="permalink" href="#security" aria-label="Permalink">#</a></h2>
+        <p>Report vulnerabilities privately as described in the <a href={`${REPO}/blob/main/SECURITY.md`} rel="noopener">security policy</a>, not in a public issue.</p>
+
+        <h2 id="resources">Resources <a class="permalink" href="#resources" aria-label="Permalink">#</a></h2>
+        <div class="cards">
+          {resources.map((r) => <a class="card" href={r.href}><h3>{r.h}</h3><p>{r.p}</p></a>)}
+        </div>
+      </div>
+    </div>
+  </main>
+</Base>

@@ -1,0 +1,205 @@
+---
+import { Code } from 'astro:components';
+import Base from '../layouts/Base.astro';
+import { weaveLang } from '../data/weave-lang.mjs';
+
+
+// Every weave/css pair below comes from docs/TUTORIAL.md, whose examples are
+// compiled by the repository's test suite.
+const topics = [
+  {
+    id: 'preprocessing',
+    title: 'Preprocessing',
+    body: [
+      'CSS on its own can be fun, but stylesheets are getting larger, more complex and harder to maintain. Weave adds a compile-time language: bindings, functions, conditions, loops, reusable rules and modules. It takes your <code>.weave</code> file and saves it as a normal CSS file you can use in your website.',
+      'Style rules always start with the keyword <code>rule</code>; Weave never guesses between a selector and a declaration. Everything else, such as <code>color: white;</code>, is ordinary CSS and is emitted as written.',
+    ],
+    example: {
+      weave: `rule .button {\n    color: white;\n    padding: 8px 16px;\n}`,
+      css: `.button {\n  color: white;\n  padding: 8px 16px;\n}`,
+    },
+    after: [
+      'The most direct way to compile is your terminal, with <code>weavec build</code>. You can also watch a file and rebuild whenever it changes:',
+    ],
+    shell: `weavec build styles.weave -o site.css\nweavec watch styles.weave -o site.css`,
+  },
+  {
+    id: 'variables',
+    title: 'Bindings',
+    body: [
+      'Think of bindings as a way to store information you want to reuse. <code>bind</code> gives a name to a value, and <code>#{…}</code> inserts a computed value into CSS. Bindings are immutable and scoped to the block they are written in; there is no assignment.',
+      'The last declaration shows the main design rule: a bare word in a CSS value is CSS, never a variable. Only <code>#{…}</code> reaches Weave values.',
+    ],
+    example: {
+      weave: `bind brand = #0b5fff;\nbind radius = 6px;\n\nrule .button {\n    background: #{brand};\n    border-radius: #{radius};\n    color: brand;\n}`,
+      css: `.button {\n  background: #0b5fff;\n  border-radius: 6px;\n  color: brand;\n}`,
+    },
+  },
+  {
+    id: 'operators',
+    title: 'Numbers and units',
+    body: [
+      'Numbers keep their units, and incompatible units are errors rather than guesses. Weave does not turn <code>calc()</code> into arithmetic: <code>calc(100% - 4px)</code> is CSS and stays CSS. Use <code>#{…}</code> only for values Weave computes.',
+    ],
+    example: {
+      weave: `bind gap = 4px;\n\nrule .stack {\n    gap: #{gap * 3};\n    margin: #{gap * 2} 0;\n    width: #{100% - 25%};\n}`,
+      css: `.stack {\n  gap: 12px;\n  margin: 8px 0;\n  width: 75%;\n}`,
+    },
+    after: ['Colors have no operators; the <code>color</code> built-ins compute on them and round exactly.'],
+    example2: {
+      weave: `bind brand = #0b5fff;\n\nrule .button {\n    border-color: #{color.mix(brand, #000000, 80%)};\n    outline-color: #{color.rgb(11, 95, 255, 50%)};\n}`,
+      css: `.button {\n  border-color: #094ccc;\n  outline-color: #0b5fff80;\n}`,
+    },
+  },
+  {
+    id: 'control',
+    title: 'Lists, maps and loops',
+    body: ['Maps keep insertion order. <code>each i, item in […]</code> also gives the index, and <code>range(0, 3)</code> makes the list <code>[0, 1, 2]</code>. Conditions must be booleans; there is no implicit truthiness.'],
+    example: {
+      weave: `bind palette = {primary: #0b5fff, danger: #d92d20};\n\neach name, value in palette {\n    rule .text-#{name} {\n        color: #{value};\n    }\n}`,
+      css: `.text-primary {\n  color: #0b5fff;\n}\n\n.text-danger {\n  color: #d92d20;\n}`,
+    },
+    example2: {
+      weave: `bind dense = true;\n\nrule .row {\n    when dense {\n        padding: 4px;\n    } otherwise {\n        padding: 12px;\n    }\n}`,
+      css: `.row {\n  padding: 4px;\n}`,
+    },
+  },
+  {
+    id: 'functions',
+    title: 'Functions',
+    body: ['Functions compute values. They are pure: they cannot emit CSS and they only see their own module. Parameters can have defaults and be passed by name, like <code>space(steps: 2)</code>.'],
+    example: {
+      weave: `bind unit = 4px;\n\nfn space(steps: number) -> length {\n    yield unit * steps;\n}\n\nrule .card {\n    padding: #{space(4)};\n    margin-bottom: #{space(2)};\n}`,
+      css: `.card {\n  padding: 16px;\n  margin-bottom: 8px;\n}`,
+    },
+  },
+  {
+    id: 'mixins',
+    title: 'Recipes',
+    body: [
+      'A recipe is a reusable piece of a rule body, and the closest thing Weave has to a mixin. <code>apply</code> expands it. Strings are data and are always escaped for where they land, so <code>css.fragment(…)</code> is how you say "these are CSS tokens" explicitly.',
+    ],
+    example: {
+      weave: `recipe focus-ring(ring: string = "#0b5fff") {\n    outline: 2px solid #{css.fragment(ring)};\n    outline-offset: 2px;\n}\n\nrule .link:focus-visible {\n    apply focus-ring();\n}\n\nrule .field:focus-visible {\n    apply focus-ring("#d92d20");\n}`,
+      css: `.link:focus-visible {\n  outline: 2px solid #0b5fff;\n  outline-offset: 2px;\n}\n\n.field:focus-visible {\n  outline: 2px solid #d92d20;\n  outline-offset: 2px;\n}`,
+    },
+    after: ['A recipe can also take a block, which it places with <code>slot;</code>. The block sees the caller\'s names; the recipe body sees only its own module and parameters.'],
+    example2: {
+      weave: `recipe on-hover {\n    rule &:hover {\n        slot;\n    }\n}\n\nrule .tile {\n    color: #333333;\n    apply on-hover {\n        color: #000000;\n    }\n}`,
+      css: `.tile {\n  color: #333333;\n}\n\n.tile:hover {\n  color: #000000;\n}`,
+    },
+  },
+  {
+    id: 'nesting',
+    title: 'Nesting',
+    body: [
+      'Nested rules are lowered to flat CSS with the specificity CSS Nesting defines. <code>&</code> is the parent; a nested selector without <code>&</code> is a descendant, or relative if it starts with a combinator. When a parent has several selectors, Weave writes the parent as <code>:is(…)</code> instead of multiplying selectors.',
+    ],
+    example: {
+      weave: `rule .nav {\n    display: flex;\n    rule a { color: inherit; }\n    rule > li { list-style: none; }\n    rule &:hover { opacity: 0.9; }\n    @media (width >= 768px) {\n        gap: 24px;\n    }\n}`,
+      css: `.nav {\n  display: flex;\n}\n\n.nav a {\n  color: inherit;\n}\n\n.nav > li {\n  list-style: none;\n}\n\n.nav:hover {\n  opacity: 0.9;\n}\n\n@media (width >= 768px) {\n  .nav {\n    gap: 24px;\n  }\n}`,
+    },
+  },
+  {
+    id: 'opaque',
+    title: 'At-rules and verbatim CSS',
+    body: ['Known at-rules keep their CSS syntax. Unknown at-rules and <code>opaque { … }</code> blocks are preserved exactly, so CSS that Weave does not know yet still works.'],
+    example: {
+      weave: `@layer base, components;\n\n@future-feature demo {\n    keep:   this  exactly;\n}\n\nopaque {\n    .legacy > .item::part(label) { color: red; }\n}`,
+      css: `@layer base, components;\n\n@future-feature demo {\n    keep:   this  exactly;\n}\n\n.legacy > .item::part(label) { color: red; }`,
+    },
+  },
+  {
+    id: 'modules',
+    title: 'Modules',
+    body: [
+      'You don\'t have to write all your Weave in a single file. Split a project with <code>load</code>, and mark what other files may use with <code>export</code>. Paths start with <code>./</code> or <code>../</code>, resolve from the importing file, and cannot leave the project root. Each module is built once, and its CSS comes before the CSS of the modules that load it.',
+    ],
+    example: {
+      weave: `/* tokens.weave */\nexport bind primary = #2563eb;\nexport fn step(n: number) -> length { yield 4px * n; }\n\n/* main.weave */\nload "./tokens.weave" as tokens;\n\nrule .button {\n    color: #{tokens.primary};\n    padding: #{tokens.step(2)};\n}`,
+      css: null,
+    },
+  },
+  {
+    id: 'diagnostics',
+    title: 'Diagnostics',
+    body: ['Errors name a stable code, the file, line and column, and often a note. Use <code>--diagnostics json</code> for machine-readable output.'],
+    example: {
+      weave: `rule .a {\n    color: #{missing};\n}`,
+      css: null,
+      text: 'error[E1002]: unresolved name `missing`',
+    },
+  },
+];
+---
+
+<Base title="Learn Weave" description="A guided tour of the Weave language with compiler-checked examples.">
+  <main id="main">
+    <div class="page-head">
+      <div class="wrap">
+        <p class="eyebrow">Learn</p>
+        <h1>Weave Basics</h1>
+        <p class="intro">Before you can use Weave, you need to set it up. <a href="/install/">Install Weave first</a>, or just browse and try snippets in the <a href="/playground/">Playground</a>.</p>
+      </div>
+    </div>
+
+    <div class="wrap docs-layout two">
+      <nav class="sidebar" aria-label="Topics">
+        <h4>Topics</h4>
+        <ul>{topics.map((t) => <li><a href={`#${t.id}`}>{t.title}</a></li>)}</ul>
+        <h4>Go deeper</h4>
+        <ul>
+          <li><a href="/docs/tutorial/">Full tutorial</a></li>
+          <li><a href="/docs/language/">Language reference</a></li>
+          <li><a href="/docs/builtins/">Built-in library</a></li>
+        </ul>
+      </nav>
+
+      <div class="prose">
+        {topics.map((t, i) => (
+          <>
+            <h2 id={t.id} style={i === 0 ? 'border-top:0;margin-top:0' : undefined}>{t.title} <a class="permalink" href={`#${t.id}`} aria-label={`Permalink to ${t.title}`}>#</a></h2>
+            {t.body.map((p) => <p set:html={p} />)}
+            <div class="example">
+              <div class="pair">
+                <div>
+                  <div class="code-label">Weave</div>
+                  <Code code={t.example.weave} lang={weaveLang} theme="github-light" />
+                </div>
+                {t.example.css && (
+                  <div>
+                    <div class="code-label">CSS Output</div>
+                    <Code code={t.example.css} lang="css" theme="github-light" />
+                  </div>
+                )}
+                {t.example.text && (
+                  <div>
+                    <div class="code-label">Compiler Output</div>
+                    <Code code={t.example.text} lang="text" theme="github-light" />
+                  </div>
+                )}
+              </div>
+            </div>
+            {t.after && t.after.map((p) => <p set:html={p} />)}
+            {t.shell && <Code code={t.shell} lang="bash" theme="github-light" />}
+            {t.example2 && (
+              <div class="example">
+                <div class="pair">
+                  <div>
+                    <div class="code-label">Weave</div>
+                    <Code code={t.example2.weave} lang={weaveLang} theme="github-light" />
+                  </div>
+                  <div>
+                    <div class="code-label">CSS Output</div>
+                    <Code code={t.example2.css} lang="css" theme="github-light" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        ))}
+        <div class="banner" style="margin-top:3rem">That's the tour. The <a href="/docs/tutorial/">tutorial</a> goes through the same material with more detail, and the <a href="/docs/language/">language reference</a> is normative.</div>
+      </div>
+    </div>
+  </main>
+</Base>

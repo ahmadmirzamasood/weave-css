@@ -1,0 +1,22 @@
+---
+import { getTree } from '../data/docs-tree.mjs';
+const { current = '' } = Astro.props;
+const { sections } = getTree();
+---
+
+<nav class="sidebar" aria-label="Documentation contents">
+  <h4><a href="/docs/" class="contents-link">Contents</a></h4>
+  {sections.map((s) => {
+    const open = s.pages.some((p) => p.id === current);
+    return (
+      <details open={open}>
+        <summary>{s.title}</summary>
+        <ul>
+          {s.pages.map((p) => (
+            <li><a href={p.url} aria-current={p.id === current ? 'page' : undefined}>{p.navTitle ?? p.title}</a></li>
+          ))}
+        </ul>
+      </details>
+    );
+  })}
+</nav>

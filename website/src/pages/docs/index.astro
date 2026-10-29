@@ -1,0 +1,42 @@
+---
+import Base from '../../layouts/Base.astro';
+import DocsNav from '../../components/DocsNav.astro';
+import { getTree } from '../../data/docs-tree.mjs';
+
+const { sections } = getTree();
+---
+
+<Base title="Documentation | Weave" description="Weave language reference, built-in library, command line and Rust library documentation.">
+  <div class="wrap docs-layout two">
+    <DocsNav current="" />
+    <main class="prose" id="main">
+      <h1>Documentation</h1>
+      <p>Weave is a stylesheet language that compiles to CSS. It lets you use bindings, functions, recipes, conditions, loops and modules, with the CSS syntax you already know. Weave keeps large stylesheets organized and makes it easy to share design across projects.</p>
+      <ul>
+        <li>If you are looking for an introduction to Weave, check out the <a href="/docs/tutorial/">tutorial</a> or <a href="/guide/">Learn Weave</a>.</li>
+        <li>If you want to look up a built-in function, look no further than the <a href="/docs/builtins/">built-in library reference</a>.</li>
+        <li>If you are calling Weave from Rust, you want the <a href="/docs/library/">library API documentation</a>.</li>
+        <li>If you are running it from a terminal, see the <a href="/docs/cli/">command-line reference</a>.</li>
+        <li>Otherwise, use the table of contents below for the language reference.</li>
+      </ul>
+
+      <h2>Contents</h2>
+      <div class="toc-grid">
+        {sections.map((s) => (
+          <section>
+            <h3><a href={s.pages[0].url}>{s.title}</a></h3>
+            <ul>
+              {s.pages.map((p) => <li><a href={p.url}>{p.navTitle ?? p.title}</a></li>)}
+            </ul>
+          </section>
+        ))}
+      </div>
+
+      <h2 id="versions">Versions and stability <a class="permalink" href="#versions" aria-label="Permalink">#</a></h2>
+      <p>This documentation is written for the most recent release, <code>weavec</code> 0.1.0-rc.3, which implements language specification v0.1. Weave is pre-1.0: the grammar and the library API are not declared stable, and the <a href="/docs/compatibility-policy/">compatibility policy</a> says what the maintainers intend to keep and what may change.</p>
+      <p>Where behavior depends on the release, the page says so in a compatibility note like this one:</p>
+      <p class="compat"><strong>Compatibility.</strong> weavec 0.1.0-rc.3 and later. The color built-ins were added in that release candidate.</p>
+      <p>Weave has a single implementation, so there is no per-implementation table. See the <a href="/docs/release-notes/">release notes</a> for known limitations and the <a href="https://github.com/ahmadmirzamasood/weave-css/blob/main/CHANGELOG.md" rel="noopener">changelog</a> for what changed in each release.</p>
+    </main>
+  </div>
+</Base>

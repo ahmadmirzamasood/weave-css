@@ -1,0 +1,92 @@
+---
+import { Code } from 'astro:components';
+import Base from '../layouts/Base.astro';
+import { REPO } from '../data/docs-tree.mjs';
+
+const rel = `${REPO}/releases/tag/v0.1.0-rc.3`;
+const sections = [
+  { id: 'command-line', label: 'Command Line' },
+  { id: 'libraries', label: 'Libraries' },
+  { id: 'editors', label: 'Editors' },
+  { id: 'verify', label: 'Verify' },
+  { id: 'platforms', label: 'Platforms' },
+];
+---
+
+<Base title="Install Weave" description="Install the weavec command, the weave-compiler library, and editor highlighting.">
+  <main id="main">
+    <div class="page-head">
+      <div class="wrap">
+        <p class="eyebrow">Get started</p>
+        <h1>Install Weave</h1>
+        <p class="intro">Weave ships as a native command, <code>weavec</code>, and a Rust library. Nothing else is required: no Node.js, no Dart, no C toolchain for the language itself.</p>
+      </div>
+    </div>
+
+    <div class="wrap docs-layout two">
+      <nav class="sidebar" aria-label="On this page">
+        <h4>Topics</h4>
+        <ul>{sections.map((s) => <li><a href={`#${s.id}`}>{s.label}</a></li>)}</ul>
+      </nav>
+
+      <div class="prose">
+        <h2 id="command-line" style="border-top:0;margin-top:0">Command Line <a class="permalink" href="#command-line" aria-label="Permalink">#</a></h2>
+        <p>Installing Weave on the command line gives you the <code>weavec</code> executable, which compiles <code>.weave</code> files to <code>.css</code> files. Choose one of the options below.</p>
+
+        <div class="tabs">
+          <input type="radio" name="how" id="t-cargo" checked />
+          <input type="radio" name="how" id="t-bin" />
+          <input type="radio" name="how" id="t-src" />
+          <div class="tab-list">
+            <label for="t-cargo">crates.io</label>
+            <label for="t-bin">Prebuilt binary</label>
+            <label for="t-src">From source</label>
+          </div>
+          <div class="panel">
+            <p>Requires a Rust toolchain, version 1.85 or newer (<a href="https://rustup.rs" rel="noopener">rustup</a>). Always pass <code>--locked</code>.</p>
+            <Code code={'cargo install weave-css --version 0.1.0-rc.3 --locked'} lang="bash" theme="github-light" />
+          </div>
+          <div class="panel">
+            <p>Download the archive for Linux x86_64, macOS (Apple silicon) or Windows x86_64 from the <a href={rel} rel="noopener">GitHub release</a>, then verify it before use. Archives contain <code>weavec</code>, the license and third-party notices.</p>
+            <Code code={'sha256sum --check --ignore-missing SHA256SUMS\ngh attestation verify weavec-0.1.0-rc.3-x86_64-unknown-linux-gnu.tar.gz --repo ahmadmirzamasood/weave-css'} lang="bash" theme="github-light" />
+          </div>
+          <div class="panel">
+            <p>Clone the repository and install the CLI package. This builds in release mode and installs <code>weavec</code> into your Cargo bin directory.</p>
+            <Code code={'git clone https://github.com/ahmadmirzamasood/weave-css\ncd weave-css\ncargo install --path crates/weave-cli --locked'} lang="bash" theme="github-light" />
+          </div>
+        </div>
+
+        <p>Then check it installed correctly. The first line should read <code>weavec 0.1.0-rc.3</code>. You can also run <code>weavec --help</code> for the command-line interface.</p>
+        <Code code={'weavec --version'} lang="bash" theme="github-light" />
+
+        <h2 id="libraries">Libraries <a class="permalink" href="#libraries" aria-label="Permalink">#</a></h2>
+        <p>The compiler is available as the Rust crate <code>weave-compiler</code>: <code>compile</code>, caching, the dependency graph, injectable file resolvers and source maps. The core performs no filesystem, network, environment or clock access.</p>
+        <Code code={'cargo add weave-compiler@0.1.0-rc.3'} lang="bash" theme="github-light" />
+        <p>See the <a href="/docs/library/">Library API guide</a>. There are no JavaScript or other-language bindings, and none are planned for 1.0.</p>
+
+        <h2 id="editors">Editors <a class="permalink" href="#editors" aria-label="Permalink">#</a></h2>
+        <p>Weave has syntax highlighting for editors that read TextMate grammars (VS Code and compatible editors). It is <strong>not</strong> a language server: there is no completion or live diagnostics, and it is not on a marketplace. Each release attaches <code>weave-syntax-&lt;version&gt;.vsix</code>.</p>
+        <Code code={'code --install-extension weave-syntax-0.1.0-rc.3.vsix'} lang="bash" theme="github-light" />
+        <p>Details, including Windows and other editors such as Cursor, are in <a href={`${REPO}/blob/main/editors/README.md`} rel="noopener">editors/README.md</a>.</p>
+
+        <h2 id="verify">Verify your install <a class="permalink" href="#verify" aria-label="Permalink">#</a></h2>
+        <p>Compile a file from standard input:</p>
+        <Code code={"printf 'bind c = #0b5fff;\\nrule .a { color: #{c}; }\\n' | weavec build -"} lang="bash" theme="github-light" />
+        <Code code={'.a {\n  color: #0b5fff;\n}'} lang="css" theme="github-light" />
+        <p>New to Weave? <a href="/guide/">Learn Weave</a> next, or try examples in the <a href="/playground/">Playground</a>.</p>
+
+        <h2 id="platforms">Supported platforms <a class="permalink" href="#platforms" aria-label="Permalink">#</a></h2>
+        <p>"Supported" means the build and test suite run in the project's CI on that platform. Nothing else is claimed.</p>
+        <table>
+          <thead><tr><th>Platform</th><th>Toolchain</th></tr></thead>
+          <tbody>
+            <tr><td>Linux x86_64 (glibc)</td><td>Rust 1.99.1, MSRV 1.85</td></tr>
+            <tr><td>macOS, Apple silicon</td><td>Rust 1.99.1</td></tr>
+            <tr><td>Windows x86_64 (MSVC)</td><td>Rust 1.99.1</td></tr>
+          </tbody>
+        </table>
+        <p>Other targets may work but are untested, and no binaries are built for them. Full details: <a href="/docs/install/">Installation guide</a>.</p>
+      </div>
+    </div>
+  </main>
+</Base>

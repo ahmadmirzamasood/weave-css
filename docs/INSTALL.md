@@ -55,11 +55,11 @@ cargo test --workspace --all-features --locked
 
 | Platform | Toolchain | Evidence |
 |---|---|---|
-| Linux x86_64 (glibc), GitHub `ubuntu-latest` | Rust 1.99.1 and MSRV 1.85 | CI: format, Clippy, full tests |
+| Linux x86_64 (glibc), GitHub `ubuntu-latest` | Rust 1.99.1 and MSRV 1.85 | CI: format, Clippy, full tests; also the clean-container build on Debian 12 |
 | macOS (GitHub `macos-latest`, Apple silicon) | Rust 1.99.1 | CI: format, Clippy, full tests |
 | Windows x86_64 (GitHub `windows-latest`, MSVC) | Rust 1.99.1 | CI: format, Clippy, full tests |
 
-Other targets may well work, since the code is portable safe Rust, but they are untested. Intel macOS, Linux musl/ARM and Windows ARM are not tested and no binaries are built for them. The same is true of 32-bit targets: spans use 32-bit offsets and the limits are validated for 64-bit hosts.
+The prebuilt Linux binary is built on the runner image (Ubuntu with glibc 2.43 at the time of the rehearsal) and needs a glibc at least that new; on an older distribution build from source. Other targets may well work, since the code is portable safe Rust, but they are untested. Intel macOS, Linux musl/ARM and Windows ARM are not tested and no binaries are built for them. The same is true of 32-bit targets: spans use 32-bit offsets and the limits are validated for 64-bit hosts.
 
 ## Prebuilt binaries (after publication)
 

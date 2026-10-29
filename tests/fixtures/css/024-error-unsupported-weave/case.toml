@@ -1,3 +1,0 @@
-description = "Weave constructs this build does not implement are E5001, never silently dropped: the `color` built-ins, reported at the callee. (Functions, control flow, recipes and `fail`/`warn` are implemented since phase 05; nesting since phase 06; modules since phase 07.)"
-spec = ["LANGUAGE.md 16", "LANGUAGE.md 3.3"]
-expect = "error"

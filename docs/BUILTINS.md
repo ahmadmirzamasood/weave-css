@@ -2,7 +2,7 @@
 
 Status: normative reference for the prelude (LANGUAGE.md §4.3, §18). It completes [TYPES.md §9](TYPES.md#9-core-built-ins), which lists the same set; where they disagree, this document wins and the difference is a specification bug. Adding or changing a built-in is a specification change and needs a decision record.
 
-The reference compiler implements every built-in below except the `color` namespace, which is specified in TYPES.md §9 and reported as E5001 (not implemented by this build) until it is implemented.
+The reference compiler implements every built-in below.
 
 ## Rules shared by all built-ins
 
@@ -184,12 +184,51 @@ Whether `needle` occurs in `s`. Every string contains `""`.
 
 The strings of the list `items` joined by `separator`. An element that is not a string is E4005 at `items`.
 
+## `color`: 8-bit sRGB colors
+
+Colors are four 8-bit channels (TYPES.md §4). These built-ins compute on them exactly, with integer arithmetic on the six-decimal quantized argument values (TYPES.md §2.1); no floating-point rounding is involved. Rounding is always to the nearest integer with **ties toward +∞**. Wide-gamut and functional colors are CSS fragments, not color values, and cannot be passed here (E4005).
+
+A *unitless-or-percentage* argument is a number with no unit, or a percentage; any other unit is E3001 at that argument.
+
+### `color.rgb(r, g, b, alpha = 1)`
+
+A color from channels. `r`, `g` and `b` are unitless numbers 0–255 or percentages 0%–100% (100% is 255); `alpha` is a unitless number 0–1 or a percentage 0%–100% (100% is 1). Values outside the range are clamped to it, then scaled to 0–255 and rounded (`alpha` becomes `round(alpha × 255)`). Channels may be fractional: `127.5` rounds to `128`.
+
+```weave
+color.rgb(37, 99, 235)            /* #2563eb */
+color.rgb(100%, 0%, 50%)          /* #ff0080 */
+color.rgb(300, -5, 127.5, 0.5)    /* #ff008080: clamped, 127.5 rounds up */
+color.rgb(0, 0, 0, 50%)           /* #00000080 */
+```
+
+### `color.mix(a, b, weight = 50%)`
+
+The color `weight` of the way from `b` to `a`: each channel, and alpha, is `round(a × w + b × (1 − w))` with `w` the weight as a fraction. `weight` is a unitless number 0–1 or a percentage 0%–100%; a value outside that range is E2003 at the argument (it is not clamped), a unit other than `%` is E3001. Alpha is mixed like a channel (no premultiplication). `weight` 1 gives `a` and 0 gives `b`.
+
+```weave
+color.mix(#000000, #ffffff)               /* #808080: 127.5 rounds up */
+color.mix(#ff0000, #0000ff, 25%)          /* #4000bf */
+color.mix(#ff000080, #0000ff, 0.5)        /* #800080c0 */
+```
+
+### `color.red(c)`
+
+The red channel of `c` as a unitless integer 0–255.
+
+### `color.green(c)`
+
+The green channel of `c` as a unitless integer 0–255.
+
+### `color.blue(c)`
+
+The blue channel of `c` as a unitless integer 0–255.
+
+### `color.alpha(c)`
+
+The alpha as a unitless number: `a / 255`, quantized to six decimals when serialized (`#2563eb80` gives `0.501961`, an opaque color gives `1`).
+
 ## `meta`: values
 
 ### `meta.type(x)`
 
 The type of `x` as a string: `"number"`, `"string"`, `"color"`, `"bool"`, `"list"`, `"map"` or `"css"`.
-
-## `color`: specified, not implemented yet
-
-`color.rgb(r, g, b, alpha = 1)`, `color.mix(a, b, weight = 50%)`, `color.red(c)`, `color.green(c)`, `color.blue(c)` and `color.alpha(c)` are specified in TYPES.md §9. The reference compiler reports them as E5001 until they are implemented; their semantics will move here when they are.

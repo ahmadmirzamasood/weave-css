@@ -2,7 +2,7 @@
 
 This tutorial builds a small stylesheet step by step. Every `weave` block with a `css` block after it is compiled by the test suite (`crates/weave-compiler/tests/docs.rs`), so the output shown is what the compiler produces. The language rules are in the [language reference](LANGUAGE.md); this is the guided tour.
 
-Weave is a **release candidate** (0.1.0-rc.2). Two things in this tour are limited today: the `color` built-ins are not implemented (see [Limitations](#limitations)), and there is no editor integration beyond syntax highlighting.
+Weave is a **release candidate** (0.1.0-rc.3). There is no editor integration beyond syntax highlighting (see [Limitations](#limitations)).
 
 ## 1. Install and build the first file
 
@@ -94,7 +94,33 @@ error[E3001]: incompatible units: cannot add `px` and `s`
 
 Weave does not turn `calc()` into arithmetic. `calc(100% - 4px)` is CSS and stays CSS; use `#{…}` only for values Weave computes. The full numeric model is in [TYPES.md](TYPES.md).
 
-## 4. Lists, maps and loops
+## 4. Colors
+
+Colors are 8-bit values. They have no operators; the `color` built-ins compute on them, rounding exactly (ties go up).
+
+```weave
+bind brand = #0b5fff;
+
+rule .button {
+    background: #{brand};
+    border-color: #{color.mix(brand, #000000, 80%)};
+    color: #{color.rgb(255, 255, 255)};
+    outline-color: #{color.rgb(11, 95, 255, 50%)};
+}
+```
+
+```css
+.button {
+  background: #0b5fff;
+  border-color: #094ccc;
+  color: #ffffff;
+  outline-color: #0b5fff80;
+}
+```
+
+`color.red(c)`, `color.green(c)`, `color.blue(c)` and `color.alpha(c)` read the channels back. Colors such as `oklch(…)` or named colors are not color values; write them as CSS fragments. See [BUILTINS.md](BUILTINS.md#color-8-bit-srgb-colors).
+
+## 5. Lists, maps and loops
 
 ```weave
 bind palette = {primary: #0b5fff, danger: #d92d20};
@@ -118,7 +144,7 @@ each name, value in palette {
 
 Maps keep insertion order. `each i, item in [..]` also gives the index, and `range(0, 3)` makes the list `[0, 1, 2]`.
 
-## 5. Conditions
+## 6. Conditions
 
 Conditions must be booleans; there is no implicit truthiness.
 
@@ -140,7 +166,7 @@ rule .row {
 }
 ```
 
-## 6. Functions
+## 7. Functions
 
 Functions compute values. They are pure: they cannot emit CSS and they only see their own module.
 
@@ -166,7 +192,7 @@ rule .card {
 
 Parameters can have defaults and be passed by name: `space(steps: 2)`. The built-in functions (`math`, `list`, `map`, `string`, `css`, `meta`) are listed in [BUILTINS.md](BUILTINS.md).
 
-## 7. Recipes: reusable rules
+## 8. Recipes: reusable rules
 
 A recipe is a reusable piece of a rule body. `apply` expands it.
 
@@ -226,7 +252,7 @@ rule .tile {
 
 The block sees the caller's names; the recipe body sees only its own module and parameters.
 
-## 8. Nesting
+## 9. Nesting
 
 Nested rules are lowered to flat CSS with the specificity CSS Nesting defines. `&` is the parent; a nested selector without `&` is a descendant, or relative if it starts with a combinator.
 
@@ -268,7 +294,7 @@ rule .nav {
 
 When a parent has several selectors, Weave writes the parent as `:is(…)` instead of multiplying selectors, which keeps output small and specificity correct. [CSS-COMPATIBILITY.md §4](CSS-COMPATIBILITY.md#4-nesting-lowering-and-specificity) has the details.
 
-## 9. At-rules and verbatim CSS
+## 10. At-rules and verbatim CSS
 
 Known at-rules keep their CSS syntax. Unknown at-rules and `opaque { … }` blocks are preserved exactly, so CSS that Weave does not know yet still works.
 
@@ -294,7 +320,7 @@ opaque {
 .legacy > .item::part(label) { color: red; }
 ```
 
-## 10. Modules
+## 11. Modules
 
 Split a project into files with `load`, and mark what other files may use with `export`:
 
@@ -318,7 +344,7 @@ Paths start with `./` or `../` and are resolved from the importing file; they ca
 weavec build examples/design-system/main.weave -o site.css --source-map
 ```
 
-## 11. Tooling
+## 12. Tooling
 
 ```bash
 weavec check styles.weave                       # report errors, write nothing
@@ -343,6 +369,5 @@ Every option is in the [command-line reference](CLI.md). Syntax highlighting for
 
 ## Limitations
 
-- The `color` built-ins (`color.rgb`, `color.mix`, …) report error E5001, "not implemented by this build". Colors are values (hex literals) that you can store, pass and insert, but not compute on. Use `` `color-mix(in srgb, …)` `` CSS fragments for runtime mixing.
 - Very large plain-CSS inputs may exceed the default evaluation budget; see [the limits in the command-line reference](CLI.md#resource-limits).
 - The language and library are pre-1.0. See the [compatibility policy](COMPATIBILITY-POLICY.md) for what may change.

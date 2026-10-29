@@ -43,7 +43,7 @@ EXE = ".exe" if os.name == "nt" else ""
 
 
 def cli_package(tree: Path) -> str:
-    """The CLI package name of a checkout (`weave-cli` before 0.1.0-rc.2)."""
+    """The CLI package name of a checkout (`weave-cli` before 0.1.0-rc.3)."""
     manifest = (tree / "crates" / "weave-cli" / "Cargo.toml").read_text(encoding="utf-8")
     return "weave-css" if 'name = "weave-css"' in manifest else "weave-cli"
 
@@ -238,7 +238,7 @@ def merge(parts: list) -> dict:
 
 def binaries(tree: Path) -> tuple[Path, Path]:
     target = tree / "target" / "release"
-    # The binary was called `weave` before 0.1.0-rc.2.
+    # The binary was called `weave` before 0.1.0-rc.3.
     cli = target / f"weavec{EXE}"
     return (cli if cli.exists() else target / f"weave{EXE}"), target / f"weave-bench{EXE}"
 

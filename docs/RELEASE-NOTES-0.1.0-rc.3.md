@@ -1,4 +1,4 @@
-# Weave 0.1.0-rc.2 release notes
+# Weave 0.1.0-rc.3 release notes
 
 **Release candidate. Not published:** no package is on a registry and no GitHub release exists. These notes describe what the candidate contains and what is unproven, so that the decision to publish can be made on facts.
 
@@ -12,10 +12,10 @@ Weave is a stylesheet language that compiles `.weave` files to standard CSS, wit
 
 ## Supported features
 
-All of the [v0.1 language](LANGUAGE.md) except the `color` built-ins:
+All of the [v0.1 language](LANGUAGE.md):
 
 - `bind` immutable values: numbers with units, strings, hex colors, booleans, lists, ordered maps, CSS fragments; expressions with documented precedence; `#{…}` interpolation escaped per context.
-- Typed `fn` functions (defaults, named arguments, recursion), `when`/`otherwise`, `each`, `range`, `fail`/`warn`, and the [built-in library](BUILTINS.md) (`css`, `math`, `list`, `map`, `string`, `meta`).
+- Typed `fn` functions (defaults, named arguments, recursion), `when`/`otherwise`, `each`, `range`, `fail`/`warn`, and the [built-in library](BUILTINS.md) (`css`, `math`, `list`, `map`, `string`, `color`, `meta`). The `color` built-ins (`rgb`, `mix`, `red`, `green`, `blue`, `alpha`) were added in this candidate: exact integer arithmetic, ties rounded toward +infinity, checked by hand-derived fixtures and independent oracles.
 - `recipe`/`apply`/`slot` reusable rules with content blocks.
 - Nested rules lowered to flat CSS with CSS Nesting specificity (checked against Chrome in CI), nested `@media`/`@supports`/`@container`/`@layer`/`@starting-style`.
 - All CSS preserved: declarations, custom properties, `!important`, known at-rules by their body grammar, unknown at-rules and `opaque { }` blocks verbatim.
@@ -29,20 +29,18 @@ Tested in CI, and the only ones with prebuilt binaries planned: Linux x86_64 (gl
 
 ## Known limitations
 
-1. **The `color` built-ins are not implemented.** `color.rgb`, `color.mix`, `color.red`, … fail with error E5001 ("not implemented by this build"). Hex colors work as values; use a CSS fragment such as `` `color-mix(in srgb, …)` `` for browser-side mixing.
-2. **Large inputs need a raised step limit.** Plain CSS above roughly 333,000 simple rules (about 3.6 MB) exceeds the default 1,000,000 evaluation steps and fails with `E8004`; raise it with `--limit evaluation-steps=N` ([CLI.md](CLI.md#resource-limits)). The default is unchanged on purpose.
-3. **Root confinement is path-based.** A process that can modify the module tree during a build can defeat it (time-of-check/time-of-use). Weave is not a sandbox for trees others can write concurrently.
-4. `@scope` nested inside rules is rejected (E6006); `@font-feature-values` internals are preserved verbatim, not parsed. Equal-specificity selector expansion is not optimized (parent lists with several selectors use `:is()`).
-5. `watch` polls file metadata: a same-length edit within the file system's timestamp granularity can be noticed only at the next change; edits made during a build to files not yet watched are missed.
-6. The language grammar file is an approximate EBNF, and fixture expectations had no independent human review beyond the author and automated cross-checks (browser, independent CSS parser).
-7. The library API and grammar are not stable before 1.0 ([COMPATIBILITY-POLICY.md](COMPATIBILITY-POLICY.md)).
-8. No prebuilt binaries for Intel macOS, Linux musl/ARM or Windows ARM; untested, so unclaimed.
-9. `cargo package` prints "ignoring test … not included in the published package" warnings: the packaged crates intentionally ship no tests, which need the repository's fixtures.
+1. **Large inputs need a raised step limit.** Plain CSS above roughly 333,000 simple rules (about 3.6 MB) exceeds the default 1,000,000 evaluation steps and fails with `E8004`; raise it with `--limit evaluation-steps=N` ([CLI.md](CLI.md#resource-limits)). The default is unchanged on purpose.
+2. **Root confinement is path-based.** A process that can modify the module tree during a build can defeat it (time-of-check/time-of-use). Weave is not a sandbox for trees others can write concurrently.
+3. `@scope` nested inside rules is rejected (E6006); `@font-feature-values` internals are preserved verbatim, not parsed. Equal-specificity selector expansion is not optimized (parent lists with several selectors use `:is()`).
+4. `watch` polls file metadata: a same-length edit within the file system's timestamp granularity can be noticed only at the next change; edits made during a build to files not yet watched are missed.
+5. The language grammar file is an approximate EBNF, and fixture expectations had no independent human review beyond the author and automated cross-checks (browser, independent CSS parser).
+6. The library API and grammar are not stable before 1.0 ([COMPATIBILITY-POLICY.md](COMPATIBILITY-POLICY.md)).
+7. No prebuilt binaries for Intel macOS, Linux musl/ARM or Windows ARM; untested, so unclaimed.
+8. `cargo package` prints "ignoring test … not included in the published package" warnings: the packaged crates intentionally ship no tests, which need the repository's fixtures.
 
 ## Decisions needed before publication
 
 - **Binary name (decided for this candidate):** the command is `weavec`. The earlier choice `weave` collides with the `weave-cli` crate (an unrelated tool that also installs `weave`), a Homebrew formula named `weave` and other projects (checked 2026-10-29; [INSTALL.md](INSTALL.md#the-binary-name)). The language, `.weave` extension and package names are unchanged. Whether to rename the language itself before 1.0 remains open.
-- **Whether `0.1.0` may ship without the `color` built-ins**, or this candidate should be labelled beta.
 - **Registry names must be re-checked immediately before publishing.** On 2026-10-29 `weave-css` and `weave-compiler` were free on crates.io (and `weave-css` on npm and PyPI); `weave` and `weave-cli` were taken.
 - Repository setup for publication: a `release` environment with a required reviewer, and scoped crates.io credentials held by a maintainer.
 
@@ -69,11 +67,12 @@ Report vulnerabilities privately through GitHub: <https://github.com/ahmadmirzam
 
 - This is the first release, so there is nothing to migrate from. Weave is not compatible with Sass, Less or other preprocessors; there is no converter. Plain CSS becomes Weave by prefixing selectors of style rules with `rule` ([COMPATIBILITY-POLICY.md](COMPATIBILITY-POLICY.md#migration)).
 - Anything may change between release candidates and before 1.0 as described in the compatibility policy: the library API in particular, and the names (`weavec`, `.weave`, package names) are working choices.
-- If you adopted the repository before this candidate: the CLI package is now `weave-css` (`cargo run -p weave-css`; was `-p weave-cli`) and the command is `weavec` (was `weave`), including the `[weavec]` prefix of `watch` status lines. Flags and CSS output are unchanged. 0.1.0-rc.1 was prepared but never published.
+- `color.*` calls that previously failed with E5001 now compile; no program that compiled before changes meaning.
+- If you adopted the repository before rc.2: the CLI package is now `weave-css` (`cargo run -p weave-css`; was `-p weave-cli`) and the command is `weavec` (was `weave`), including the `[weavec]` prefix of `watch` status lines. Flags and CSS output are unchanged. 0.1.0-rc.1 and 0.1.0-rc.2 were prepared but never published.
 
 ## How this candidate was verified
 
-- `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --workspace --all-features --locked` (284 tests plus doctests passing on the Windows development machine; Linux, macOS and Windows in CI), MSRV 1.85 on Linux CI.
+- `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --workspace --all-features --locked` (all tests plus doctests passing on the Windows development machine; Linux, macOS and Windows in CI), MSRV 1.85 on Linux CI.
 - Specification and fixture consistency (100 fixtures), dependency policy, editor files, release consistency (`scripts/check_release.py`).
 - Package dry run for both published crates and inspection of their contents; clean-environment build and install from the packaged crates and the source archive; the release workflow rehearsal on the pull request (builds, version and example smoke tests of each binary, Linux reproducibility). Results are recorded in the pull request and the phase 11 handoff, not in this file.
 - Examples in the README, tutorial and library guide are compiled by tests.

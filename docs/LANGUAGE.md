@@ -1,6 +1,6 @@
 # Weave language specification v0.1
 
-Status: **normative v0.1 specification**. The reference compiler implements the plain-CSS subset (`rule` blocks at stylesheet level, declarations, at-rules, `opaque` blocks, comments, literal markers) plus `bind`, expressions, interpolation, functions, `when`/`each`, recipes with content blocks, `fail`/`warn`, nesting with nested group at-rules, modules, and the built-ins of [BUILTINS.md](BUILTINS.md) so far; the `color` built-ins are reported as E5001 by current builds. Companion documents are normative for their subjects:
+Status: **normative v0.1 specification**. The reference compiler implements the plain-CSS subset (`rule` blocks at stylesheet level, declarations, at-rules, `opaque` blocks, comments, literal markers) plus `bind`, expressions, interpolation, functions, `when`/`each`, recipes with content blocks, `fail`/`warn`, nesting with nested group at-rules, modules, and the built-ins of [BUILTINS.md](BUILTINS.md). Companion documents are normative for their subjects:
 
 - [grammar.ebnf](grammar.ebnf): syntax.
 - [TYPES.md](TYPES.md): values, numeric model, units, coercions, serialization, core built-ins.

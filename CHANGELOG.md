@@ -4,17 +4,23 @@
 
 Nothing yet.
 
+## 0.1.0-rc.3
+
+Release candidate for 0.1.0 (not yet published). Supersedes 0.1.0-rc.2, which was prepared but never published or tagged.
+
+- The `color` built-ins are implemented: `color.rgb`, `color.mix`, `color.red`, `color.green`, `color.blue` and `color.alpha` (TYPES.md section 9, docs/BUILTINS.md). They compute with exact integer arithmetic on the six-decimal quantized arguments and round to the nearest integer with ties toward +infinity. Channels and alpha accept unitless numbers or percentages and are clamped; a mix weight outside 0-1 / 0%-100% is E2003 (not clamped); other units are E3001; non-color arguments E4005. Programs that used these names before got E5001, so no previously compiling program changes meaning.
+- Fixtures: new values cases 008-colors (expected output derived by hand from the specification) and 027-error-colors; the E5001 fixture css/024 is removed because no construct is unimplemented any more; `crates/weave-compiler/tests/colors.rs` checks every channel value, percentages, clamping, ties, alpha round trips and a mix grid against independent integer oracles.
+- `weavec --help` and `--version` no longer mention unimplemented built-ins.
+
 ## 0.1.0-rc.2
 
-Release candidate for 0.1.0 (not yet published). Supersedes 0.1.0-rc.1, which was prepared but never published or tagged.
+Prepared, never published or tagged. Its entry is kept because it describes the rename.
 
 - The command is now `weavec` (was `weave`), because the name `weave` is used by other command-line tools (the `weave-cli` crate, a Homebrew formula). The language, the `.weave` extension, the packages `weave-css` and `weave-compiler` and all flags and output are unchanged. `watch` status lines now start with `[weavec]`; release archives are named `weavec-<version>-<target>`. Update scripts and editor task matchers that run `weave` or match `[weave]`.
 
 ## 0.1.0-rc.1
 
-Prepared, never published. Its entries are kept because they describe the work leading to rc.2.
-
-Release candidate for 0.1.0 (not yet published to any registry or as a GitHub release). The v0.1 language is implemented except the `color` built-ins (error E5001). Bullets below record the work from the first specification to this candidate, in phase order, newest first.
+Prepared, never published or tagged. Its entries are kept because they, with those of the phases before it, describe the work leading to the release candidate: bullets run from the first specification to rc.1, newest first. At rc.1 the `color` built-ins were reported as E5001.
 
 - Phase 11: release preparation. Version `0.1.0-rc.1` for every package; the CLI package is renamed from `weave-cli` to `weave-css` (the name `weave-cli` is taken on crates.io and `weave` too; the installed binary is still `weave`; the library stays `weave-compiler`). Both published packages carry registry metadata, a README and a LICENSE copy, and ship only `src/`, the README, the license and the manifest. `weave-bench` and the new `weave-docs` test harness are never published.
 - Documentation: new README, installation guide, tutorial, library API guide, compatibility policy, benchmarks page, release procedure and release notes (docs/); `THIRD-PARTY-NOTICES.md`. The tutorial and README examples are compiled by `crates/weave-compiler/tests/docs.rs`, the library guide's Rust examples by the `weave-docs` crate's doctests, and the compiler crate's README as its doctest.

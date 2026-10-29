@@ -1,3 +1,0 @@
-rule a { b: #{color.rgb(1, 2, 3)}; }
-bind x = color.mix(#000, #fff);
-rule c { d: #{x}; }

@@ -2,7 +2,7 @@
 
 ## Status and reporting
 
-**Supported versions.** No stable release exists yet; the current release candidate is 0.1.0-rc.2. Until 1.0, security fixes are made against the latest release (or release candidate) only; older pre-releases are not patched, and users should move to the newest one.
+**Supported versions.** No stable release exists yet; the current release candidate is 0.1.0-rc.3. Until 1.0, security fixes are made against the latest release (or release candidate) only; older pre-releases are not patched, and users should move to the newest one.
 
 **Reporting a vulnerability.** Report privately: open <https://github.com/ahmadmirzamasood/weave-css/security/advisories/new> (repository Security tab -> Report a vulnerability). Do not post exploitable details in public issues, pull requests or discussions. Include the Weave version (`weavec --version`), your platform, the smallest input that shows the problem and what you expected. Examples of in-scope problems: a crash, hang or unbounded memory use caused by a stylesheet; reading or writing a file outside the configured root or over an input; output that lets interpolated data change CSS structure; terminal-control injection through diagnostics; supply-chain problems in the repository or release artifacts. Out of scope: CSS that a browser later interprets in a harmful way (Weave is not a sanitizer), and races against concurrent writers to the module tree (documented in docs/CLI.md).
 

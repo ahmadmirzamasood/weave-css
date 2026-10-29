@@ -1,8 +1,7 @@
 //! The prelude (LANGUAGE.md §4.3, TYPES.md §9, docs/BUILTINS.md).
 //!
 //! This build implements `range` and the `css`, `math`, `list`, `map`,
-//! `string` and `meta` namespaces. The `color` members are specified but
-//! not implemented yet (E5001). Every built-in is deterministic: none reads
+//! `string`, `color` and `meta` namespaces. Every built-in is deterministic: none reads
 //! files, the network, the clock or the environment, and each result is
 //! bounded by the string and collection limits.
 
@@ -14,7 +13,7 @@ use crate::expr::Call;
 use crate::lexer::{Lexer, Mode, TokenKind as K};
 use crate::number::{Number, Unit, checked};
 use crate::source::Span;
-use crate::value::{Map, Value, describe, equal_within, escape_ident};
+use crate::value::{Color, Map, Value, describe, equal_within, escape_ident};
 
 /// What a prelude name denotes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -26,9 +25,6 @@ pub(crate) enum Prelude {
 
 /// The built-in namespaces.
 const NAMESPACES: [&str; 7] = ["css", "math", "list", "map", "string", "color", "meta"];
-
-/// Specified `color` members, not implemented by this build.
-const COLOR_MEMBERS: [&str; 6] = ["rgb", "mix", "red", "green", "blue", "alpha"];
 
 pub(crate) fn prelude(name: &str) -> Option<Prelude> {
     if name == "range" {
@@ -77,6 +73,12 @@ pub(crate) enum Builtin {
     StringUpper,
     StringLower,
     StringJoin,
+    ColorRgb,
+    ColorMix,
+    ColorRed,
+    ColorGreen,
+    ColorBlue,
+    ColorAlpha,
     MetaType,
 }
 
@@ -120,6 +122,12 @@ const TABLE: &[(&str, &str, Builtin, &[&str])] = &[
     ("string", "upper", B::StringUpper, &["s"]),
     ("string", "lower", B::StringLower, &["s"]),
     ("string", "join", B::StringJoin, &["items", "separator"]),
+    ("color", "rgb", B::ColorRgb, &["r", "g", "b", "alpha?"]),
+    ("color", "mix", B::ColorMix, &["a", "b", "weight?"]),
+    ("color", "red", B::ColorRed, &["c"]),
+    ("color", "green", B::ColorGreen, &["c"]),
+    ("color", "blue", B::ColorBlue, &["c"]),
+    ("color", "alpha", B::ColorAlpha, &["c"]),
     ("meta", "type", B::MetaType, &["x"]),
 ];
 
@@ -158,8 +166,6 @@ impl Builtin {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Member {
     Implemented(Builtin),
-    /// Specified but not implemented by this build (E5001).
-    Specified,
     Unknown,
 }
 
@@ -167,17 +173,12 @@ pub(crate) fn member(namespace: &str, name: &str) -> Member {
     if namespace.is_empty() {
         return Member::Unknown;
     }
-    if let Some((_, _, builtin, _)) = TABLE
+    TABLE
         .iter()
         .find(|(ns, n, _, _)| *ns == namespace && *n == name)
-    {
-        return Member::Implemented(*builtin);
-    }
-    if namespace == "color" && COLOR_MEMBERS.contains(&name) {
-        Member::Specified
-    } else {
-        Member::Unknown
-    }
+        .map_or(Member::Unknown, |(_, _, builtin, _)| {
+            Member::Implemented(*builtin)
+        })
 }
 
 /// The prelude function `name` (`range`).
@@ -369,6 +370,25 @@ impl Args {
         })
     }
 
+    fn color(&mut self) -> Result<(Color, Span), Diagnostic> {
+        self.typed("a color", |v| match v {
+            Value::Color(c) => Some(*c),
+            _ => None,
+        })
+    }
+
+    /// The next argument as a number with its parameter name; `None` when
+    /// an optional argument was omitted.
+    fn named_number(&mut self) -> Result<Option<(Number, Span, &'static str)>, Diagnostic> {
+        match self.optional()? {
+            Some((value, span, name)) => match &value {
+                Value::Number(n) => Ok(Some((n.clone(), span, name))),
+                other => Err(self.mismatch(name, "a number", other, span)),
+            },
+            None => Ok(None),
+        }
+    }
+
     fn string(&mut self) -> Result<(Rc<str>, Span), Diagnostic> {
         self.typed("a string", |v| match v {
             Value::Str(s) => Some(Rc::clone(s)),
@@ -481,6 +501,82 @@ fn round(n: &Number, builtin: Builtin) -> Number {
         _ => q.saturating_add(SCALE / 2).div_euclid(SCALE),
     };
     Number::new(r as f64, n.unit.clone())
+}
+
+const SCALE: i128 = 1_000_000;
+
+/// `num / den` rounded to the nearest integer, ties toward +infinity (`den > 0`).
+fn round_div(num: i128, den: i128) -> i128 {
+    (2 * num + den).div_euclid(2 * den)
+}
+
+/// A color channel or alpha from `n`: unitless or a percentage, clamped to
+/// its range, scaled so that the full range is 255, then rounded
+/// (TYPES.md section 9). `full` is the unitless value that means "full".
+fn channel(
+    n: &Number,
+    full: i128,
+    builtin: Builtin,
+    name: &str,
+    span: Span,
+) -> Result<u8, Diagnostic> {
+    let q = i128::from(n.quantized());
+    let whole = if n.unit.is_none() {
+        full
+    } else if n.unit == Unit::parse("%") {
+        100
+    } else {
+        return Err(at(
+            span,
+            Code::E3001,
+            format!(
+                "`{}` needs a unitless number or a percentage for `{name}`, got `{}`",
+                builtin.name(),
+                n.serialize()
+            ),
+        ));
+    };
+    let q = q.clamp(0, whole * SCALE);
+    let value = round_div(q * 255, whole * SCALE);
+    Ok(u8::try_from(value).unwrap_or(u8::MAX))
+}
+
+/// A mix weight as `(numerator, denominator)`: unitless 0-1 or a
+/// percentage; anything else, or a value outside the range, is an error.
+fn weight(n: &Number, builtin: Builtin, span: Span) -> Result<(i128, i128), Diagnostic> {
+    let q = i128::from(n.quantized());
+    let den = if n.unit.is_none() {
+        SCALE
+    } else if n.unit == Unit::parse("%") {
+        100 * SCALE
+    } else {
+        return Err(at(
+            span,
+            Code::E3001,
+            format!(
+                "`{}` needs a unitless number or a percentage for `weight`, got `{}`",
+                builtin.name(),
+                n.serialize()
+            ),
+        ));
+    };
+    if !(0..=den).contains(&q) {
+        return Err(at(
+            span,
+            Code::E2003,
+            format!(
+                "`{}` needs a weight between 0 and 1 (or 0% and 100%), got `{}`",
+                builtin.name(),
+                n.serialize()
+            ),
+        ));
+    }
+    Ok((q, den))
+}
+
+fn mix_channel(a: u8, b: u8, (w, den): (i128, i128)) -> u8 {
+    let value = round_div(i128::from(a) * w + i128::from(b) * (den - w), den);
+    u8::try_from(value).unwrap_or(u8::MAX)
 }
 
 /// `a` converted to `unit` (callers checked compatibility by comparing).
@@ -646,6 +742,51 @@ pub(crate) fn call(
         B::MathRound | B::MathFloor | B::MathCeil => {
             let (x, _) = args.number()?;
             Ok(Value::Number(round(&x, builtin)))
+        }
+        B::ColorRgb => {
+            let next = |args: &mut Args| match args.named_number()? {
+                Some(found) => Ok(found),
+                None => Err(at(span, Code::E4001, "missing argument")),
+            };
+            let (r, rs, rn) = next(&mut args)?;
+            let (g, gs, gn) = next(&mut args)?;
+            let (b, bs, bn) = next(&mut args)?;
+            let alpha = args.named_number()?;
+            let r = channel(&r, 255, builtin, rn, rs)?;
+            let g = channel(&g, 255, builtin, gn, gs)?;
+            let b = channel(&b, 255, builtin, bn, bs)?;
+            let a = match alpha {
+                Some((n, s, name)) => channel(&n, 1, builtin, name, s)?,
+                None => 255,
+            };
+            Ok(Value::Color(Color { r, g, b, a }))
+        }
+        B::ColorMix => {
+            let (a, _) = args.color()?;
+            let (b, _) = args.color()?;
+            let w = match args.named_number()? {
+                Some((n, s, _)) => weight(&n, builtin, s)?,
+                None => (1, 2),
+            };
+            Ok(Value::Color(Color {
+                r: mix_channel(a.r, b.r, w),
+                g: mix_channel(a.g, b.g, w),
+                b: mix_channel(a.b, b.b, w),
+                a: mix_channel(a.a, b.a, w),
+            }))
+        }
+        B::ColorRed | B::ColorGreen | B::ColorBlue => {
+            let (c, _) = args.color()?;
+            let value = match builtin {
+                B::ColorRed => c.r,
+                B::ColorGreen => c.g,
+                _ => c.b,
+            };
+            Ok(Value::Number(Number::new(f64::from(value), Unit::None)))
+        }
+        B::ColorAlpha => {
+            let (c, _) = args.color()?;
+            number_value(f64::from(c.a) / 255.0, Unit::None, span)
         }
         B::MathAbs => {
             let (x, _) = args.number()?;
@@ -988,7 +1129,7 @@ mod tests {
     fn members() {
         assert_eq!(member("css", "space"), Member::Implemented(B::CssSpace));
         assert_eq!(member("math", "round"), Member::Implemented(B::MathRound));
-        assert_eq!(member("color", "mix"), Member::Specified);
+        assert_eq!(member("color", "mix"), Member::Implemented(B::ColorMix));
         assert_eq!(member("css", "nope"), Member::Unknown);
         assert_eq!(member("nope", "space"), Member::Unknown);
         assert_eq!(member("", "range"), Member::Unknown);

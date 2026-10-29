@@ -1,6 +1,6 @@
 # Installing Weave
 
-Weave 0.1.0-rc.2 is a release candidate. **No package has been published to a registry and no binary release exists yet**; the supported way to install it today is to build it from source. Sections marked *after publication* describe what will work once a release is published and are not available now.
+Weave 0.1.0-rc.3 is a release candidate. **No package has been published to a registry and no binary release exists yet**; the supported way to install it today is to build it from source. Sections marked *after publication* describe what will work once a release is published and are not available now.
 
 ## Requirements
 
@@ -23,7 +23,7 @@ cargo build --release --locked -p weave-css
 ./target/release/weavec --version
 ```
 
-Always pass `--locked`; the repository's `Cargo.lock` is part of the reproducible build. To build exactly a release candidate, check out its commit (recorded in the [release notes](RELEASE-NOTES-0.1.0-rc.2.md)) first.
+Always pass `--locked`; the repository's `Cargo.lock` is part of the reproducible build. To build exactly a release candidate, check out its commit (recorded in the [release notes](RELEASE-NOTES-0.1.0-rc.3.md)) first.
 
 ## Verify the installation
 
@@ -31,7 +31,7 @@ Always pass `--locked`; the repository's `Cargo.lock` is part of the reproducibl
 weavec --version
 ```
 
-prints `weavec 0.1.0-rc.2` on the first line, followed by the language specification version (`v0.1`) and the tool features. Then compile a file:
+prints `weavec 0.1.0-rc.3` on the first line, followed by the language specification version (`v0.1`) and the tool features. Then compile a file:
 
 ```bash
 printf 'bind c = #0b5fff;\nrule .a { color: #{c}; }\n' | weavec build -
@@ -67,7 +67,7 @@ A release will attach one archive per tested platform, a `SHA256SUMS` file and a
 
 ```bash
 sha256sum --check --ignore-missing SHA256SUMS         # macOS: shasum -a 256 --check
-gh attestation verify weavec-0.1.0-rc.2-x86_64-unknown-linux-gnu.tar.gz --repo ahmadmirzamasood/weave-css
+gh attestation verify weavec-0.1.0-rc.3-x86_64-unknown-linux-gnu.tar.gz --repo ahmadmirzamasood/weave-css
 ```
 
 The archives contain the `weavec` binary, `LICENSE`, `THIRD-PARTY-NOTICES.md` and `README.md`. The procedure that produces them is in [RELEASING.md](RELEASING.md).
@@ -75,7 +75,7 @@ The archives contain the `weavec` binary, `LICENSE`, `THIRD-PARTY-NOTICES.md` an
 ## From crates.io (after publication)
 
 ```bash
-cargo install weave-css --version 0.1.0-rc.2 --locked
+cargo install weave-css --version 0.1.0-rc.3 --locked
 ```
 
 The package is called `weave-css` and installs the `weavec` binary. The library is the separate package `weave-compiler` ([Library API](LIBRARY.md)). Pre-release versions are installed only when you name the version, as above.

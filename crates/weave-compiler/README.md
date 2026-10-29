@@ -2,7 +2,7 @@
 
 The compiler library behind the [Weave](https://github.com/ahmadmirzamasood/weave-css) stylesheet language. It compiles `.weave` source to standard CSS and optionally an ECMA-426 source map. It is pure Rust, has no dependencies, forbids `unsafe` code, and performs no filesystem, network, environment or clock access: module files are read through a `ModuleResolver` you provide.
 
-This is a **release candidate (0.1.0-rc.2)**. The API may change before 1.0 (see the [compatibility policy](https://github.com/ahmadmirzamasood/weave-css/blob/main/docs/COMPATIBILITY-POLICY.md)). The minimum supported Rust version is 1.85.
+This is a **release candidate (0.1.0-rc.3)**. The API may change before 1.0 (see the [compatibility policy](https://github.com/ahmadmirzamasood/weave-css/blob/main/docs/COMPATIBILITY-POLICY.md)). The minimum supported Rust version is 1.85.
 
 ```rust
 use weave_compiler::{compile, CompileOptions, MemoryResolver, ModuleId};

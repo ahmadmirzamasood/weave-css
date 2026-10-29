@@ -207,12 +207,12 @@ fn render(diags: &[Diagnostic], sources: &SourceManager) -> String {
 
 #[test]
 fn css_fixtures() {
-    exact_fixtures("css", 30);
+    exact_fixtures("css", 29);
 }
 
 #[test]
 fn values_fixtures() {
-    exact_fixtures("values", 14);
+    exact_fixtures("values", 16);
 }
 
 #[test]

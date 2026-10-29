@@ -2,10 +2,10 @@
 
 Installs the `weavec` command, the command-line compiler for the [Weave](https://github.com/ahmadmirzamasood/weave-css) stylesheet language. It compiles `.weave` files to standard CSS, with source maps, JSON diagnostics, dependency lists and a polling `watch` mode. Pure Rust, no runtime dependencies.
 
-This is a **release candidate (0.1.0-rc.2)**. The minimum supported Rust version is 1.85.
+This is a **release candidate (0.1.0-rc.3)**. The minimum supported Rust version is 1.85.
 
 ```bash
-cargo install weave-css --version 0.1.0-rc.2 --locked
+cargo install weave-css --version 0.1.0-rc.3 --locked
 weavec --version
 weavec build styles/main.weave -o site.css --source-map
 ```

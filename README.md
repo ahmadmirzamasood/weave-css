@@ -2,7 +2,7 @@
 
 Weave is a stylesheet language that compiles `.weave` files to standard CSS. The compiler and command line are written in Rust, with no JavaScript, C or C++ runtime and no third-party Rust dependencies. Weave is designed independently; it is not compatible with Sass, Less or other preprocessors.
 
-**Status: release candidate 0.1.0-rc.2.** The v0.1 language is implemented, with the exception of the `color` built-ins (they report error E5001, never silently). Nothing has been published to a package registry yet. The grammar and the library API are not declared stable before 1.0; read the [compatibility policy](docs/COMPATIBILITY-POLICY.md) and the [release notes](docs/RELEASE-NOTES-0.1.0-rc.2.md) before depending on it. Weave and `.weave` are the project's names; the [installation guide](docs/INSTALL.md#binary-name-collisions) lists existing tools that also use `weave`.
+**Status: release candidate 0.1.0-rc.3.** The v0.1 language is fully implemented, including the `color` built-ins. Nothing has been published to a package registry yet. The grammar and the library API are not declared stable before 1.0; read the [compatibility policy](docs/COMPATIBILITY-POLICY.md) and the [release notes](docs/RELEASE-NOTES-0.1.0-rc.3.md) before depending on it. Weave and `.weave` are the project's names; the [installation guide](docs/INSTALL.md#binary-name-collisions) lists existing tools that also use `weave`.
 
 ```weave
 bind brand = #0b5fff;
@@ -86,7 +86,7 @@ Details, supported platforms and verification steps: [docs/INSTALL.md](docs/INST
 | [Editor support](editors/README.md) | Syntax highlighting (not a language server) |
 | [Compatibility policy](docs/COMPATIBILITY-POLICY.md) | What may change before 1.0 |
 | [Benchmarks](docs/BENCHMARKS.md) | Method and one-machine results |
-| [Release notes](docs/RELEASE-NOTES-0.1.0-rc.2.md), [changelog](CHANGELOG.md) | What is in this candidate and its limits |
+| [Release notes](docs/RELEASE-NOTES-0.1.0-rc.3.md), [changelog](CHANGELOG.md) | What is in this candidate and its limits |
 | [Releasing](docs/RELEASING.md) | Maintainer procedure, verification, rollback |
 
 ## Project

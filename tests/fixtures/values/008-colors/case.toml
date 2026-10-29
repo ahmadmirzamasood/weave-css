@@ -1,0 +1,4 @@
+description = "The color built-ins: color.rgb with unitless and percentage channels, clamping, ties rounded toward +infinity and an alpha argument; color.mix with the default and explicit weights; channel and alpha accessors; named arguments; results equal to the literal with the same channels."
+spec = ["TYPES.md 4", "TYPES.md 9", "BUILTINS.md color"]
+expect = "css"
+validation = "independent"

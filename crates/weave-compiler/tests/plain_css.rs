@@ -366,12 +366,14 @@ fn keyword_function_tokens_start_statements() {
 #[test]
 fn nothing_unsupported_is_silently_dropped() {
     // Every compile-time construct either compiles or is reported.
+    // The `color` built-ins are implemented since 0.1.0-rc.3.
     for source in [
         "rule a { b: #{color.rgb(1, 2, 3)}; }",
         "bind x = color.mix(#000, #fff);",
     ] {
-        assert!(
-            codes(source.as_bytes(), &CompileOptions::default()).contains(&Code::E5001),
+        assert_eq!(
+            codes(source.as_bytes(), &CompileOptions::default()),
+            [],
             "{source}"
         );
     }

@@ -468,7 +468,6 @@ fn builtin_errors() {
         ),
         ("bind x = map.get({}, 1, 0);", Code::E4005),
         ("bind x = list.len(\"abc\");", Code::E4005),
-        ("bind x = color.rgb(1, 2, 3);", Code::E5001),
         ("bind x = math.round();", Code::E4001),
         ("bind x = meta.type(1, 2);", Code::E4004),
     ] {
@@ -490,7 +489,7 @@ fn builtins_reference_matches_the_prelude() {
         .filter_map(|l| l.strip_prefix("### `"))
         .filter_map(|l| l.split('(').next())
         .collect();
-    assert!(documented.len() >= 36, "{documented:?}");
+    assert!(documented.len() >= 42, "{documented:?}");
     for name in &documented {
         let probe = format!("bind x = {name}();");
         let found = codes(&probe);
@@ -503,12 +502,12 @@ fn builtins_reference_matches_the_prelude() {
             "{name} is documented as implemented but reports E5001"
         );
     }
-    for namespace in ["css", "math", "list", "map", "string", "meta"] {
+    for namespace in ["css", "math", "list", "map", "string", "color", "meta"] {
         for member in [
             "space", "comma", "slash", "ident", "fragment", "round", "floor", "ceil", "abs", "min",
             "max", "clamp", "unit", "value", "convert", "len", "append", "concat", "slice",
             "contains", "has", "get", "set", "remove", "merge", "keys", "values", "upper", "lower",
-            "join", "type",
+            "join", "type", "rgb", "mix", "red", "green", "blue", "alpha",
         ] {
             let name = format!("{namespace}.{member}");
             if !codes(&format!("bind x = {name}();")).contains(&Code::E7003) {

@@ -1,0 +1,10 @@
+bind a = color.rgb(1px, 2, 3);
+bind b = color.rgb(1, 2, 3, 0.5s);
+bind c = color.mix(#fff, #000, 2);
+bind d = color.mix(#fff, #000, -10%);
+bind e = color.mix(#fff, #000, 1px);
+bind f = color.red(1);
+bind g = color.alpha("x");
+bind h = color.rgb(1, 2);
+bind i = color.mix(#fff);
+bind j = color.rgb(1, 2, 3, 1, 1);

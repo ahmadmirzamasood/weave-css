@@ -41,7 +41,6 @@ pub struct Compilation {
 /// This build compiles the Weave language of LANGUAGE.md: CSS with `rule`
 /// blocks, bindings, expressions, `#{…}` interpolation, functions, control
 /// flow, recipes, nesting, modules and the built-ins of docs/BUILTINS.md.
-/// The `color` built-ins are reported as E5001 instead of being ignored.
 pub fn compile(
     entry: &ModuleId,
     resolver: &mut dyn ModuleResolver,

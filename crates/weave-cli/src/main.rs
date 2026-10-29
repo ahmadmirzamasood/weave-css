@@ -74,8 +74,7 @@ Limits and defaults:
   {limits}
 
 Status: release candidate. This build compiles the Weave v0.1 language
-(docs/LANGUAGE.md) except the `color` built-ins, which fail with error
-E5001 (not implemented in this release).
+(docs/LANGUAGE.md).
 
 Outputs are written only after a successful build, through a temporary file
 renamed over the target; a failed build leaves earlier output untouched.
@@ -93,7 +92,7 @@ Exit status: 0 success, 1 compilation failed or output not written,
 fn version() -> String {
     format!(
         "weavec {VERSION}\nlanguage specification: v{LANGUAGE_VERSION}\n\
-         compilation: Weave v0.1 except the `color` built-ins (E5001)\n\
+         compilation: Weave v0.1\n\
          tools: build, check, watch (polling), source maps (ECMA-426), JSON diagnostics\n"
     )
 }

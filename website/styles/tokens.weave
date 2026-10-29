@@ -1,0 +1,31 @@
+/* Design tokens for the Weave website. Compiled by weavec; see scripts/build-css.mjs. */
+
+export bind palette = {
+    paper: #fbf8f1,
+    surface: #ffffff,
+    ink: #1c1a17,
+    muted: #5f594e,
+    faint: #8c8576,
+    line: #e6dfd0,
+    accent: #0b6b63,
+    accent-deep: #084d47,
+    accent-soft: #dff1ee,
+    highlight: #f2b84b,
+    code: #f4f0e6,
+    danger: #b42318
+};
+
+export bind unit = 4px;
+export bind radius = 10px;
+export bind radius-lg = 16px;
+export bind measure = 74rem;
+export bind prose-measure = 48rem;
+
+export fn space(n: number) -> length {
+    yield unit * n;
+}
+
+/* Fluid type: the bounds and slope are computed here, the clamp() stays CSS. */
+export fn fluid(min: length, slope: number, max: length) -> css {
+    yield `clamp(#{min}, #{slope * 1vw}, #{max})`;
+}

@@ -1,0 +1,122 @@
+---
+import { Code } from 'astro:components';
+import Base from '../layouts/Base.astro';
+import { REPO } from '../data/docs-tree.mjs';
+import { weaveLang } from '../data/weave-lang.mjs';
+
+const weaveSrc = `bind brand = #0b5fff;
+bind steps = [4px, 8px, 16px];
+
+fn space(n: number) -> length {
+    yield 4px * n;
+}
+
+recipe card(pad: length = space(4)) {
+    padding: #{pad};
+    border-radius: 6px;
+}
+
+rule .button {
+    apply card();
+    background: #{brand};
+    rule &:hover { opacity: 0.9; }
+}
+
+each i, step in steps {
+    rule .gap-#{i} { gap: #{step}; }
+}`;
+
+const cssSrc = `.button {
+  padding: 16px;
+  border-radius: 6px;
+  background: #0b5fff;
+}
+
+.button:hover {
+  opacity: 0.9;
+}
+
+.gap-0 {
+  gap: 4px;
+}
+
+.gap-1 {
+  gap: 8px;
+}
+
+.gap-2 {
+  gap: 16px;
+}`;
+
+
+const features = [
+  { h: 'Plain CSS stays plain', p: 'Declarations, custom properties and unknown at-rules pass through untouched, and opaque blocks are emitted verbatim. A bare word in a value is always CSS.' },
+  { h: 'A real language', p: 'Immutable bindings, typed functions, conditions, loops, reusable recipes with content blocks, modules, and a library for math, lists, maps, strings and colors.' },
+  { h: 'Safe by construction', p: 'Interpolated values are escaped for where they land and cannot change CSS structure. Every resource has a limit and fails with a diagnostic.' },
+  { h: 'Deterministic builds', p: 'Same input, same bytes. Stable error codes, human or JSON diagnostics, ECMA-426 source maps and dependency lists.' },
+  { h: 'Pure Rust', p: 'No JavaScript, C or C++ runtime and no third-party Rust dependencies: one native binary, plus a library crate for your own tools.' },
+  { h: 'Docs that are tested', p: 'Every example in the README and tutorial is compiled by the test suite, so what the docs show is what the compiler produces.' },
+];
+
+const map = [
+  { h: 'Install', p: 'Cargo, a prebuilt binary, or build from source.', href: '/install/' },
+  { h: 'Learn Weave', p: 'Bindings, recipes, nesting and modules by example.', href: '/guide/' },
+  { h: 'Playground', p: 'Edit Weave and watch the CSS change.', href: '/playground/' },
+  { h: 'Documentation', p: 'Language reference, built-ins, CLI and library API.', href: '/docs/' },
+  { h: 'Blog', p: 'Release announcements and project news.', href: '/blog/' },
+  { h: 'Get involved', p: 'Report bugs, add fixtures, propose language changes.', href: '/community/' },
+];
+---
+
+<Base title="Weave: a stylesheet language that compiles to CSS">
+  <main id="main">
+    <section class="hero">
+      <div class="wrap">
+        <div>
+          <a class="chip" href="/blog/weave-0-1-0-rc-3/">0.1.0-rc.3 release candidate</a>
+          <h1>Stylesheets with a <em>real language</em> inside.</h1>
+          <p class="lead">Weave compiles <code>.weave</code> files to standard CSS. Bindings, functions, loops, recipes and modules run at build time. What you ship is plain CSS.</p>
+          <div class="actions">
+            <a class="btn primary" href="/install/">Install Weave</a>
+            <a class="btn" href="/guide/">Learn the language</a>
+          </div>
+          <div class="install-line">cargo install weave-css --version 0.1.0-rc.3 --locked</div>
+        </div>
+        <div class="hero-card">
+          <div class="part">
+            <header><i></i><i></i><i></i><b>styles.weave</b></header>
+            <Code code={weaveSrc} lang={weaveLang} theme="github-light" />
+          </div>
+          <div class="part">
+            <header><i></i><i></i><i></i><b>site.css</b></header>
+            <Code code={cssSrc} lang="css" theme="github-light" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="wrap">
+      <div class="features">
+        {features.map((f, i) => (
+          <div class="feature"><p class="num">{String(i + 1).padStart(2, '0')}</p><h2>{f.h}</h2><p>{f.p}</p></div>
+        ))}
+      </div>
+
+      <section class="block">
+        <h2>Find your way around</h2>
+        <p class="sub">Install it, learn it by example, try it, then dig into the reference.</p>
+        <div class="map">
+          {map.map((m) => <a href={m.href}><h3>{m.h}</h3><p>{m.p}</p></a>)}
+        </div>
+      </section>
+
+      <section class="block">
+        <div class="banner">
+          <strong>Release candidate.</strong> The grammar and library API are not declared stable before 1.0. Read the
+          <a href="/docs/compatibility-policy/">compatibility policy</a> and the
+          <a href="/docs/release-notes/">release notes</a> before depending on it.
+        </div>
+      </section>
+    </div>
+  </main>
+</Base>

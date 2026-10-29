@@ -1,0 +1,39 @@
+/* Reusable rule fragments for the website stylesheet. */
+load "./tokens.weave" as t;
+
+export recipe container(max: length = t.measure) {
+    width: 100%;
+    max-width: #{max};
+    margin-inline: auto;
+    padding-inline: #{t.space(6)};
+}
+
+export recipe eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--c-accent);
+}
+
+export recipe panel(pad: length = t.space(5)) {
+    background: var(--c-surface);
+    border: 1px solid var(--c-line);
+    border-radius: #{t.radius};
+    padding: #{pad};
+}
+
+export recipe focus-ring {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+}
+
+export recipe label-caps {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--c-faint);
+}
